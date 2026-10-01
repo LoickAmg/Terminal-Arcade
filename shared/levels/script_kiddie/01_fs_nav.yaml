@@ -5,6 +5,7 @@ tier: script_kiddie
 tree: file_system_ninja
 type: classic
 replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 120, par_s: 50 }
 intro: "Navigation de base : savoir où l'on est, voir ce qu'il y a autour, se déplacer."
 questions:
   - kind: command

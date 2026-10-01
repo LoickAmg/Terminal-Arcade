@@ -1,0 +1,66 @@
+id: sk_rush_01
+title: "Contre la montre"
+hook: "Tu pars en retard. Rattrape ton temps en enchaînant les bonnes réponses."
+tier: script_kiddie
+tree: file_system_ninja
+type: timer
+replay: { chaos: true, timer: false }
+timer: { mode: buyback, duration_s: 90, deficit_s: 30, par_s: 60 }
+intro: "Révision express du palier. Chaque bonne réponse du premier coup te rend du temps : reviens à 1:30 avant la fin."
+questions:
+  - kind: command
+    prompt: "Retourne dans ton dossier personnel."
+    accept: ["cd", "cd ~", "cd $HOME"]
+    output: ""
+    hints:
+      - text: "cd tout seul suffit."
+
+  - kind: command
+    prompt: "Compte les lignes de access.log."
+    accept: ["wc -l access.log"]
+    output: "10001 access.log"
+    hints:
+      - text: "wc avec l'option qui compte les lignes."
+
+  - kind: mcq
+    prompt: "Quelle commande liste un dossier avec les détails (droits, taille, date) ?"
+    choices: ["ls -l", "ls -a", "cat -l", "pwd -l"]
+    answer: 1
+
+  - kind: command
+    prompt: "Affiche les 3 premières lignes de journal.log."
+    accept: ["head -n 3 journal.log", "head -n3 journal.log", "head -3 journal.log"]
+    output: |
+      08:00 démarrage
+      08:01 connexion base OK
+      08:02 cache chargé
+    hints:
+      - text: "head avec -n et un nombre."
+
+  - kind: predict
+    prompt: "Qu'affiche cette commande ?"
+    code: "echo bonjour | grep -c o"
+    accept: ["1"]
+    explain: "grep -c compte les lignes qui contiennent o, pas les lettres : une seule ligne ici."
+
+  - kind: command
+    prompt: "Cherche ERROR dans journal.log, quelle que soit la casse."
+    accept:
+      - "grep -i ERROR journal.log"
+      - "grep -i error journal.log"
+      - "grep --ignore-case ERROR journal.log"
+      - "grep --ignore-case error journal.log"
+    output: "08:14 Error: disque presque plein"
+
+  - kind: trap
+    prompt: "Tu veux ajouter une ligne à la fin de notes.txt sans rien perdre. Laquelle est sûre ?"
+    choices:
+      - "echo ok > notes.txt"
+      - "echo ok >> notes.txt"
+      - "cat notes.txt > notes.txt"
+      - "rm notes.txt"
+    answer: 2
+    explain: ">> ajoute à la fin ; > remplace tout le contenu du fichier."
+
+rewards:
+  xp: 180

@@ -83,7 +83,7 @@ describe("progression", () => {
     let progress = recordRun(EMPTY_PROGRESS, level, { xp: 200, passed: true });
     progress = recordRun(progress, level, { xp: 150, passed: false });
     expect(isUnlocked(next, levels, progress)).toBe(true);
-    expect(progress.levels.test_01).toEqual({ status: "passed", bestXp: 200 });
+    expect(progress.levels.test_01).toEqual({ status: "passed", bestXp: 200, modes: ["classic"] });
     expect(progress.xpByTree.file_system_ninja).toBe(200);
   });
 });
@@ -92,7 +92,7 @@ describe("niveaux fournis", () => {
   const levels = loadLevels(join(import.meta.dirname, "..", "levels"));
 
   it("sont tous valides", () => {
-    expect(levels.length).toBeGreaterThanOrEqual(3);
+    expect(levels.length).toBeGreaterThanOrEqual(4);
   });
 
   it("acceptent chacun leur première réponse attendue", () => {

@@ -2,8 +2,12 @@ import { TIERS, type Level, type Tier, type Tree } from "./schema";
 
 export type LevelStatus = "new" | "attempted" | "passed";
 
+export type PlayMode = "classic" | "timer";
+
 export type Progress = {
-  levels: Record<string, { status: LevelStatus; bestXp: number }>;
+  // modes : façons de jouer déjà réussies (absent dans les sauvegardes de
+  // la phase 1, équivalent à une liste vide).
+  levels: Record<string, { status: LevelStatus; bestXp: number; modes?: PlayMode[] }>;
   xpByTree: Partial<Record<Tree, number>>;
 };
 
@@ -42,10 +46,29 @@ export function statusOf(levelId: string, progress: Progress): LevelStatus {
   return progress.levels[levelId]?.status ?? "new";
 }
 
+/** Mode imposé par le niveau : un niveau Timer se joue toujours chronométré. */
+export function nativeMode(level: Level): PlayMode {
+  return level.type === "timer" || level.type === "chaos_timer" ? "timer" : "classic";
+}
+
+/** Un niveau classique réussi peut être rejoué en Timer s'il le prévoit. */
+export function canReplayTimer(level: Level, progress: Progress): boolean {
+  return (
+    nativeMode(level) === "classic" &&
+    level.replay.timer &&
+    !!level.timer &&
+    statusOf(level.id, progress) === "passed"
+  );
+}
+
+export function passedModes(levelId: string, progress: Progress): PlayMode[] {
+  return progress.levels[levelId]?.modes ?? [];
+}
+
 export function recordRun(
   progress: Progress,
   level: Level,
-  result: { xp: number; passed: boolean },
+  result: { xp: number; passed: boolean; mode?: PlayMode },
 ): Progress {
   const previous = progress.levels[level.id];
   const bestXp = Math.max(previous?.bestXp ?? 0, result.xp);
@@ -54,8 +77,17 @@ export function recordRun(
   const gained = bestXp - (previous?.bestXp ?? 0);
   const status: LevelStatus =
     previous?.status === "passed" || result.passed ? "passed" : "attempted";
+  const mode = result.mode ?? "classic";
+  const modes = previous?.modes ?? [];
   return {
-    levels: { ...progress.levels, [level.id]: { status, bestXp } },
+    levels: {
+      ...progress.levels,
+      [level.id]: {
+        status,
+        bestXp,
+        modes: result.passed && !modes.includes(mode) ? [...modes, mode] : modes,
+      },
+    },
     xpByTree: {
       ...progress.xpByTree,
       [level.tree]: (progress.xpByTree[level.tree] ?? 0) + gained,

@@ -5,6 +5,7 @@ tier: script_kiddie
 tree: data_surgeon
 type: classic
 replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 150, par_s: 75 }
 intro: "Chercher un mot dans un fichier, compter, et retrouver un fichier perdu."
 questions:
   - kind: command
@@ -61,3 +62,4 @@ questions:
 
 rewards:
   xp: 160
+  unlocks: sk_rush_01

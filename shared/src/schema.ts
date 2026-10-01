@@ -75,27 +75,56 @@ export const questionSchema = z
     { message: "answer dépasse le nombre de choix" },
   );
 
-export const levelSchema = z.object({
-  id: z.string().regex(/^[a-z0-9_]+$/),
-  title: z.string().min(1),
-  // Phrase d'accroche affichée sur la bannière du niveau.
-  hook: z.string().min(1),
-  tier: z.enum(TIERS),
-  tree: z.enum(TREES),
-  type: z.enum(GAME_TYPES).default("classic"),
-  replay: z
-    .object({ chaos: z.boolean().default(true), timer: z.boolean().default(false) })
-    .default({ chaos: true, timer: false }),
-  timer: z.record(z.string(), z.unknown()).optional(),
-  chaos: z.record(z.string(), z.unknown()).optional(),
-  runtime: z.enum(["browser", "docker"]).default("browser"),
-  intro: z.string().optional(),
-  questions: z.array(questionSchema).min(1),
-  rewards: z.object({
-    xp: z.number().int().positive(),
-    unlocks: z.string().optional(),
-  }),
+const timerSchema = z.object({
+  // random : le sens est tiré au lancement (rachat inclus si deficit_s > 0).
+  mode: z.enum(["countdown", "chrono", "reverse", "buyback", "random"]).default("random"),
+  // Départ du compte à rebours, limite du chrono, objectif du rachat.
+  duration_s: z.number().int().positive(),
+  // Temps de référence mesuré en jouant ; sert au bonus du chrono.
+  par_s: z.number().int().positive(),
+  // Rachat : retard de départ par rapport à duration_s.
+  deficit_s: z.number().int().nonnegative().default(0),
+  // On tape plus lentement sur téléphone.
+  mobile_multiplier: z.number().min(1).default(1.5),
 });
+
+export const levelSchema = z
+  .object({
+    id: z.string().regex(/^[a-z0-9_]+$/),
+    title: z.string().min(1),
+    // Phrase d'accroche affichée sur la bannière du niveau.
+    hook: z.string().min(1),
+    tier: z.enum(TIERS),
+    tree: z.enum(TREES),
+    type: z.enum(GAME_TYPES).default("classic"),
+    replay: z
+      .object({ chaos: z.boolean().default(true), timer: z.boolean().default(false) })
+      .default({ chaos: true, timer: false }),
+    timer: timerSchema.optional(),
+    chaos: z.record(z.string(), z.unknown()).optional(),
+    runtime: z.enum(["browser", "docker"]).default("browser"),
+    intro: z.string().optional(),
+    questions: z.array(questionSchema).min(1),
+    rewards: z.object({
+      xp: z.number().int().positive(),
+      unlocks: z.string().optional(),
+    }),
+  })
+  .refine((l) => l.timer || !(l.type === "timer" || l.type === "chaos_timer" || l.replay.timer), {
+    message: "un niveau Timer, ou rejouable en Timer, doit définir timer",
+    path: ["timer"],
+  })
+  .refine(
+    (l) =>
+      !l.timer ||
+      l.timer.mode !== "buyback" ||
+      (l.timer.deficit_s > 0 && l.timer.deficit_s < l.timer.duration_s),
+    { message: "le rachat demande 0 < deficit_s < duration_s", path: ["timer", "deficit_s"] },
+  )
+  .refine((l) => !l.timer || l.timer.par_s < l.timer.duration_s, {
+    message: "par_s doit être inférieur à duration_s",
+    path: ["timer", "par_s"],
+  });
 
 export type Tier = (typeof TIERS)[number];
 export type Tree = (typeof TREES)[number];

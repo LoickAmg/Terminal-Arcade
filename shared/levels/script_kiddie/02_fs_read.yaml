@@ -5,6 +5,7 @@ tier: script_kiddie
 tree: file_system_ninja
 type: classic
 replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 150, par_s: 70 }
 intro: "Lire un fichier entier, le début, la fin, ou le parcourir page par page."
 questions:
   - kind: command

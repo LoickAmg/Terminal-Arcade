@@ -18,6 +18,7 @@ const LINES: Record<PetReaction, string[]> = {
   sad: ["Hmm… non.", "Pas ça.", "Relis bien.", "Presque ?"],
   cheer: ["Niveau hacké !", "Trop fort.", "On enchaîne ?"],
   think: ["Tu cherches ?", "help, peut-être ?", "Hmm…"],
+  alarm: ["Le temps file !", "Vite !", "Ça devient serré."],
 };
 
 const MOODS: Record<PetReaction, PetMood> = {
@@ -25,6 +26,7 @@ const MOODS: Record<PetReaction, PetMood> = {
   sad: "sad",
   cheer: "cheer",
   think: "think",
+  alarm: "think",
 };
 
 function useReducedMotion(): boolean {
@@ -62,12 +64,24 @@ export function Pet({
   const [doneReaction, setDoneReaction] = useState<number | null>(null);
   const [asleepAt, setAsleepAt] = useState<number | null>(null);
   const busyUntil = useRef(0);
+  // Largeur de la piste, suivie pour que le compagnon reste dans le cadre
+  // quand la fenêtre change de taille.
+  const [trackWidth, setTrackWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const observer = new ResizeObserver(() => setTrackWidth(track.clientWidth));
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, []);
+  const shownX = trackWidth === null ? x : Math.max(0, Math.min(x, trackWidth - PET_WIDTH));
 
   const live = reaction && reaction.id !== doneReaction ? reaction : null;
   const asleep = asleepAt === activity;
   const mood: PetMood = live ? MOODS[live.kind] : asleep ? "sleep" : "idle";
   const bubble = live ? LINES[live.kind][live.id % LINES[live.kind].length] : null;
-  const anim = live ? (live.kind === "sad" ? "shake" : live.kind === "think" ? null : "jump") : null;
+  const anim = live ? (live.kind === "sad" || live.kind === "alarm" ? "shake" : live.kind === "think" ? null : "jump") : null;
 
   // Réactions aux réponses du joueur : affichées 1,8 s.
   useEffect(() => {
@@ -95,7 +109,7 @@ export function Pet({
       const asleep = Date.now() - activity > SLEEP_AFTER_MS;
       if (track && !asleep && Date.now() > busyUntil.current && Math.random() < 0.65) {
         const max = Math.max(0, track.clientWidth - PET_WIDTH);
-        const current = xRef.current;
+        const current = Math.min(xRef.current, max);
         const target = Math.round(Math.random() * max);
         xRef.current = target;
         setFacing(target >= current ? 1 : -1);
@@ -127,7 +141,7 @@ export function Pet({
       <div
         className="absolute bottom-0"
         style={{
-          transform: `translateX(${x}px)`,
+          transform: `translateX(${shownX}px)`,
           transition: reduced ? undefined : `transform ${walkMs}ms linear`,
         }}
       >

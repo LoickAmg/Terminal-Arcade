@@ -4,7 +4,10 @@ import { motion } from "motion/react";
 import {
   TIER_LABELS,
   TREE_LABELS,
+  canReplayTimer,
   isUnlocked,
+  nativeMode,
+  passedModes,
   statusOf,
   type Level,
   type Progress,
@@ -51,10 +54,13 @@ export function MissionBanners({
           const unlocked = isUnlocked(level, levels, progress);
           const status = STATUS[unlocked ? statusOf(level.id, progress) : "locked"];
           const tree = TREE_STYLE[level.tree];
+          const timed = nativeMode(level) === "timer";
+          const replay = canReplayTimer(level, progress);
+          const timerDone = passedModes(level.id, progress).includes("timer");
           return (
             <motion.li
               key={level.id}
-              className={OFFSETS[i % OFFSETS.length]}
+              className={`flex items-center gap-2 ${OFFSETS[i % OFFSETS.length]}`}
               initial={{ x: -60, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ type: "spring", stiffness: 420, damping: 26, delay: i * 0.05 }}
@@ -63,7 +69,7 @@ export function MissionBanners({
                 type="button"
                 disabled={!unlocked}
                 onClick={() => onRun(`open ${level.id}`)}
-                className="group edge-white block w-full text-left disabled:cursor-not-allowed"
+                className="group edge-white block min-w-0 flex-1 text-left disabled:cursor-not-allowed"
                 aria-label={`${level.title}, ${TIER_LABELS[level.tier]}, ${status.label}`}
               >
                 <div
@@ -86,12 +92,28 @@ export function MissionBanners({
                       <span className="shape-tag border border-cyan px-2 font-display text-sm tracking-wide text-cyan">
                         {TIER_LABELS[level.tier].toUpperCase()}
                       </span>
+                      {(timed || timerDone) && (
+                        <span className="shape-tag bg-warn px-2 font-display text-sm tracking-wide text-ink">
+                          {timed ? "⏱ TIMER" : "⏱ ✓"}
+                        </span>
+                      )}
                     </span>
                     <span className="block truncate font-sans text-lg font-bold text-cyan">{level.title}</span>
                     <span className="block truncate text-sm text-neutral-300">{level.hook}</span>
                   </span>
                 </div>
               </button>
+              {replay && (
+                <button
+                  type="button"
+                  onClick={() => onRun(`open ${level.id} --timer`)}
+                  className="edge-ink shrink-0"
+                  aria-label={`Rejouer ${level.title} en Timer`}
+                  title="Rejouer en Timer"
+                >
+                  <span className="shape-tag grid size-11 place-items-center bg-warn font-display text-xl text-ink">⏱</span>
+                </button>
+              )}
             </motion.li>
           );
         })}

@@ -9,6 +9,7 @@ import {
   completions,
   handleLine,
   initialState,
+  tickGame,
   promptFor,
   type GameState,
   type PetReaction,
@@ -42,14 +43,16 @@ export function Game({ levels }: { levels: Level[] }) {
   const stateRef = useRef<GameState | null>(null);
 
   useEffect(() => {
+    const touch = window.matchMedia("(pointer: coarse)").matches;
     const initial = initialState(
       load<Progress | null>("progress", null, isProgress),
       load<PetConfig | null>("pet", null, isPetConfig),
+      { mobile: touch },
     );
     stateRef.current = initial;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture unique du stockage local au montage
     setState(initial);
-    setTouchMode(window.matchMedia("(pointer: coarse)").matches);
+    setTouchMode(touch);
     setActivity(Date.now());
   }, []);
 
@@ -60,6 +63,30 @@ export function Game({ levels }: { levels: Level[] }) {
     // ne serait plus proposée au prochain lancement.
     if (!state.wizard) save("pet", state.pet);
   }, [state]);
+
+  // Horloge des parties chronométrées : on mesure le temps réellement
+  // écoulé entre deux battements, pour rester juste même si le navigateur
+  // ralentit l'intervalle (onglet en arrière-plan).
+  const timed = !!state?.active?.timer;
+  useEffect(() => {
+    if (!timed) return;
+    let last = performance.now();
+    const id = setInterval(() => {
+      const now = performance.now();
+      const current = stateRef.current;
+      const result = current ? tickGame(current, levels, now - last) : null;
+      last = now;
+      if (!result) return;
+      stateRef.current = result.state;
+      setState(result.state);
+      if (result.reaction) setReaction({ kind: result.reaction, id: Date.now() });
+      if (result.out.length > 0 && api) {
+        api.print(result.out);
+        api.showPrompt(promptFor(result.state, levels));
+      }
+    }, 200);
+    return () => clearInterval(id);
+  }, [timed, levels, api]);
 
   const onLine = useCallback(
     (line: string): LineOutcome => {
@@ -110,9 +137,19 @@ export function Game({ levels }: { levels: Level[] }) {
       case "question":
         return <QuestionPanel state={state} levels={levels} onRun={run} />;
       case "recap": {
-        const { levelId, recap, nextId } = state.screen;
+        const { levelId, recap, nextId, timer, timedOut, timerReplay } = state.screen;
         const level = levels.find((l) => l.id === levelId)!;
-        return <RecapPanel recap={recap} level={level} nextId={nextId} onRun={run} />;
+        return (
+          <RecapPanel
+            recap={recap}
+            level={level}
+            nextId={nextId}
+            timer={timer}
+            timedOut={timedOut}
+            timerReplay={timerReplay}
+            onRun={run}
+          />
+        );
       }
       case "profile":
         return <ProfilePanel state={state} levels={levels} />;

@@ -3,11 +3,15 @@
 import { AnimatePresence, motion } from "motion/react";
 import {
   TIER_LABELS,
+  TIMER_LABELS,
   TREE_LABELS,
   currentQuestion,
+  formatTime,
+  nativeMode,
   statusOf,
   type Level,
   type Recap,
+  type TimerState,
   type Tree,
 } from "@terminal-arcade/shared";
 import { KIND_LABELS, activeLevel, wizardChoices, type GameState } from "@/lib/game";
@@ -197,17 +201,32 @@ function FeedbackBubble({ state }: { state: GameState }) {
   );
 }
 
+function timeLine(timer: TimerState, timedOut: boolean): string {
+  if (timedOut) return "écoulé";
+  if (timer.mode === "chrono") return `${formatTime(timer.valueMs)} (réf. ${formatTime(timer.parMs)})`;
+  if (timer.mode === "buyback") return timer.restored ? "temps racheté" : "rachat raté";
+  return `${formatTime(timer.valueMs)} restant`;
+}
+
 export function RecapPanel({
   recap,
   level,
   nextId,
+  timer,
+  timedOut,
+  timerReplay,
   onRun,
 }: {
   recap: Recap;
   level: Level;
   nextId: string | null;
+  timer: TimerState | null;
+  timedOut: boolean;
+  timerReplay: boolean;
   onRun: Run;
 }) {
+  // Une partie Timer d'un niveau classique se rejoue avec --timer.
+  const retry = timer && nativeMode(level) === "classic" ? `open ${level.id} --timer` : `open ${level.id}`;
   return (
     <motion.div
       initial={{ scale: 0.85, rotate: -6, opacity: 0 }}
@@ -216,7 +235,7 @@ export function RecapPanel({
       className="flex flex-col gap-5"
     >
       <p className="-rotate-3 font-display text-6xl leading-none tracking-wide outlined">
-        {recap.passed ? "HACKÉ !" : "ÉCHEC"}
+        {recap.passed ? "HACKÉ !" : timedOut ? "TEMPS ÉCOULÉ" : "ÉCHEC"}
       </p>
       <BlackBubble>
         <p className="text-lg font-bold">{level.title}</p>
@@ -227,14 +246,31 @@ export function RecapPanel({
           </dd>
           <dt className="text-neutral-400">Du premier coup</dt>
           <dd className="font-bold">{recap.firstTry}</dd>
+          {timer && (
+            <>
+              <dt className="text-neutral-400">{TIMER_LABELS[timer.mode]}</dt>
+              <dd className={`font-bold ${timedOut || (timer.mode === "buyback" && !timer.restored) ? "text-red" : ""}`}>
+                {timeLine(timer, timedOut)}
+              </dd>
+            </>
+          )}
           <dt className="text-neutral-400">XP gagnée</dt>
           <dd className="font-display text-xl text-cyan">+{recap.xp}</dd>
         </dl>
-        {!recap.passed && <p className="mt-3 text-sm text-neutral-300">Il faut 60 % de bonnes réponses.</p>}
+        {!recap.passed && (
+          <p className="mt-3 text-sm text-neutral-300">
+            {timedOut
+              ? "Le temps est écoulé avant la dernière question."
+              : recap.correct >= Math.ceil(recap.total * 0.6)
+                ? "Objectif de temps manqué."
+                : "Il faut 60 % de bonnes réponses."}
+          </p>
+        )}
       </BlackBubble>
       <div className="flex flex-wrap gap-3">
         {recap.passed && nextId && <CommandChip command={`open ${nextId}`} onRun={onRun} />}
-        <CommandChip command={`open ${level.id}`} onRun={onRun} label="rejouer" />
+        {timerReplay && <CommandChip command={`open ${level.id} --timer`} onRun={onRun} label="⏱ rejouer en Timer" />}
+        <CommandChip command={retry} onRun={onRun} label="rejouer" />
         <CommandChip command="ls missions/" onRun={onRun} />
       </div>
     </motion.div>

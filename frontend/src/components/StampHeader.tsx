@@ -1,11 +1,14 @@
 import { TIER_LABELS, type Level } from "@terminal-arcade/shared";
 import { activeLevel, type GameState } from "@/lib/game";
+import { TimerDisplay } from "./TimerDisplay";
 
 // Bandeau en haut à gauche, dans l'esprit du tampon date de la messagerie :
-// palier, niveau et question en cours. Le timer s'y ajoutera en phase 2.
+// palier, niveau et question en cours ; à droite, le timer des parties
+// chronométrées, sinon l'XP totale.
 export function StampHeader({ state, levels }: { state: GameState; levels: Level[] }) {
   const level = activeLevel(state, levels);
-  const run = state.active?.run;
+  const active = state.active;
+  const run = active?.run;
   const totalXp = Object.values(state.progress.xpByTree).reduce((a, b) => a + (b ?? 0), 0);
 
   const big = level ? TIER_LABELS[level.tier].toUpperCase() : state.wizard ? "PET INIT" : "LOBBY";
@@ -21,11 +24,15 @@ export function StampHeader({ state, levels }: { state: GameState; levels: Level
           {small}
         </p>
       </div>
-      <p className="edge-ink mt-1 shrink-0">
-        <span className="shape-tag block bg-ink px-3 py-1 font-display text-lg tracking-wide text-cyan">
-          {totalXp} XP
-        </span>
-      </p>
+      {active?.timer ? (
+        <TimerDisplay timer={active.timer} lastDelta={active.lastDelta} />
+      ) : (
+        <p className="edge-ink mt-1 shrink-0">
+          <span className="shape-tag block bg-ink px-3 py-1 font-display text-lg tracking-wide text-cyan">
+            {totalXp} XP
+          </span>
+        </p>
+      )}
     </header>
   );
 }
