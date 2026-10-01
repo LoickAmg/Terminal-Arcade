@@ -452,11 +452,16 @@ export function sandboxReady(state: GameState): LineResult {
 
 /** La sandbox n'a pas pu démarrer ou s'est arrêtée : retour au lobby. */
 export function sandboxFailed(state: GameState, reason: string): LineResult {
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
   return {
     state: { ...state, active: null, feedback: null, screen: { kind: "missions" } },
     out: [
-      ansi.red(`⚙ Sandbox indisponible : ${reason}`),
-      ansi.dim("Lance le serveur avec : npm run sandbox (Docker doit tourner)."),
+      ansi.red(`⚙ Sandbox indisponible : ${offline ? "tu es hors ligne" : reason}`),
+      ansi.dim(
+        offline
+          ? "Les défis réels demandent le serveur de sandbox. Le palier Script Kiddie reste jouable hors ligne."
+          : "Lance le serveur avec : npm run sandbox (Docker doit tourner).",
+      ),
     ],
     reaction: "sad",
   };

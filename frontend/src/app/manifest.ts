@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
-// Rend le jeu installable (écran d'accueil du téléphone, plein écran).
-// Le mode hors ligne (service worker) viendra avec Serwist.
+// Rend le jeu installable (écran d'accueil du téléphone, plein écran). Le
+// mode hors ligne est assuré par public/sw.js.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Terminal Arcade",

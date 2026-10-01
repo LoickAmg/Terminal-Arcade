@@ -60,7 +60,9 @@ npm install
 npm run dev
 ```
 
-Puis ouvrir `http://localhost:3000`. Le palier Script Kiddie fonctionne seul.
+Puis ouvrir `http://localhost:3000`. Le palier Script Kiddie fonctionne seul,
+et hors ligne une fois le jeu chargé (service worker `public/sw.js`, actif
+en production seulement : `npm run build`, puis `npm run start -w frontend`).
 
 ### Défis réels (sandbox Docker)
 
@@ -129,5 +131,5 @@ attendue de chaque question est bien acceptée.
 2. Timer (compte à rebours ou chrono, reverse, rachat) — fait
 3. Chaos (sabotages d'Arcade) — fait
 4. Docker (défis réels, paliers SysAdmin et Root Wizard, environnement hostile) — fait
-5. Extensions — parcours Git-Gud, style Persona et PowerShell faits ; restent
-   le mode hors ligne (PWA) et l'ouverture au public (revue de sécurité)
+5. Extensions — parcours Git-Gud, style Persona, PowerShell et mode hors ligne
+   faits ; reste l'ouverture au public (voir SECURITY.md)
