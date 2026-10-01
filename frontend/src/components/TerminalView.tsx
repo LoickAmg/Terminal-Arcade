@@ -18,6 +18,13 @@ export type TerminalApi = {
   interrupt: () => void;
   focus: () => void;
   history: () => string[];
+  /**
+   * Mode sandbox : les frappes partent vers le shell distant au lieu de
+   * l'éditeur de ligne local (null = retour au terminal du jeu).
+   */
+  setRemote: (remote: { send: (data: string) => void; resize: (cols: number, rows: number) => void } | null) => void;
+  /** Sortie brute du shell distant. */
+  writeRemote: (data: string) => void;
 };
 
 type Props = {
@@ -85,8 +92,10 @@ export default function TerminalView({ onReady, onLine, completer, filterInput, 
 
     let editor: EditorState = createEditor(load("history", [], isStringArray));
     let prompt = "";
+    let remote: Parameters<TerminalApi["setRemote"]>[0] = null;
 
     const render = () => {
+      if (remote) return;
       const chars = Array.from(editor.buffer);
       const back = chars.length - editor.cursor;
       term.write(`\r\x1b[2K${prompt}${editor.buffer}${back > 0 ? `\x1b[${back}D` : ""}`);
@@ -148,11 +157,18 @@ export default function TerminalView({ onReady, onLine, completer, filterInput, 
 
     const dataSub = term.onData((data) => {
       const allowed = filterRef.current(data);
-      if (allowed) handleData(allowed);
+      if (!allowed) return;
+      if (remote) remote.send(allowed);
+      else handleData(allowed);
     });
 
     const api: TerminalApi = {
       print: (lines) => {
+        if (remote) {
+          // Messages du jeu au milieu du shell distant : sur leurs propres lignes.
+          term.write(`\r\n${lines.join("\r\n")}\r\n`);
+          return;
+        }
         // Écrit au-dessus de l'invite en cours, puis la réaffiche.
         term.write("\r\x1b[2K");
         print(lines);
@@ -160,6 +176,10 @@ export default function TerminalView({ onReady, onLine, completer, filterInput, 
       },
       showPrompt,
       run: (line) => {
+        if (remote) {
+          remote.send(`${line}\r`);
+          return;
+        }
         editor = setBuffer(editor, line);
         render();
         handleData("\r");
@@ -167,11 +187,19 @@ export default function TerminalView({ onReady, onLine, completer, filterInput, 
       interrupt: () => handleData("\x03"),
       focus: () => term.focus(),
       history: () => editor.history,
+      setRemote: (next) => {
+        remote = next;
+        term.write("\r\n");
+        if (remote) remote.resize(term.cols, term.rows);
+        else render();
+      },
+      writeRemote: (data) => term.write(data),
     };
 
     const resize = () => {
       try {
         fit.fit();
+        remote?.resize(term.cols, term.rows);
       } catch {
         // Conteneur masqué (largeur nulle) : on réessaiera au prochain resize.
       }

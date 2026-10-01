@@ -1,0 +1,77 @@
+id: gg_git_01
+title: "Premier commit"
+hook: "Git-Gud commence ici : un dépôt, des commits, des branches."
+tier: sysadmin
+tree: git_gud
+runtime: docker
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 420, par_s: 200 }
+intro: "Parcours Git-Gud. Git est déjà configuré à ton nom (agent)."
+setup: |
+  git config --global user.name agent
+  git config --global user.email agent@sandbox
+  git config --global init.defaultBranch main
+  mkdir -p ~/projet
+  echo "# Projet" > ~/projet/README.md
+questions:
+  - kind: task
+    prompt: "Transforme le dossier projet en dépôt Git."
+    check: '[ -d ~/projet/.git ]'
+    solution: "cd projet && git init"
+    solve: |
+      cd ~/projet && git init -q
+    hints:
+      - text: "git init, dans le dossier."
+
+  - kind: task
+    prompt: "Ajoute README.md et fais un premier commit."
+    check: 'git -C ~/projet ls-files | grep -qx README.md && git -C ~/projet log -1 >/dev/null 2>&1'
+    solution: "git add README.md && git commit -m \"Premier commit\""
+    solve: |
+      cd ~/projet && git add README.md && git commit -qm "Premier commit"
+    hints:
+      - text: "git add prépare le fichier, git commit -m \"message\" l'enregistre."
+
+  - kind: task
+    prompt: "Crée une branche nommée feature et place-toi dessus."
+    check: '[ "$(git -C ~/projet branch --show-current 2>/dev/null)" = feature ]'
+    solution: "git switch -c feature"
+    solve: |
+      cd ~/projet && git switch -qc feature
+    hints:
+      - text: "git switch -c crée la branche et s'y place."
+
+  - kind: task
+    prompt: "Sur feature, modifie README.md puis commite. Le commit doit être sur feature, pas sur main."
+    check: '[ "$(git -C ~/projet rev-list --count main..feature 2>/dev/null)" -ge 1 ]'
+    solution: "echo \"Nouveauté\" >> README.md && git commit -am \"Nouveauté\""
+    solve: |
+      cd ~/projet && echo nouveau >> README.md && git commit -qam "Nouveauté"
+
+  - kind: task
+    prompt: "Reviens sur main et fusionne feature dedans."
+    check: '[ "$(git -C ~/projet branch --show-current)" = main ] && git -C ~/projet merge-base --is-ancestor feature main'
+    solution: "git switch main && git merge feature"
+    solve: |
+      cd ~/projet && git switch -q main && git merge -q feature
+
+  - kind: task
+    prompt: "Dans le dépôt coffre, un ancien commit a pour message « secret: <flag> ». Retrouve le flag et envoie-le avec submit."
+    flag: true
+    setup: |
+      rm -rf ~/coffre && mkdir ~/coffre && cd ~/coffre && git init -q
+      for i in $(seq 1 12); do
+        echo "version $i" > app.txt && git add app.txt
+        if [ "$i" = 5 ]; then git commit -qm "secret: $FLAG"; else git commit -qm "mise à jour $i"; fi
+      done
+    check: 'answer-is "$FLAG"'
+    solution: "git -C coffre log --grep secret"
+    solve: |
+      submit "$(git -C ~/coffre log --grep secret --format=%s | sed 's/secret: //')"
+    hints:
+      - text: "git log --grep cherche dans les messages de commit."
+
+rewards:
+  xp: 340
+  unlocks: rw_proc_01

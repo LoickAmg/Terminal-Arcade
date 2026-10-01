@@ -1,0 +1,71 @@
+id: sa_text_01
+title: "Chirurgie de logs"
+hook: "Des milliers de lignes, une seule vérité. Découpe, trie, compte."
+tier: sysadmin
+tree: data_surgeon
+runtime: docker
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 360, par_s: 180 }
+intro: "Les réponses chiffrées s'envoient avec submit <réponse>."
+setup: |
+  for i in $(seq 1 200); do
+    echo "2026-10-01 10:$(printf %02d $((i % 60))) 10.0.0.$((i % 7 + 1)) GET /page$((i % 5)) 200"
+  done > ~/access.log
+  for i in 1 2 3 4 5; do echo "2026-10-01 10:59 10.0.0.3 GET /favori 200"; done >> ~/access.log
+  echo "2026-10-01 11:00 10.0.0.66 POST /admin 403" >> ~/access.log
+  printf 'INFO démarrage\nERROR disque plein\nINFO reprise\nERROR timeout base\nERROR disque plein\n' > ~/app.log
+questions:
+  - kind: task
+    prompt: "Combien d'adresses IP différentes apparaissent dans access.log (3e colonne) ? Envoie le nombre avec submit."
+    check: 'answer-is "$(awk "{print \$3}" ~/access.log | sort -u | wc -l)"'
+    solution: "awk '{print $3}' access.log | sort -u | wc -l, puis submit 8"
+    solve: |
+      submit "$(awk '{print $3}' ~/access.log | sort -u | wc -l)"
+    hints:
+      - text: "awk '{print $3}' extrait la 3e colonne ; sort -u trie sans doublon."
+
+  - kind: task
+    prompt: "Écris dans ips.txt la liste des IP, triées et sans doublon, une par ligne."
+    check: 'diff -q <(awk "{print \$3}" ~/access.log | sort -u) ~/ips.txt >/dev/null 2>&1'
+    solution: "awk '{print $3}' access.log | sort -u > ips.txt"
+    solve: |
+      awk '{print $3}' ~/access.log | sort -u > ~/ips.txt
+    hints:
+      - text: "Même pipeline qu'avant, avec > pour écrire dans un fichier."
+
+  - kind: task
+    prompt: "Dans app.log, remplace toutes les occurrences de ERROR par ERREUR, directement dans le fichier."
+    check: '! grep -q ERROR ~/app.log && [ "$(grep -c ERREUR ~/app.log)" = 3 ]'
+    solution: "sed -i 's/ERROR/ERREUR/g' app.log"
+    solve: |
+      sed -i 's/ERROR/ERREUR/g' ~/app.log
+    hints:
+      - text: "sed -i modifie le fichier sur place ; s/ancien/nouveau/g remplace partout."
+    variant:
+      kind: task
+      prompt: "Dans app.log, supprime toutes les lignes qui commencent par INFO, directement dans le fichier."
+      check: '! grep -q "^INFO" ~/app.log && grep -q "disque plein" ~/app.log'
+      solution: "sed -i '/^INFO/d' app.log"
+      solve: |
+        sed -i '/^INFO/d' ~/app.log
+
+  - kind: task
+    prompt: "Une requête a été refusée (code 403). Quelle IP l'a faite ? Envoie-la avec submit."
+    check: 'answer-is 10.0.0.66'
+    solution: "grep 403 access.log, puis submit 10.0.0.66"
+    solve: |
+      submit 10.0.0.66
+
+  - kind: task
+    prompt: "Quelle IP apparaît le plus souvent dans access.log ? Envoie-la avec submit."
+    check: 'answer-is "$(awk "{print \$3}" ~/access.log | sort | uniq -c | sort -rn | head -1 | awk "{print \$2}")"'
+    solution: "awk '{print $3}' access.log | sort | uniq -c | sort -rn | head -1"
+    solve: |
+      submit "$(awk '{print $3}' ~/access.log | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')"
+    hints:
+      - text: "uniq -c compte les lignes identiques consécutives : trie d'abord."
+
+rewards:
+  xp: 320
+  unlocks: sa_pipes_01

@@ -1,0 +1,60 @@
+id: rw_proc_01
+title: "Processus fantôme"
+hook: "Quelque chose tourne sur ce serveur. Trouve-le, arrête-le, et ce qui le protège."
+tier: root_wizard
+tree: system_overlord
+runtime: docker
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 300, par_s: 140 }
+intro: "Processus : ps, pgrep, kill, top."
+setup: |
+  mkdir -p ~/.bin
+  cp /bin/sleep ~/.bin/virus
+  cp /bin/bash ~/.bin/gardien
+  cp /usr/bin/yes ~/.bin/miner
+questions:
+  - kind: task
+    prompt: "Un processus nommé virus tourne. Trouve son PID et envoie-le avec submit."
+    setup: 'pgrep -x virus >/dev/null || setsid nohup ~/.bin/virus 100000 >/dev/null 2>&1 &'
+    check: 'answer-is "$(pgrep -x virus | head -n 1)"'
+    solution: "pgrep virus (ou ps aux | grep virus), puis submit <PID>"
+    solve: |
+      submit "$(pgrep -x virus | head -n 1)"
+    hints:
+      - text: "pgrep NOM affiche le PID des processus qui portent ce nom."
+
+  - kind: task
+    prompt: "Arrête ce processus."
+    setup: 'pgrep -x virus >/dev/null || setsid nohup ~/.bin/virus 100000 >/dev/null 2>&1 &'
+    check: '! pgrep -x virus >/dev/null'
+    solution: "kill <PID> (ou pkill virus)"
+    solve: |
+      pkill -x virus
+    hints:
+      - text: "kill PID envoie un signal d'arrêt au processus."
+
+  - kind: task
+    prompt: "Le virus revient : un processus gardien le relance chaque seconde. Arrête-les pour de bon."
+    setup: |
+      setsid nohup ~/.bin/gardien -c 'while true; do pgrep -x virus >/dev/null || setsid ~/.bin/virus 100000 >/dev/null 2>&1 & sleep 1; done' >/dev/null 2>&1 &
+    check: '! pgrep -x gardien >/dev/null && ! pgrep -x virus >/dev/null'
+    solution: "pkill gardien, puis pkill virus"
+    solve: |
+      pkill -x gardien; sleep 0.3; pkill -x virus
+    hints:
+      - text: "Arrête d'abord celui qui relance l'autre."
+
+  - kind: task
+    prompt: "Un processus monopolise le processeur. Trouve-le (top ou ps) et arrête-le."
+    setup: 'setsid nohup ~/.bin/miner >/dev/null 2>&1 &'
+    check: '! pgrep -x miner >/dev/null'
+    solution: "ps aux --sort=-%cpu | head, puis pkill miner"
+    solve: |
+      pkill -x miner
+    hints:
+      - text: "ps aux --sort=-%cpu classe les processus du plus gourmand au moins gourmand."
+
+rewards:
+  xp: 380
+  unlocks: rw_script_01

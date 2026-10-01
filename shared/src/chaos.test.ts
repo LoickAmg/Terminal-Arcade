@@ -53,8 +53,8 @@ describe("ordonnancement", () => {
   });
 
   it("un faux verdict signature est forcé dès que la pause est passée", () => {
-    const chaos = { ...createChaos(level, 7), elapsedMs: 30_000 };
-    expect(chaosOnAnswer(chaos, "script_kiddie", false).lie).toBeNull(); // false_green hors réserve
+    const chaos = { ...createChaos(level, 7), elapsedMs: 30_000, pool: ["block_key" as const] };
+    expect(chaosOnAnswer(chaos, "script_kiddie", false).lie).toBeNull(); // false_green hors réserve ici
     const r = chaosOnAnswer(chaos, "script_kiddie", true);
     expect(r.lie).toBe("false_red");
     expect(r.chaos.used).toBe(1);

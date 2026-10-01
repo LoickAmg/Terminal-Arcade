@@ -97,7 +97,9 @@ describe("niveaux fournis", () => {
 
   it("acceptent chacun leur première réponse attendue", () => {
     for (const l of levels) {
+      // Les défis de la sandbox sont testés à part, contre Docker.
       for (const q of l.questions) {
+        if (q.kind === "task") continue;
         const answer = "accept" in q ? q.accept[0] : String(q.answer);
         expect(checkAnswer(q, answer).kind, `${l.id} : ${q.prompt}`).toBe("correct");
       }

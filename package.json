@@ -4,14 +4,16 @@
   "type": "module",
   "workspaces": [
     "shared",
-    "frontend"
+    "frontend",
+    "backend"
   ],
   "scripts": {
     "dev": "npm run dev -w frontend --",
     "build": "npm run build -w frontend",
     "lint": "npm run lint -w frontend",
     "test": "vitest run",
-    "typecheck": "tsc -p shared --noEmit && tsc -p frontend --noEmit"
+    "typecheck": "tsc -p shared --noEmit && tsc -p frontend --noEmit && tsc -p backend --noEmit",
+    "sandbox": "npm run dev -w backend"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

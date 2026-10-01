@@ -31,6 +31,11 @@ questions:
     explain: "Sans option, tail affiche déjà les 10 dernières lignes."
     hints:
       - text: "Le contraire de head."
+    variant:
+      kind: command
+      prompt: "Affiche les 10 premières lignes de journal.log."
+      accept: ["head journal.log", "head -n 10 journal.log", "head -n10 journal.log", "head -10 journal.log"]
+      output: "… 10 premières lignes du journal …"
 
   - kind: mcq
     prompt: "Quelle commande permet de parcourir un long fichier page par page ?"

@@ -1,0 +1,57 @@
+id: rw_script_01
+title: "Automatise tout"
+hook: "Ce qu'on fait deux fois, on l'écrit une fois. Boucles, find, scripts."
+tier: root_wizard
+tree: system_overlord
+runtime: docker
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 420, par_s: 220 }
+intro: "Boucles bash, find, scripts exécutables et calculs."
+questions:
+  - kind: task
+    prompt: "Renomme tous les fichiers .txt du dossier rapports en .bak, avec une boucle for."
+    setup: |
+      mkdir -p ~/rapports
+      for n in janvier fevrier mars avril; do echo "$n" > ~/rapports/$n.txt; done
+    check: '[ -z "$(ls ~/rapports/*.txt 2>/dev/null)" ] && [ "$(ls ~/rapports/*.bak 2>/dev/null | wc -l)" = 4 ]'
+    solution: 'for f in rapports/*.txt; do mv "$f" "${f%.txt}.bak"; done'
+    solve: |
+      cd ~ && for f in rapports/*.txt; do mv "$f" "${f%.txt}.bak"; done
+    hints:
+      - text: '${f%.txt} retire l''extension .txt du nom contenu dans $f.'
+
+  - kind: task
+    prompt: "Supprime tous les fichiers .tmp sous le dossier chantier, à toutes les profondeurs, sans toucher aux autres."
+    setup: |
+      mkdir -p ~/chantier/x ~/chantier/y/z
+      touch ~/chantier/1.tmp ~/chantier/x/2.tmp ~/chantier/y/z/3.tmp ~/chantier/garde.txt ~/chantier/y/garde2.txt
+    check: '[ -z "$(find ~/chantier -name "*.tmp")" ] && [ -f ~/chantier/garde.txt ] && [ -f ~/chantier/y/garde2.txt ]'
+    solution: "find chantier -name '*.tmp' -delete"
+    solve: |
+      find ~/chantier -name '*.tmp' -delete
+    hints:
+      - text: "find sait supprimer ce qu'il trouve."
+
+  - kind: task
+    prompt: "Écris un script compte.sh qui affiche le nombre de lignes du fichier passé en argument, et rends-le exécutable."
+    check: |
+      cd ~ && [ -x compte.sh ] && printf 'a\nb\nc\n' > /tmp/trois && out=$(./compte.sh /tmp/trois) && [ "${out%% *}" = 3 ]
+    solution: "printf '#!/bin/bash\\nwc -l < \"$1\"\\n' > compte.sh && chmod +x compte.sh"
+    solve: |
+      printf '#!/bin/bash\nwc -l < "$1"\n' > ~/compte.sh && chmod +x ~/compte.sh
+    hints:
+      - text: "$1 contient le premier argument du script ; wc -l < fichier affiche juste le nombre."
+
+  - kind: task
+    prompt: "Écris dans total.txt la somme des nombres de nombres.txt (un par ligne)."
+    setup: 'seq 1 50 | shuf > ~/nombres.txt'
+    check: '[ "$(tr -d " \n" < ~/total.txt 2>/dev/null)" = 1275 ]'
+    solution: "awk '{s += $1} END {print s}' nombres.txt > total.txt"
+    solve: |
+      awk '{s += $1} END {print s}' ~/nombres.txt > ~/total.txt
+    hints:
+      - text: "awk peut accumuler une somme et l'afficher dans un bloc END."
+
+rewards:
+  xp: 400

@@ -1,0 +1,7 @@
+#!/bin/bash
+# Aide pour les scripts « check » : compare la réponse soumise avec submit.
+#   0 = juste, 1 = rien de soumis, 2 = réponse fausse
+f="$HOME/.arcade/submitted"
+[ -f "$f" ] || exit 1
+[ "$(cat "$f")" = "$1" ] && exit 0
+exit 2

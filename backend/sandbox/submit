@@ -1,0 +1,12 @@
+#!/bin/bash
+# Soumet une réponse ou un flag au jeu (Capture The Flag). L'arbitre du
+# serveur lit le fichier juste après la commande.
+if [ $# -eq 0 ]; then
+  echo "Usage : submit <réponse>"
+  exit 1
+fi
+mkdir -p "$HOME/.arcade"
+printf '%s' "$*" > "$HOME/.arcade/submitted"
+echo "Réponse envoyée. Verdict dans le jeu."
+# Laisse au jeu le temps d'afficher le verdict avant la nouvelle invite.
+sleep 0.4

@@ -1,4 +1,4 @@
-import { SABOTAGES, type Sabotage } from "./sabotages";
+import { HOSTILE, SABOTAGES, type Sabotage } from "./sabotages";
 import type { Level, Tier } from "./schema";
 
 // Ordonnancement des sabotages du mode Chaos. Le joueur ne choisit rien :
@@ -6,7 +6,7 @@ import type { Level, Tier } from "./schema";
 // du palier ajoute de l'imprévu, et un budget par palier dose le tout.
 // Tout est déterministe à partir d'une graine, pour pouvoir le tester.
 
-export { SABOTAGES, SABOTAGE_INFO, type Sabotage, type SabotageFamily } from "./sabotages";
+export { HOSTILE, SABOTAGES, SABOTAGE_INFO, type Sabotage, type SabotageFamily } from "./sabotages";
 
 type TierChaos = {
   // Nombre maximal de sabotages dans une partie.
@@ -20,38 +20,15 @@ type TierChaos = {
   pool: Sabotage[];
 };
 
+// Tous les paliers tirent dans la réserve complète (sabotages durs compris) ;
+// le palier ne règle que le dosage : nombre, pause minimale, fréquence. Un
+// sabotage ne se joue que s'il a un sens pour la question en cours (voir
+// eligible) : temps seulement en partie chronométrée, environnement hostile
+// seulement dans la sandbox, mutation seulement s'il existe une variante.
 export const TIER_CHAOS: Record<Tier, TierChaos> = {
-  script_kiddie: {
-    max: 3,
-    gapMs: 20_000,
-    perSecond: 0.08,
-    lieChance: 0.35,
-    pool: ["false_red", "block_key", "time_fluctuate"],
-  },
-  sysadmin: {
-    max: 5,
-    gapMs: 15_000,
-    perSecond: 0.1,
-    lieChance: 0.4,
-    pool: [
-      "false_red",
-      "block_key",
-      "close_terminal",
-      "mutation",
-      "falsify_code",
-      "time_accel",
-      "time_recul",
-      "time_freeze",
-      "time_fluctuate",
-    ],
-  },
-  root_wizard: {
-    max: 7,
-    gapMs: 10_000,
-    perSecond: 0.12,
-    lieChance: 0.45,
-    pool: [...SABOTAGES],
-  },
+  script_kiddie: { max: 4, gapMs: 18_000, perSecond: 0.08, lieChance: 0.35, pool: [...SABOTAGES] },
+  sysadmin: { max: 5, gapMs: 14_000, perSecond: 0.1, lieChance: 0.4, pool: [...SABOTAGES] },
+  root_wizard: { max: 7, gapMs: 10_000, perSecond: 0.12, lieChance: 0.45, pool: [...SABOTAGES] },
 };
 
 export type ChaosEntry = {
@@ -114,6 +91,8 @@ export type ChaosContext = {
   canBlockKey: boolean;
   // Sabotages déjà joués sur la question en cours : jamais deux fois le même.
   usedHere: Sabotage[];
+  // Partie dans la sandbox Docker (environnement hostile possible).
+  sandbox?: boolean;
 };
 
 const LIES: Sabotage[] = ["false_red", "false_green"];
@@ -122,6 +101,7 @@ function eligible(kind: Sabotage, ctx: ChaosContext): boolean {
   if (LIES.includes(kind)) return false; // les mensonges se jouent sur une réponse
   if (ctx.usedHere.includes(kind)) return false;
   if (kind.startsWith("time_")) return ctx.timed;
+  if (HOSTILE.includes(kind)) return !!ctx.sandbox;
   if (kind === "block_key") return ctx.canBlockKey;
   if (kind === "mutation") return ctx.hasVariant;
   if (kind === "falsify_code") return ctx.hasCode;

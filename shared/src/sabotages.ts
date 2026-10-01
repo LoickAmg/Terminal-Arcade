@@ -1,5 +1,6 @@
 // Catalogue des sabotages d'Arcade (mode Chaos), par famille du cahier des
-// charges. La famille « environnement hostile » arrivera avec Docker.
+// charges. La famille « environnement hostile » n'existe que dans la
+// sandbox Docker : Arcade y trafique le vrai shell du joueur.
 
 export const SABOTAGES = [
   // Doute : Arcade annonce un faux verdict.
@@ -17,11 +18,16 @@ export const SABOTAGES = [
   "time_recul", // réel : du temps est retiré
   "time_freeze", // perception : le timer semble figé
   "time_fluctuate", // perception : le timer semble avancer et reculer
+  // Environnement hostile (sandbox seulement)
+  "hostile_alias", // un alias piège remplace une commande courante
+  "hostile_path", // une fausse commande passe devant la vraie dans le PATH
+  "hostile_chmod", // un fichier du joueur perd tous ses droits
+  "hostile_decoy", // un faux flag apparaît dans le dossier personnel
 ] as const;
 
 export type Sabotage = (typeof SABOTAGES)[number];
 
-export type SabotageFamily = "doute" | "entrave" | "mutation" | "falsification" | "temps";
+export type SabotageFamily = "doute" | "entrave" | "mutation" | "falsification" | "temps" | "hostile";
 
 export const SABOTAGE_INFO: Record<Sabotage, { family: SabotageFamily; label: string }> = {
   false_red: { family: "doute", label: "faux verdict « faux »" },
@@ -34,4 +40,10 @@ export const SABOTAGE_INFO: Record<Sabotage, { family: SabotageFamily; label: st
   time_recul: { family: "temps", label: "temps retiré" },
   time_freeze: { family: "temps", label: "timer figé (illusion)" },
   time_fluctuate: { family: "temps", label: "timer instable (illusion)" },
+  hostile_alias: { family: "hostile", label: "alias piège dans le shell" },
+  hostile_path: { family: "hostile", label: "fausse commande dans le PATH" },
+  hostile_chmod: { family: "hostile", label: "fichier privé de ses droits" },
+  hostile_decoy: { family: "hostile", label: "faux flag déposé" },
 };
+
+export const HOSTILE: readonly Sabotage[] = ["hostile_alias", "hostile_path", "hostile_chmod", "hostile_decoy"];

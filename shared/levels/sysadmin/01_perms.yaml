@@ -1,0 +1,86 @@
+id: sa_perms_01
+title: "Accès refusé"
+hook: "Un vrai serveur, de vraies permissions. Rien ne se lance, rien n'est protégé."
+tier: sysadmin
+tree: file_system_ninja
+runtime: docker
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 300, par_s: 150 }
+intro: "Premier défi réel : tes commandes s'exécutent dans une sandbox Linux isolée. L'arbitre vérifie l'état du système après chaque commande."
+questions:
+  - kind: task
+    prompt: "Le script deploy.sh refuse de se lancer (Permission denied). Rends-le exécutable."
+    setup: |
+      cat > ~/deploy.sh <<'EOF'
+      #!/bin/bash
+      echo "Déploiement OK. Code : $(cat ~/.deploy_code 2>/dev/null || echo '(aucun)')"
+      EOF
+      chmod 644 ~/deploy.sh
+    check: '[ -x ~/deploy.sh ]'
+    solution: "chmod +x deploy.sh"
+    solve: |
+      chmod +x ~/deploy.sh
+    hints:
+      - text: "chmod ajoute un droit avec +, et x veut dire exécution."
+
+  - kind: task
+    prompt: "Lance deploy.sh et envoie le code qu'il affiche avec : submit <code>."
+    flag: true
+    setup: |
+      printf '%s' "$FLAG" > ~/.deploy_code
+      chmod 600 ~/.deploy_code
+      [ -x ~/deploy.sh ] || chmod +x ~/deploy.sh
+    check: 'answer-is "$FLAG"'
+    solution: "./deploy.sh, puis submit FLAG{…}"
+    solve: |
+      submit "$(~/deploy.sh | sed 's/.*Code : //')"
+    hints:
+      - text: "Un script du dossier courant se lance avec ./ devant son nom."
+
+  - kind: task
+    prompt: "secret.txt est lisible par tout le monde. Ne laisse que lecture et écriture, pour toi seul (rw-------)."
+    setup: |
+      echo "mot de passe du serveur : hunter2" > ~/secret.txt
+      chmod 644 ~/secret.txt
+    check: '[ "$(stat -c %a ~/secret.txt)" = 600 ]'
+    solution: "chmod 600 secret.txt"
+    solve: |
+      chmod 600 ~/secret.txt
+    hints:
+      - text: "En octal : lecture 4, écriture 2, exécution 1 ; trois chiffres pour toi, le groupe, les autres."
+    variant:
+      kind: task
+      prompt: "secret.txt est lisible par tout le monde. Ne laisse que la lecture, pour toi seul (r--------)."
+      setup: |
+        [ -f ~/secret.txt ] || echo "mot de passe du serveur : hunter2" > ~/secret.txt
+        chmod 644 ~/secret.txt
+      check: '[ "$(stat -c %a ~/secret.txt)" = 400 ]'
+      solution: "chmod 400 secret.txt"
+      solve: |
+        chmod 400 ~/secret.txt
+
+  - kind: task
+    prompt: "Crée, en une seule commande, l'arborescence projets/2026/notes."
+    check: '[ -d ~/projets/2026/notes ]'
+    solution: "mkdir -p projets/2026/notes"
+    solve: |
+      mkdir -p ~/projets/2026/notes
+    hints:
+      - text: "mkdir a une option qui crée aussi les dossiers parents."
+
+  - kind: task
+    prompt: "Archive le dossier projets dans projets.tar.gz (archive tar compressée avec gzip)."
+    setup: |
+      mkdir -p ~/projets/2026/notes
+      echo "idée de génie" > ~/projets/2026/notes/idee.txt
+    check: 'tar -tzf ~/projets.tar.gz 2>/dev/null | grep -q "projets/2026/notes/idee.txt"'
+    solution: "tar -czf projets.tar.gz projets"
+    solve: |
+      cd ~ && tar -czf projets.tar.gz projets
+    hints:
+      - text: "tar -c crée, -z compresse en gzip, -f donne le nom de l'archive."
+
+rewards:
+  xp: 300
+  unlocks: sa_text_01

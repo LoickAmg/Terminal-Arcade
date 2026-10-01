@@ -3,21 +3,27 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MotionConfig } from "motion/react";
-import type { Level, Progress } from "@terminal-arcade/shared";
+import type { Level, Progress, Sabotage } from "@terminal-arcade/shared";
 import {
   blockedKey,
   bootLines,
+  hostileDetected,
   completions,
   handleLine,
   initialState,
   promptFor,
   reopenTerminal,
+  sandboxEffects,
+  sandboxFailed,
+  sandboxReady,
+  taskResult,
   tickGame,
   type GameState,
   type LineResult,
   type PetReaction,
 } from "@/lib/game";
 import { isPetConfig, type PetConfig } from "@/lib/pet";
+import { SandboxClient } from "@/lib/sandbox";
 import { isObject, load, save } from "@/lib/storage";
 import type { LineOutcome, TerminalApi } from "./TerminalView";
 import { MissionBanners } from "./MissionBanners";
@@ -54,6 +60,10 @@ export function Game({ levels }: { levels: Level[] }) {
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const [activity, setActivity] = useState(0);
   const stateRef = useRef<GameState | null>(null);
+  const sandboxRef = useRef<SandboxClient | null>(null);
+  // Résultats produits hors saisie (horloge, sandbox) : appliqués par apply,
+  // défini plus bas. Une ref évite les dépendances circulaires entre callbacks.
+  const applyRef = useRef<(result: LineResult) => void>(() => {});
 
   useEffect(() => {
     const touch = window.matchMedia("(pointer: coarse)").matches;
@@ -78,8 +88,62 @@ export function Game({ levels }: { levels: Level[] }) {
   }, [state]);
 
   /** Applique un résultat produit hors saisie (horloge, réouverture du terminal). */
+  /** Démarre, prépare ou arrête la sandbox selon le changement d'état. */
+  const runSandbox = useCallback(
+    (prev: GameState | null, next: GameState) => {
+      if (!prev) return;
+      for (const effect of sandboxEffects(prev, next, levels)) {
+        if (effect.type === "stop") {
+          sandboxRef.current?.stop();
+          api?.setRemote(null);
+          api?.showPrompt(promptFor(next, levels));
+        } else if (effect.type === "task") {
+          sandboxRef.current?.task(effect.index, effect.variant);
+        } else if (effect.type === "hostile") {
+          sandboxRef.current?.hostile(effect.kind);
+        } else {
+          const client = (sandboxRef.current ??= new SandboxClient());
+          const levelId = effect.levelId;
+          const stillWanted = () => {
+            const current = stateRef.current?.active;
+            return current?.levelId === levelId && current.sandbox === "connecting";
+          };
+          client
+            .start(levelId, {
+              onOutput: (data) => api?.writeRemote(data),
+              onResult: (r) => {
+                const result = stateRef.current && taskResult(stateRef.current, levels, r);
+                if (result) applyRef.current(result);
+              },
+              onCommand: (command) => {
+                if (stateRef.current) applyRef.current(handleLine(stateRef.current, command, levels));
+              },
+              onDetected: (kinds) => {
+                const result = stateRef.current && hostileDetected(stateRef.current, kinds as Sabotage[]);
+                if (result) applyRef.current(result);
+              },
+              onEnded: (reason) => {
+                const current = stateRef.current;
+                if (current?.active && current.active.sandbox) applyRef.current(sandboxFailed(current, reason));
+              },
+            })
+            .then(() => {
+              if (!stillWanted()) return client.stop();
+              api?.setRemote({ send: (d) => client.input(d), resize: (c, r) => client.resize(c, r) });
+              applyRef.current(sandboxReady(stateRef.current!));
+            })
+            .catch((error: Error) => {
+              if (stillWanted()) applyRef.current(sandboxFailed(stateRef.current!, error.message));
+            });
+        }
+      }
+    },
+    [api, levels],
+  );
+
   const apply = useCallback(
     (result: LineResult) => {
+      const prev = stateRef.current;
       stateRef.current = result.state;
       setState(result.state);
       if (result.reaction) setReaction({ kind: result.reaction, id: Date.now(), text: result.say });
@@ -87,9 +151,16 @@ export function Game({ levels }: { levels: Level[] }) {
         api.print(result.out);
         api.showPrompt(promptFor(result.state, levels));
       }
+      runSandbox(prev, result.state);
     },
-    [api, levels],
+    [api, levels, runSandbox],
   );
+  useEffect(() => {
+    applyRef.current = apply;
+  }, [apply]);
+
+  // Fermeture de la page : la sandbox ne doit pas survivre à la partie.
+  useEffect(() => () => sandboxRef.current?.stop(), []);
 
   // Horloge des parties chronométrées ou sabotées : on mesure le temps
   // réellement écoulé entre deux battements, pour rester juste même si le
@@ -136,9 +207,11 @@ export function Game({ levels }: { levels: Level[] }) {
       setState(result.state);
       setActivity(Date.now());
       if (result.reaction) setReaction({ kind: result.reaction, id: Date.now(), text: result.say });
+      // Après l'affichage par le terminal (sortie de cette fonction).
+      queueMicrotask(() => runSandbox(current, result.state));
       return { out: result.out, prompt: promptFor(result.state, levels), clear: result.clear };
     },
-    [levels],
+    [levels, runSandbox],
   );
 
   const completer = useCallback(
@@ -167,11 +240,17 @@ export function Game({ levels }: { levels: Level[] }) {
   // reprend ensuite le focus (sur ordinateur) pour la saisie suivante.
   const run = useCallback(
     (command: string) => {
-      if (stateRef.current?.active?.chaos?.terminalClosed) return;
+      const current = stateRef.current;
+      if (current?.active?.chaos?.terminalClosed) return;
+      if (current?.active?.sandbox) {
+        // En sandbox, les boutons parlent au jeu, pas au shell distant.
+        apply(handleLine(current, command, levels));
+        return;
+      }
       api?.run(command);
       if (!touchMode) api?.focus();
     },
-    [api, touchMode],
+    [api, touchMode, apply, levels],
   );
 
   if (!state) {

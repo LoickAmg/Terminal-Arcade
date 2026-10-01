@@ -36,6 +36,11 @@ questions:
       08:02 cache chargé
     hints:
       - text: "head avec -n et un nombre."
+    variant:
+      kind: command
+      prompt: "Affiche les 3 dernières lignes de journal.log."
+      accept: ["tail -n 3 journal.log", "tail -n3 journal.log", "tail -3 journal.log"]
+      output: "08:58 sauvegarde\n08:59 rotation des logs\n09:00 arrêt"
 
   - kind: predict
     prompt: "Qu'affiche cette commande ?"

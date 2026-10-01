@@ -28,6 +28,9 @@ export function checkAnswer(q: Question, input: string): Check {
   if (input.trim() === "") return { kind: "invalid", reason: "Réponse vide." };
 
   switch (q.kind) {
+    case "task":
+      // Validé par l'arbitre de la sandbox, jamais par une ligne tapée ici.
+      return { kind: "invalid", reason: "Ce défi se valide dans la sandbox : tape tes commandes dans le terminal." };
     case "command": {
       const given = normalizeCommand(input);
       return q.accept.some((a) => normalizeCommand(a) === given)
@@ -60,5 +63,6 @@ export function checkAnswer(q: Question, input: string): Check {
 /** La bonne réponse telle qu'on la montre au joueur (après un abandon). */
 export function expectedAnswer(q: Question): string {
   if (isChoiceQuestion(q)) return `${q.answer}. ${q.choices[q.answer - 1]}`;
+  if (q.kind === "task") return q.solution;
   return q.accept[0];
 }

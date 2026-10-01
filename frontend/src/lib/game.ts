@@ -23,7 +23,20 @@ import { petCommand, wizardInput, wizardQuestion } from "./wizard";
 // Le déroulé d'un niveau est dans play.ts, le compagnon dans wizard.ts.
 
 export * from "./state";
-export { blockedKey, chaosLogLines, displayedTimer, questionLines, reopenTerminal, tickGame } from "./play";
+export {
+  blockedKey,
+  chaosLogLines,
+  displayedTimer,
+  hostileDetected,
+  questionLines,
+  reopenTerminal,
+  sandboxEffects,
+  sandboxFailed,
+  sandboxReady,
+  taskResult,
+  tickGame,
+  type SandboxEffect,
+} from "./play";
 export { wizardChoices, wizardQuestion } from "./wizard";
 
 export function bootLines(state: GameState): string[] {
@@ -59,6 +72,8 @@ export function promptFor(state: GameState, levels: Level[]): string {
         return `${ansi.yellow("trou")}> `;
       case "predict":
         return `${ansi.yellow("sortie")}> `;
+      case "task":
+        return "";
       default:
         return `${ansi.yellow(`choix 1-${q.choices.length}`)}> `;
     }

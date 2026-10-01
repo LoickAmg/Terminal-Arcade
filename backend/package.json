@@ -1,0 +1,25 @@
+{
+  "name": "backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "sandbox:build": "docker build -t terminal-arcade-sandbox:1 sandbox",
+    "test:sandbox": "tsx src/check-levels.ts",
+    "test:isolation": "tsx src/check-isolation.ts",
+    "test:hostile": "tsx src/check-hostile.ts"
+  },
+  "dependencies": {
+    "@terminal-arcade/shared": "*",
+    "dockerode": "^5.0.1",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^4.0.1",
+    "@types/node": "^20",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}

@@ -27,6 +27,11 @@ questions:
       critical: disque presque plein
     hints:
       - text: "L'option i comme « ignore case »."
+    variant:
+      kind: command
+      prompt: "Compte les lignes de access.log qui contiennent CRITICAL (le nombre seulement)."
+      accept: ["grep -c CRITICAL access.log", "grep --count CRITICAL access.log"]
+      output: "1"
 
   - kind: predict
     prompt: "access.log contient 10000 lignes « Connexion OK » et une seule ligne CRITICAL. Qu'affiche cette commande ?"

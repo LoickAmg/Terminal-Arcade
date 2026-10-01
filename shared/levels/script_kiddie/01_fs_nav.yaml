@@ -29,6 +29,11 @@ questions:
     explain: "Un nom qui commence par un point est caché. -a les montre tous, -A aussi mais sans . et .."
     hints:
       - text: "Cherche l'option « all »."
+    variant:
+      kind: command
+      prompt: "Liste le contenu du dossier courant en format long : droits, taille, date."
+      accept: ["ls -l"]
+      output: "-rw-r--r-- 1 agent agent 812 oct.  1 09:12 notes.txt"
 
   - kind: mcq
     prompt: "Que fait cd .. ?"

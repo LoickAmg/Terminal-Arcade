@@ -1,0 +1,65 @@
+id: sa_pipes_01
+title: "Tuyauterie"
+hook: "Rediriger, ajouter, séparer les erreurs : la plomberie du shell."
+tier: sysadmin
+tree: file_system_ninja
+runtime: docker
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 300, par_s: 140 }
+intro: "Redirections et pipes : >, >>, 2> et |."
+questions:
+  - kind: task
+    prompt: "Enregistre la liste des fichiers de /etc dans etc.txt."
+    check: '[ -s ~/etc.txt ] && grep -qx passwd ~/etc.txt'
+    solution: "ls /etc > etc.txt"
+    solve: |
+      ls /etc > ~/etc.txt
+    hints:
+      - text: "> envoie la sortie d'une commande dans un fichier."
+
+  - kind: task
+    prompt: "Ajoute la ligne FIN à la fin de etc.txt, sans effacer ce qu'il contient."
+    setup: '[ -s ~/etc.txt ] || ls /etc > ~/etc.txt'
+    check: '[ "$(tail -n 1 ~/etc.txt)" = FIN ] && grep -qx passwd ~/etc.txt'
+    solution: "echo FIN >> etc.txt"
+    solve: |
+      echo FIN >> ~/etc.txt
+    hints:
+      - text: ">> ajoute à la fin au lieu de remplacer."
+
+  - kind: task
+    prompt: "Lance ls /nexistepas et envoie uniquement son message d'erreur dans erreurs.log."
+    check: 'grep -q nexistepas ~/erreurs.log 2>/dev/null'
+    solution: "ls /nexistepas 2> erreurs.log"
+    solve: |
+      ls /nexistepas 2> ~/erreurs.log; true
+    hints:
+      - text: "Les erreurs sortent sur le canal 2."
+
+  - kind: task
+    prompt: "Combien de lignes de /etc/passwd contiennent nologin ? Envoie le nombre avec submit."
+    check: 'answer-is "$(grep -c nologin /etc/passwd)"'
+    solution: "grep -c nologin /etc/passwd, puis submit <nombre>"
+    solve: |
+      submit "$(grep -c nologin /etc/passwd)"
+    variant:
+      kind: task
+      prompt: "Combien de lignes de /etc/passwd ne contiennent PAS nologin ? Envoie le nombre avec submit."
+      check: 'answer-is "$(grep -vc nologin /etc/passwd)"'
+      solution: "grep -vc nologin /etc/passwd, puis submit <nombre>"
+      solve: |
+        submit "$(grep -vc nologin /etc/passwd)"
+
+  - kind: task
+    prompt: "Écris dans compte.txt le nombre de fichiers .conf présents directement dans /etc (seulement le nombre)."
+    check: '[ "$(tr -d " \n" < ~/compte.txt 2>/dev/null)" = "$(ls /etc/*.conf | wc -l)" ]'
+    solution: "ls /etc/*.conf | wc -l > compte.txt"
+    solve: |
+      ls /etc/*.conf | wc -l > ~/compte.txt
+    hints:
+      - text: "Un pipe vers wc -l, puis une redirection."
+
+rewards:
+  xp: 320
+  unlocks: gg_git_01

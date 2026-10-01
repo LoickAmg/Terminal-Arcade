@@ -108,8 +108,17 @@ export function QuestionPanel({
         ))}
       </div>
 
-      {(chaos || blocked) && (
+      {(chaos || blocked || active.sandbox) && (
         <div className="flex flex-wrap gap-2">
+          {active.sandbox && (
+            <span
+              className={`shape-tag px-2 font-display text-sm tracking-wide ${
+                active.sandbox === "ready" ? "bg-good text-ink" : "bg-ink text-warn"
+              }`}
+            >
+              {active.sandbox === "ready" ? "⚙ SANDBOX CONNECTÉE" : "⚙ CONNEXION À LA SANDBOX…"}
+            </span>
+          )}
           {chaos && (
             <span className="shape-tag bg-ink px-2 font-display text-sm tracking-wide text-red">☠ CHAOS</span>
           )}
@@ -176,13 +185,15 @@ export function QuestionPanel({
             </ol>
           )}
 
-          {(q.kind === "command" || q.kind === "fill" || q.kind === "predict") && (
+          {(q.kind === "command" || q.kind === "fill" || q.kind === "predict" || q.kind === "task") && (
             <p className="text-sm text-paper/85">
               {q.kind === "command"
                 ? "Tape la commande dans le terminal."
                 : q.kind === "fill"
                   ? "Tape ce qui remplace ___."
-                  : "Tape exactement ce que la commande affiche."}
+                  : q.kind === "predict"
+                    ? "Tape exactement ce que la commande affiche."
+                    : "Vrai Linux : tape tes commandes dans le terminal, l'arbitre vérifie après chacune. Pour répondre : submit <réponse>."}
             </p>
           )}
         </motion.div>

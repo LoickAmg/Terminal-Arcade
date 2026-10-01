@@ -63,12 +63,31 @@ const fillQuestion = z.object({
   accept: z.array(z.string().min(1)).min(1),
 });
 
+// Défi réel, joué dans la sandbox Docker (niveaux runtime: docker). Le
+// joueur tape de vraies commandes ; l'arbitre du serveur exécute « check »
+// après chaque commande : code 0 = réussi, 1 = pas encore, 2 = mauvaise
+// réponse soumise avec submit.
+const taskQuestion = z.object({
+  kind: z.literal("task"),
+  ...base,
+  // Script bash lancé (en tant qu'agent) au début de la question.
+  setup: z.string().default(""),
+  check: z.string().min(1),
+  // Commande d'exemple, montrée quand le joueur passe la question.
+  solution: z.string().min(1),
+  // Génère un flag aléatoire, fourni à setup et check dans $FLAG.
+  flag: z.boolean().default(false),
+  // Résolution automatique, utilisée par le test d'intégration de la sandbox
+  // pour prouver que le défi est faisable ($FLAG disponible).
+  solve: z.string().optional(),
+});
+
 const choicesInRange = (q: object) =>
   !("choices" in q && "answer" in q) ||
   (q.answer as number) <= (q.choices as string[]).length;
 
 const baseQuestionSchema = z
-  .discriminatedUnion("kind", [commandQuestion, mcqQuestion, trapQuestion, predictQuestion, fillQuestion])
+  .discriminatedUnion("kind", [commandQuestion, mcqQuestion, trapQuestion, predictQuestion, fillQuestion, taskQuestion])
   .refine(choicesInRange, { message: "answer dépasse le nombre de choix" });
 
 // Variante : version modifiée de la question qu'Arcade peut substituer en
@@ -82,6 +101,7 @@ export const questionSchema = z
     trapQuestion.extend(variant),
     predictQuestion.extend(variant),
     fillQuestion.extend(variant),
+    taskQuestion.extend(variant),
   ])
   .refine(choicesInRange, { message: "answer dépasse le nombre de choix" });
 
@@ -118,6 +138,8 @@ export const levelSchema = z
       })
       .optional(),
     runtime: z.enum(["browser", "docker"]).default("browser"),
+    // Sandbox : script bash lancé (en tant qu'agent) au début de la partie.
+    setup: z.string().optional(),
     intro: z.string().optional(),
     questions: z.array(questionSchema).min(1),
     rewards: z.object({
@@ -135,6 +157,12 @@ export const levelSchema = z
       l.timer.mode !== "buyback" ||
       (l.timer.deficit_s > 0 && l.timer.deficit_s < l.timer.duration_s),
     { message: "le rachat demande 0 < deficit_s < duration_s", path: ["timer", "deficit_s"] },
+  )
+  .refine(
+    (l) =>
+      l.questions.every((q) => (q.kind === "task") === (l.runtime === "docker")) &&
+      l.questions.every((q) => !q.variant || (q.variant.kind === "task") === (l.runtime === "docker")),
+    { message: "les questions task sont réservées aux niveaux runtime: docker, et réciproquement", path: ["questions"] },
   )
   .refine((l) => !l.timer || l.timer.par_s < l.timer.duration_s, {
     message: "par_s doit être inférieur à duration_s",

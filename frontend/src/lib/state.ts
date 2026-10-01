@@ -81,6 +81,8 @@ export type ActiveLevel = {
   // Dernier gain ou perte de temps, pour l'animation du bandeau.
   lastDelta: { ms: number; id: number } | null;
   chaos: ChaosRun | null;
+  // Niveau joué dans la sandbox Docker : état de la connexion.
+  sandbox: "connecting" | "ready" | null;
 };
 
 export type GameState = {
@@ -112,6 +114,7 @@ export const KIND_LABELS: Record<Question["kind"], string> = {
   trap: "Piège",
   predict: "Prédis la sortie",
   fill: "Complète",
+  task: "Défi réel",
 };
 
 export const LEVEL_KEYWORDS = {

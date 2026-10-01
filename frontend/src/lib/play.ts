@@ -1,4 +1,5 @@
 import {
+  HOSTILE,
   SABOTAGE_INFO,
   TIER_LABELS,
   TIMER_LABELS,
@@ -13,8 +14,10 @@ import {
   createTimer,
   currentQuestion,
   falsifyCode,
+  failTask,
   fool,
   formatTime,
+  passTask,
   hintsAllowed,
   isChaos,
   isExpired,
@@ -130,7 +133,15 @@ export function openLevel(
   const run = startRun(level);
   const next: GameState = {
     ...state,
-    active: { levelId: level.id, run, mode, timer, lastDelta: null, chaos },
+    active: {
+      levelId: level.id,
+      run,
+      mode,
+      timer,
+      lastDelta: null,
+      chaos,
+      sandbox: level.runtime === "docker" ? "connecting" : null,
+    },
     feedback: null,
     screen: { kind: "question" },
   };
@@ -143,6 +154,13 @@ export function openLevel(
       ...(level.intro ? [ansi.dim(level.intro)] : []),
       ...(timer ? timerIntro(timer) : []),
       ...(chaos ? chaosIntro(state.pet.name) : []),
+      ...(level.runtime === "docker"
+        ? [
+            ansi.cyan("⚙ Sandbox : tes commandes s'exécutent dans un vrai Linux isolé."),
+            ansi.dim("Réponses : submit <réponse>. Jeu : hint, skip, quit (aussi dans la sandbox)."),
+            ansi.dim("Connexion à la sandbox…"),
+          ]
+        : []),
       ansi.dim(`hint : indice  ·  skip : passer  ·  quit : quitter${chaos ? "  ·  verify  ·  clock" : ""}`),
       ...questionLines(level, run),
     ],
@@ -213,7 +231,6 @@ export function levelInput(state: GameState, levels: Level[], line: string): Lin
   const active = state.active!;
   const run = active.run;
   const q = currentQuestion(level, run)!;
-  const petName = state.pet.name;
   const withActive = (patch: Partial<ActiveLevel>, extra: Partial<GameState> = {}): GameState => ({
     ...state,
     active: { ...active, ...patch },
@@ -292,7 +309,26 @@ export function levelInput(state: GameState, levels: Level[], line: string): Lin
 
   const { run: after, check } = submit(level, run, line);
   if (check.kind === "invalid") return { state, out: [ansi.yellow(check.reason)] };
-  const correct = check.kind === "correct";
+  return judge(state, levels, check.kind === "correct", after, line);
+}
+
+/**
+ * Verdict d'une réponse (ligne tapée ou défi de la sandbox) : temps, Chaos,
+ * question suivante. after = déroulé si la réponse est juste (ou erreur
+ * comptée si elle est fausse).
+ */
+function judge(state: GameState, levels: Level[], correct: boolean, after: Run, line: string): LineResult {
+  const level = playedLevel(state, levels)!;
+  const active = state.active!;
+  const run = active.run;
+  const q = currentQuestion(level, run)!;
+  const petName = state.pet.name;
+  const withActive = (patch: Partial<ActiveLevel>, extra: Partial<GameState> = {}): GameState => ({
+    ...state,
+    active: { ...active, ...patch },
+    ...extra,
+  });
+  const chaosBase: ChaosRun | null = active.chaos ? { ...active.chaos, lie: null } : null;
 
   // Chaos : Arcade annonce le verdict, et ment peut-être.
   let chaos = chaosBase;
@@ -383,6 +419,81 @@ export function levelInput(state: GameState, levels: Level[], line: string): Lin
   return proceed(withActive({ run: after, chaos, ...timed.patch }, { feedback }), levels, out, "happy");
 }
 
+// --- Sandbox Docker ------------------------------------------------------
+
+/** Verdict de l'arbitre de la sandbox pour la question en cours. */
+export function taskResult(
+  state: GameState,
+  levels: Level[],
+  result: { index: number; status: "passed" | "wrong" },
+): LineResult | null {
+  const level = playedLevel(state, levels);
+  const active = state.active;
+  if (!level || !active || active.run.index !== result.index) return null;
+  const q = currentQuestion(level, active.run);
+  if (q?.kind !== "task") return null;
+  const correct = result.status === "passed";
+  const after = correct ? passTask(level, active.run) : failTask(active.run);
+  return judge(state, levels, correct, after, correct ? "(défi réussi)" : "(réponse soumise)");
+}
+
+/** La sandbox est prête : la partie peut commencer. */
+export function sandboxReady(state: GameState): LineResult {
+  if (!state.active) return { state, out: [] };
+  return {
+    state: { ...state, active: { ...state.active, sandbox: "ready" } },
+    out: [ansi.green("⚙ Sandbox prête."), ""],
+  };
+}
+
+/** La sandbox n'a pas pu démarrer ou s'est arrêtée : retour au lobby. */
+export function sandboxFailed(state: GameState, reason: string): LineResult {
+  return {
+    state: { ...state, active: null, feedback: null, screen: { kind: "missions" } },
+    out: [
+      ansi.red(`⚙ Sandbox indisponible : ${reason}`),
+      ansi.dim("Lance le serveur avec : npm run sandbox (Docker doit tourner)."),
+    ],
+    reaction: "sad",
+  };
+}
+
+export type SandboxEffect =
+  | { type: "start"; levelId: string }
+  | { type: "task"; index: number; variant: boolean }
+  | { type: "hostile"; kind: Sabotage }
+  | { type: "stop" };
+
+/**
+ * Ce que la sandbox doit faire après un changement d'état : démarrer,
+ * préparer la question suivante (ou sa variante après une mutation), ou
+ * s'arrêter.
+ */
+export function sandboxEffects(prev: GameState, next: GameState, levels: Level[]): SandboxEffect[] {
+  const isDocker = (s: GameState) => !!s.active && activeLevel(s, levels)?.runtime === "docker";
+  const before = isDocker(prev) ? prev.active : null;
+  const after = isDocker(next) ? next.active : null;
+  const effects: SandboxEffect[] = [];
+  const started = after && (!before || before.levelId !== after.levelId || before.run.levelId !== after.run.levelId);
+  if (before && (!after || started)) effects.push({ type: "stop" });
+  if (after && started) effects.push({ type: "start", levelId: after.levelId });
+  if (after && after.sandbox === "ready") {
+    const index = after.run.index;
+    const variant = after.chaos?.overrides[index] !== undefined;
+    const prevVariant = before?.chaos?.overrides[index] !== undefined;
+    const becameReady = before?.sandbox !== "ready";
+    if (index < activeLevel(next, levels)!.questions.length && (becameReady || before!.run.index !== index || variant !== prevVariant)) {
+      effects.push({ type: "task", index, variant });
+    }
+    // Nouveaux sabotages hostiles : à exécuter dans le conteneur.
+    const seen = before?.chaos?.state.log.length ?? 0;
+    for (const entry of after.chaos?.state.log.slice(seen) ?? []) {
+      if (HOSTILE.includes(entry.kind)) effects.push({ type: "hostile", kind: entry.kind });
+    }
+  }
+  return effects;
+}
+
 // --- Vérifications (sources de vérité) -----------------------------------
 
 const VERIFY_COST_MS = 5_000;
@@ -427,7 +538,8 @@ function verify(state: GameState, level: Level, levels: Level[]): LineResult {
 
   if (lie.kind === "false_red") {
     // Sa réponse était juste : on la valide pour de bon.
-    const { run } = submit(level, active.run, lie.answer);
+    const current = currentQuestion(level, active.run);
+    const run = current?.kind === "task" ? passTask(level, active.run) : submit(level, active.run, lie.answer).run;
     const next: GameState = {
       ...state,
       active: { ...active, ...timerPatch, run, chaos: detected },
@@ -592,13 +704,15 @@ export function tickGame(state: GameState, levels: Level[], elapsedMs: number): 
     const q = currentQuestion(level, active.run);
     const index = active.run.index;
     const hasCode = !!q && "code" in q && !!q.code && chaos.falsified[index] === undefined;
-    const answer = !q ? "" : "accept" in q ? q.accept[0] : String(q.answer);
+    const answer = !q ? "" : q.kind === "task" ? q.solution : "accept" in q ? q.accept[0] : String(q.answer);
     const ctx = {
       timed: !!timer,
       hasVariant: !!q?.variant && chaos.overrides[index] === undefined,
       hasCode,
-      canBlockKey: !!q && (q.kind === "mcq" || q.kind === "trap" || (q.kind === "command" && answer.length > 2)),
+      canBlockKey:
+        !!q && (q.kind === "mcq" || q.kind === "trap" || ((q.kind === "command" || q.kind === "task") && answer.length > 2)),
       usedHere: chaos.state.log.filter((e) => e.question === index).map((e) => e.kind),
+      sandbox: active.sandbox === "ready",
     };
     const decision = chaos.terminalClosed
       ? { chaos: { ...chaos.state, elapsedMs: chaos.state.elapsedMs + elapsedMs }, fire: null }
@@ -723,9 +837,44 @@ function applySabotage(
         out: [],
         say: "Le temps est relatif.",
       };
+    case "hostile_alias":
+    case "hostile_path":
+    case "hostile_chmod":
+    case "hostile_decoy": {
+      // Exécuté dans la sandbox par le serveur (voir sandboxEffects) ;
+      // le terminal n'annonce rien, seul le compagnon ricane.
+      const says: Record<string, string> = {
+        hostile_alias: "J'ai un peu bricolé ton shell…",
+        hostile_path: "Tes commandes sont bien les tiennes ?",
+        hostile_chmod: "Un de tes fichiers boude.",
+        hostile_decoy: "Tiens, un cadeau dans ton dossier.",
+      };
+      return {
+        chaos: { ...chaos, state: log(SABOTAGE_INFO[kind].label) },
+        out: [],
+        say: says[kind],
+      };
+    }
     default:
       return { chaos, out: [] };
   }
+}
+
+/** Le serveur a vu le joueur démasquer un sabotage hostile (type, unalias, chmod…). */
+export function hostileDetected(state: GameState, kinds: Sabotage[]): LineResult | null {
+  const chaos = state.active?.chaos;
+  if (!chaos) return null;
+  const known = kinds.filter((k) => HOSTILE.includes(k) && chaos.state.log.some((e) => e.kind === k && !e.detected));
+  if (known.length === 0) return null;
+  return {
+    state: {
+      ...state,
+      active: { ...state.active!, chaos: { ...chaos, state: markDetected(chaos.state, known) } },
+    },
+    out: [],
+    reaction: "mischief",
+    say: "Démasqué…",
+  };
 }
 
 /** Le joueur rouvre le terminal fermé par Arcade. */

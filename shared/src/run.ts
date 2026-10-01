@@ -53,6 +53,16 @@ export function submit(level: Level, run: Run, input: string): { run: Run; check
   return { run, check };
 }
 
+/** Défi de la sandbox réussi (validé par l'arbitre du serveur). */
+export function passTask(level: Level, run: Run): Run {
+  return currentQuestion(level, run) ? advance(run, "correct") : run;
+}
+
+/** Mauvaise réponse soumise dans la sandbox. */
+export function failTask(run: Run): Run {
+  return { ...run, wrongAttempts: run.wrongAttempts + 1 };
+}
+
 export function skip(level: Level, run: Run): { run: Run; expected: string } | null {
   const q = currentQuestion(level, run);
   if (!q) return null;

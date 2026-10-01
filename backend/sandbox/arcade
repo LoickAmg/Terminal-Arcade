@@ -1,0 +1,14 @@
+#!/bin/bash
+# Commandes du jeu depuis la sandbox (hint, skip, quit, verify, clock).
+# Elles passent au jeu par une séquence OSC invisible, que le terminal
+# ignore et que l'interface intercepte.
+case "$1" in
+  hint|skip|quit|verify|clock|help) ;;
+  *)
+    echo "Usage : arcade hint|skip|quit|verify|clock|help"
+    exit 1
+    ;;
+esac
+printf '\033]7777;%s\007' "$1"
+# Laisse au jeu le temps de répondre avant la nouvelle invite.
+sleep 0.4

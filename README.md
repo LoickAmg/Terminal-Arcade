@@ -4,8 +4,10 @@ Jeu web pour maîtriser le terminal en jouant, sur PC et sur téléphone. Tout
 se fait en tapant des commandes ; Arcade, un compagnon en pixel art, se
 promène au-dessus du terminal.
 
-Tout tourne dans le navigateur, sans serveur ni Docker : palier Script
-Kiddie (5 niveaux), compagnon, mobile, parties chronométrées et mode Chaos.
+Trois paliers : Script Kiddie (5 niveaux, dans le navigateur), SysAdmin et
+Root Wizard (6 niveaux de défis réels, dans une sandbox Docker), dont le
+début du parcours Git-Gud. Compagnon, mobile, parties chronométrées et mode
+Chaos sur tous les niveaux.
 
 ## Parties chronométrées
 
@@ -29,8 +31,10 @@ défaut).
 Un niveau réussi se rejoue saboté par le compagnon avec `open <niveau> --chaos`
 (ou le bouton ☠) ; `--timer` et `--chaos` se combinent, et certains niveaux sont
 Chaos d'office. Le joueur ne choisit rien : chaque niveau a ses sabotages
-« signature », un tirage dans la réserve du palier ajoute de l'imprévu, et un
-budget par palier (nombre, pause minimale) dose le tout.
+« signature », un tirage dans la réserve complète ajoute de l'imprévu (tous
+les paliers subissent tous les sabotages), et un budget par palier (nombre,
+pause minimale) dose le tout. Un sabotage ne se joue que s'il a un sens pour
+la question en cours, jamais deux fois sur la même question.
 
 | Famille | Sabotages |
 | --- | --- |
@@ -39,6 +43,7 @@ budget par palier (nombre, pause minimale) dose le tout.
 | Mutation | l'énoncé change en cours de route (variante définie dans le niveau) |
 | Falsification | le code affiché à l'écran diffère de celui du terminal |
 | Temps | temps accéléré ou retiré (réel), timer figé ou instable (illusion) |
+| Environnement hostile (sandbox) | alias piège, fausse commande dans le PATH, fichier privé de ses droits, faux flag |
 
 Règle : les lignes « Arcade : … » sont ses verdicts et peuvent mentir ; le reste
 du terminal dit vrai. `verify` vérifie la dernière réponse (−5 s), `clock`
@@ -53,7 +58,34 @@ npm install
 npm run dev
 ```
 
-Puis ouvrir `http://localhost:3000`.
+Puis ouvrir `http://localhost:3000`. Le palier Script Kiddie fonctionne seul.
+
+### Défis réels (sandbox Docker)
+
+Les paliers SysAdmin et Root Wizard s'exécutent dans de vrais conteneurs
+Linux. Docker doit tourner, puis :
+
+```bash
+npm run sandbox:build -w backend   # une fois : construit l'image terminal-arcade-sandbox
+npm run sandbox                    # serveur de sandbox sur http://127.0.0.1:3108
+```
+
+Chaque partie a son conteneur, détruit à la fin : aucun réseau, aucune
+capacité Linux, utilisateur non root, système de fichiers en lecture seule
+(seuls le dossier personnel, /tmp et /srv sont inscriptibles, en mémoire),
+256 Mo de mémoire, un demi-processeur, 128 processus, 30 minutes au plus.
+Le serveur n'écoute que sur 127.0.0.1 : l'ouvrir sur Internet demande une
+revue de sécurité. Adresse côté jeu : `NEXT_PUBLIC_SANDBOX_URL`.
+
+Dans la sandbox, `submit <réponse>` envoie une réponse ; `hint`, `skip`,
+`quit`, `verify` et `clock` parlent au jeu. L'arbitre exécute le script
+`check` du défi après chaque commande.
+
+```bash
+npm run test:sandbox -w backend    # chaque défi est soluble, son arbitre n'est pas trivial
+npm run test:isolation -w backend  # la sandbox bloque root, réseau, écriture, fork bomb…
+npm run test:hostile -w backend    # les sabotages hostiles prennent effet et se réparent
+```
 
 ```bash
 npm test            # moteur de questions, logique du jeu, éditeur de ligne
@@ -68,6 +100,9 @@ npm run build
   vérification des réponses, déroulé d'une partie, progression, moteur
   du temps (`timer.ts`), ordonnancement des sabotages (`chaos.ts`).
   `shared/levels/` contient les niveaux en YAML, validés au build.
+- `backend/` : serveur de sandbox (Socket.io + Dockerode), image Docker
+  dans `backend/sandbox/`, sabotages hostiles en liste blanche
+  (`hostile.ts`), tests d'intégration contre Docker.
 - `frontend/` : application Next.js (App Router).
   - `src/lib/game.ts` : machine de jeu pure (une ligne tapée entre, un
     nouvel état et les lignes à afficher sortent) ; le déroulé d'un niveau
@@ -88,6 +123,6 @@ attendue de chaque question est bien acceptée.
 
 1. MVP navigateur (palier Script Kiddie, compagnon, mobile) — fait
 2. Timer (compte à rebours ou chrono, reverse, rachat) — fait
-3. Chaos (sabotages d'Arcade) — fait, hors famille « environnement hostile » (Docker)
-4. Docker (défis réels, paliers SysAdmin et Root Wizard)
+3. Chaos (sabotages d'Arcade) — fait
+4. Docker (défis réels, paliers SysAdmin et Root Wizard, environnement hostile) — fait
 5. Extensions (parcours Git-Gud, style Persona pour Arcade, PowerShell)
