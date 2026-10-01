@@ -1,0 +1,58 @@
+id: ps_pipeline_01
+title: "Le pipeline des objets"
+hook: "Chercher, regrouper, renommer, additionner : quatre cmdlets, un seul pipeline."
+tier: root_wizard
+tree: powershell
+runtime: docker
+shell: pwsh
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 480, par_s: 240 }
+intro: "Select-String, Group-Object, ForEach-Object, Measure-Object."
+setup: |
+  mkdir -p ~/rapports
+  for i in $(seq 1 30); do
+    if [ $((i % 4)) = 0 ]; then lvl=ERROR; else lvl=INFO; fi
+    echo "2026-10-02 10:$(printf %02d "$i") $lvl service$((i % 3))" >> ~/app.log
+  done
+  for m in janvier fevrier mars; do echo "$m" > ~/rapports/$m.txt; done
+  seq 1 20 > ~/valeurs.txt
+questions:
+  - kind: task
+    prompt: "Combien de lignes de app.log contiennent ERROR ? Utilise Select-String, puis envoie le nombre avec submit."
+    check: 'answer-is "$(grep -c ERROR ~/app.log)"'
+    solution: "(Select-String -Path app.log -Pattern ERROR).Count"
+    solve: |
+      submit "$(pwsh -NoProfile -NonInteractive -Command '(Select-String -Path ~/app.log -Pattern ERROR).Count')"
+    hints:
+      - text: "Select-String est le grep de PowerShell : il renvoie un objet par ligne trouvée."
+
+  - kind: task
+    prompt: "Avec Group-Object, trouve le service (4e colonne) qui a le plus de lignes ERROR, et envoie son nom avec submit."
+    check: 'answer-is "$(grep ERROR ~/app.log | awk "{print \$4}" | sort | uniq -c | sort -rn | head -n 1 | awk "{print \$2}")"'
+    solution: "Select-String ERROR app.log | ForEach-Object { ($_.Line -split ' ')[3] } | Group-Object | Sort-Object Count -Descending"
+    solve: |
+      submit "$(pwsh -NoProfile -NonInteractive -Command 'Select-String -Path ~/app.log -Pattern ERROR | ForEach-Object { ($_.Line -split " ")[3] } | Group-Object | Sort-Object Count -Descending | Select-Object -First 1 -ExpandProperty Name')"
+    hints:
+      - text: "-split découpe une ligne en colonnes ; Group-Object compte les valeurs identiques."
+
+  - kind: task
+    prompt: "Renomme tous les fichiers .txt de rapports en .old, en un seul pipeline."
+    check: '[ -z "$(ls ~/rapports/*.txt 2>/dev/null)" ] && [ "$(ls ~/rapports/*.old 2>/dev/null | wc -l)" = 3 ]'
+    solution: "Get-ChildItem rapports -Filter *.txt | Rename-Item -NewName { $_.Name -replace '\\.txt$', '.old' }"
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/rapports -Filter *.txt | Rename-Item -NewName { $_.Name -replace "\.txt$", ".old" }'
+    hints:
+      - text: "Rename-Item accepte un bloc { } qui calcule le nouveau nom de chaque fichier ($_)."
+
+  - kind: task
+    prompt: "Écris dans somme.txt la somme des nombres de valeurs.txt (Measure-Object)."
+    check: '[ "$(tr -d " \r\n" < ~/somme.txt 2>/dev/null)" = 210 ]'
+    solution: "(Get-Content valeurs.txt | Measure-Object -Sum).Sum | Set-Content somme.txt"
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/valeurs.txt | Measure-Object -Sum).Sum | Set-Content ~/somme.txt'
+    hints:
+      - text: "Measure-Object -Sum additionne ; .Sum lit le résultat."
+
+rewards:
+  xp: 420

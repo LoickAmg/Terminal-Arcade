@@ -156,7 +156,11 @@ export function openLevel(
       ...(chaos ? chaosIntro(state.pet.name) : []),
       ...(level.runtime === "docker"
         ? [
-            ansi.cyan("⚙ Sandbox : tes commandes s'exécutent dans un vrai Linux isolé."),
+            ansi.cyan(
+              level.shell === "pwsh"
+                ? "⚙ Sandbox PowerShell : tes commandes s'exécutent dans un vrai pwsh, sur Linux isolé."
+                : "⚙ Sandbox : tes commandes s'exécutent dans un vrai Linux isolé.",
+            ),
             ansi.dim("Réponses : submit <réponse>. Jeu : hint, skip, quit (aussi dans la sandbox)."),
             ansi.dim("Connexion à la sandbox…"),
           ]

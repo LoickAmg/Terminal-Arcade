@@ -40,7 +40,7 @@ async function main() {
   }
   let failures = 0;
   for (const level of levels) {
-    const sandbox = await createSandbox(`test-${level.id}`);
+    const sandbox = await createSandbox(`test-${level.id}`, level.shell);
     const errors: string[] = [];
     try {
       if (level.setup) {

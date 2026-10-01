@@ -1,35 +1,47 @@
 // Sabotages « environnement hostile » du mode Chaos. Le navigateur n'envoie
 // qu'un nom de sabotage : les scripts sont fixés ici (liste blanche), jamais
 // reçus du client. Ils trafiquent le shell du joueur dans sa sandbox, et
-// restent toujours réparables par lui (il possède ses fichiers, unalias,
-// chmod, commande complète /bin/…).
+// restent toujours réparables par lui (il possède ses fichiers, unalias ou
+// Remove-Item function:, chmod, chemin complet /bin/…).
 //
-// Le shell interactif lit ~/.cache/arcade/hostile.sh à l'invite suivante
-// (PROMPT_COMMAND de /etc/bash.bashrc dans l'image), une seule fois.
+// Le shell interactif lit le sabotage déposé à l'invite suivante, une seule
+// fois : ~/.cache/arcade/hostile.sh pour bash (PROMPT_COMMAND de
+// /etc/bash.bashrc), hostile.ps1 pour PowerShell (fonction prompt du profil).
 
-const PENDING = "mkdir -p ~/.cache/arcade && cat >> ~/.cache/arcade/hostile.sh";
+export type Shell = "bash" | "pwsh";
 
-const ALIASES = [
+const pending = (shell: Shell) =>
+  `mkdir -p ~/.cache/arcade && cat >> ~/.cache/arcade/hostile.${shell === "bash" ? "sh" : "ps1"}`;
+
+const pick = <T>(list: T[]) => list[Math.floor(Math.random() * list.length)];
+
+const BASH_ALIASES = [
   `alias ls='echo "ls: impossible d’ouvrir le répertoire : Permission non accordée"'`,
   "alias cat=tac",
   "alias grep='grep -v'",
 ];
 
-export const HOSTILE_SCRIPTS: Record<string, () => string> = {
-  // Un alias piège sur une commande courante. Se démasque avec type, alias,
-  // \\commande ; se répare avec unalias.
-  hostile_alias: () => {
-    const line = ALIASES[Math.floor(Math.random() * ALIASES.length)];
-    return `${PENDING} <<'EOF'\n${line}\nEOF`;
-  },
+const PWSH_TRAPS = [
+  `function global:Get-ChildItem { Write-Host "Get-ChildItem : accès au chemin refusé." -ForegroundColor Red }`,
+  `function global:Get-Content { Write-Host "Get-Content : fichier introuvable." -ForegroundColor Red }`,
+  `function global:Select-String { $input | Where-Object { $false } }`,
+];
+
+const FAKE_CAT = [
+  "mkdir -p ~/.cache/arcade/bin",
+  `printf '#!/bin/bash\\necho "cat: $1: Aucun fichier ou dossier de ce type" >&2\\nexit 1\\n' > ~/.cache/arcade/bin/cat`,
+  "chmod +x ~/.cache/arcade/bin/cat",
+].join("\n");
+
+export const HOSTILE_SCRIPTS: Record<string, (shell: Shell) => string> = {
+  // Une commande courante remplacée par un piège (alias bash, fonction PowerShell).
+  hostile_alias: (shell) =>
+    `${pending(shell)} <<'EOF'\n${shell === "bash" ? pick(BASH_ALIASES) : pick(PWSH_TRAPS)}\nEOF`,
   // Une fausse commande cat placée en tête du PATH.
-  hostile_path: () =>
-    [
-      "mkdir -p ~/.cache/arcade/bin",
-      `printf '#!/bin/bash\\necho "cat: $1: Aucun fichier ou dossier de ce type" >&2\\nexit 1\\n' > ~/.cache/arcade/bin/cat`,
-      "chmod +x ~/.cache/arcade/bin/cat",
-      `${PENDING} <<'EOF'\nexport PATH="$HOME/.cache/arcade/bin:$PATH"\nEOF`,
-    ].join("\n"),
+  hostile_path: (shell) =>
+    `${FAKE_CAT}\n${pending(shell)} <<'EOF'\n${
+      shell === "bash" ? 'export PATH="$HOME/.cache/arcade/bin:$PATH"' : '$env:PATH = "$HOME/.cache/arcade/bin:" + $env:PATH'
+    }\nEOF`,
   // Un fichier du joueur (hors fichiers cachés) perd tous ses droits.
   hostile_chmod: () =>
     `f=$(find ~ -maxdepth 2 -type f ! -path '*/.*' 2>/dev/null | shuf -n 1); [ -n "$f" ] && chmod 000 "$f"; true`,
@@ -37,12 +49,15 @@ export const HOSTILE_SCRIPTS: Record<string, () => string> = {
   hostile_decoy: () => `echo "FLAG{$(head -c 6 /dev/urandom | od -An -tx1 | tr -d ' \\n')}" > ~/flag.txt`,
 };
 
-/** Commandes qui démasquent chaque sabotage quand le joueur les tape. */
+/** Commandes qui démasquent chaque sabotage quand le joueur les tape (bash ou PowerShell). */
 const DETECTORS: [string, RegExp][] = [
-  ["hostile_alias", /(^|[;&|]\s*)(unalias|alias|type)\b|^\s*\\\w|\bcommand\s/],
-  ["hostile_path", /\b(which|type|hash)\b|\$PATH|(^|\s)\/(usr\/)?bin\/\w/],
+  [
+    "hostile_alias",
+    /(^|[;&|]\s*)(unalias|alias|type)\b|^\s*\\\w|\bcommand\s|Get-Command|Get-Alias|Remove-Item\s+(function|alias):|function:/i,
+  ],
+  ["hostile_path", /\b(which|type|hash)\b|\$PATH|\$env:PATH|Get-Command|(^|\s)\/(usr\/)?bin\/\w/i],
   ["hostile_chmod", /\bchmod\b/],
-  ["hostile_decoy", /\brm\b.*flag\.txt/],
+  ["hostile_decoy", /\b(rm|Remove-Item)\b.*flag\.txt/i],
 ];
 
 export function detectHostile(line: string, active: Set<string>): string[] {

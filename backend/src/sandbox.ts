@@ -43,7 +43,7 @@ export async function cleanupOrphans(): Promise<number> {
   return containers.length;
 }
 
-export async function createSandbox(sessionId: string): Promise<Sandbox> {
+export async function createSandbox(sessionId: string, shellName: "bash" | "pwsh" = "bash"): Promise<Sandbox> {
   const container = await docker.createContainer({
     Image: IMAGE,
     Cmd: ["sleep", "infinity"],
@@ -64,8 +64,9 @@ export async function createSandbox(sessionId: string): Promise<Sandbox> {
         "/tmp": "rw,size=32m,mode=1777",
         "/srv": "rw,exec,size=64m,uid=1000,gid=1000,mode=755",
       },
-      Memory: 256 * MB,
-      MemorySwap: 256 * MB,
+      // PowerShell (.NET) demande plus de mémoire que bash.
+      Memory: (shellName === "pwsh" ? 512 : 256) * MB,
+      MemorySwap: (shellName === "pwsh" ? 512 : 256) * MB,
       NanoCpus: 500_000_000,
       PidsLimit: 128,
       Ulimits: [{ Name: "nofile", Soft: 256, Hard: 256 }],
@@ -74,7 +75,7 @@ export async function createSandbox(sessionId: string): Promise<Sandbox> {
   await container.start();
 
   const exec = await container.exec({
-    Cmd: ["bash", "-i"],
+    Cmd: shellName === "pwsh" ? ["pwsh", "-NoLogo"] : ["bash", "-i"],
     AttachStdin: true,
     AttachStdout: true,
     AttachStderr: true,

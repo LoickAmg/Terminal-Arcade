@@ -62,4 +62,4 @@ questions:
 
 rewards:
   xp: 320
-  unlocks: gg_git_01
+  unlocks: [gg_git_01, ps_basics_01]

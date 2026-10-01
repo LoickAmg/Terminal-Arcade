@@ -23,10 +23,10 @@ async function main() {
   try {
     await runScript(sandbox.container, "echo note > ~/notes.txt");
     for (const [kind, effect, repair] of CASES) {
-      const applied = await runScript(sandbox.container, HOSTILE_SCRIPTS[kind]());
+      const applied = await runScript(sandbox.container, HOSTILE_SCRIPTS[kind]("bash"));
       const seen = await runScript(sandbox.container, effect);
       // Le sabotage est consommé par le premier shell : on le redépose avant la réparation.
-      if (kind === "hostile_alias") await runScript(sandbox.container, HOSTILE_SCRIPTS[kind]());
+      if (kind === "hostile_alias") await runScript(sandbox.container, HOSTILE_SCRIPTS[kind]("bash"));
       const fixed = await runScript(sandbox.container, repair);
       const ok = applied.code === 0 && seen.code === 0 && fixed.code === 0;
       if (!ok) problems++;
@@ -34,6 +34,24 @@ async function main() {
     }
   } finally {
     await sandbox.stop();
+  }
+
+  // Même chose côté PowerShell : la fonction prompt du profil applique le sabotage.
+  const pwsh = await createSandbox("test-hostile-pwsh", "pwsh");
+  try {
+    const ps = (cmd: string) => `pwsh -NoLogo -Command '. $PROFILE.AllUsersAllHosts; prompt | Out-Null; ${cmd}'`;
+    for (const [kind, effect] of [
+      ["hostile_alias", ps('if ((Get-Command Get-ChildItem, Get-Content, Select-String).CommandType -contains "Function") { exit 0 } else { exit 1 }')],
+      ["hostile_path", ps('if ((Get-Command cat).Source -like "*/.cache/arcade/bin/cat") { exit 0 } else { exit 1 }')],
+    ] as const) {
+      const applied = await runScript(pwsh.container, HOSTILE_SCRIPTS[kind]("pwsh"));
+      const seen = await runScript(pwsh.container, effect);
+      const ok = applied.code === 0 && seen.code === 0;
+      if (!ok) problems++;
+      console.log(`${ok ? "✔" : "✘"} ${kind} (PowerShell : appliqué ${applied.code}, visible ${seen.code})`);
+    }
+  } finally {
+    await pwsh.stop();
   }
   process.exit(problems === 0 ? 0 : 1);
 }

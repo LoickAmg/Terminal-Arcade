@@ -13,8 +13,21 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --create-home --uid 1000 --shell /bin/bash agent
 
+# PowerShell (arbre PowerShell). Paquet officiel pour amd64 ; l'outil de
+# téléchargement est retiré une fois l'installation faite.
+ARG PWSH_VERSION=7.6.6
+ENV POWERSHELL_TELEMETRY_OPTOUT=1 POWERSHELL_UPDATECHECK=Off DOTNET_CLI_TELEMETRY_OPTOUT=1
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates \
+ && curl -fsSL -o /tmp/pwsh.deb \
+      "https://github.com/PowerShell/PowerShell/releases/download/v${PWSH_VERSION}/powershell_${PWSH_VERSION}-1.deb_amd64.deb" \
+ && apt-get install -y --no-install-recommends /tmp/pwsh.deb \
+ && apt-get purge -y curl && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/* /tmp/pwsh.deb
+
 COPY --chmod=755 submit arcade answer-is /usr/local/bin/
 COPY bash.bashrc /etc/bash.bashrc
+COPY profile.ps1 /opt/microsoft/powershell/7/profile.ps1
 
 USER agent
 WORKDIR /home/agent

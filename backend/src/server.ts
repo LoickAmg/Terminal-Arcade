@@ -105,7 +105,7 @@ io.on("connection", (socket) => {
     if (sessions.size >= MAX_SESSIONS) return reply({ ok: false, error: "Trop de parties en cours sur ce serveur." });
 
     try {
-      const sandbox = await createSandbox(socket.id);
+      const sandbox = await createSandbox(socket.id, level.shell);
       const session: Session = {
         sandbox,
         level,
@@ -180,7 +180,7 @@ io.on("connection", (socket) => {
     const script = HOSTILE_SCRIPTS[kind];
     if (!session || !script) return;
     session.hostile.add(kind);
-    const { code, output } = await runScript(session.sandbox.container, script());
+    const { code, output } = await runScript(session.sandbox.container, script(session.level.shell));
     if (code !== 0) console.error(`[sandbox] sabotage ${kind} : ${output}`);
   });
 

@@ -140,6 +140,8 @@ export const levelSchema = z
     runtime: z.enum(["browser", "docker"]).default("browser"),
     // Sandbox : script bash lancé (en tant qu'agent) au début de la partie.
     setup: z.string().optional(),
+    // Sandbox : shell interactif du joueur (les scripts check/setup restent en bash).
+    shell: z.enum(["bash", "pwsh"]).default("bash"),
     intro: z.string().optional(),
     questions: z.array(questionSchema).min(1),
     rewards: z.object({

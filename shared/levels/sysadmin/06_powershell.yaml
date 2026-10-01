@@ -1,0 +1,75 @@
+id: ps_basics_01
+title: "Objets, pas du texte"
+hook: "En PowerShell, le pipeline transporte des objets. Filtre-les, lis-les, transforme-les."
+tier: sysadmin
+tree: powershell
+runtime: docker
+shell: pwsh
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 480, par_s: 240 }
+intro: "Arbre PowerShell : un vrai pwsh. Les réponses s'envoient avec submit <réponse>."
+setup: |
+  mkdir -p ~/data ~/logs
+  for n in app web db; do echo "journal $n" > ~/logs/$n.log; done
+  echo "notes" > ~/logs/lisezmoi.txt
+  head -c 2000000 /dev/zero > ~/data/gros.bin
+  echo "petit" > ~/data/a.txt
+  echo "moyen moyen" > ~/data/b.txt
+  printf '{"nom": "api", "port": 8443, "debug": false}\n' > ~/config.json
+questions:
+  - kind: task
+    prompt: "Combien de fichiers .log contient le dossier logs ? Utilise Get-ChildItem, puis envoie le nombre avec submit."
+    check: 'answer-is "$(find ~/logs -maxdepth 1 -name "*.log" | wc -l)"'
+    solution: "(Get-ChildItem logs -Filter *.log).Count, puis submit 3"
+    solve: |
+      submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-ChildItem ~/logs -Filter *.log).Count')"
+    hints:
+      - text: "Get-ChildItem -Filter *.log renvoie des objets ; .Count les compte."
+
+  - kind: task
+    prompt: "Avec Where-Object, trouve le fichier de data qui dépasse 1 Mo et envoie son nom avec submit."
+    check: 'answer-is gros.bin'
+    solution: "Get-ChildItem data | Where-Object Length -gt 1MB"
+    solve: |
+      submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-ChildItem ~/data | Where-Object Length -gt 1MB).Name')"
+    hints:
+      - text: "Chaque fichier a une propriété Length ; PowerShell comprend 1MB."
+    variant:
+      kind: task
+      prompt: "Avec Sort-Object, trouve le plus petit fichier de data et envoie son nom avec submit."
+      check: 'answer-is a.txt'
+      solution: "Get-ChildItem data | Sort-Object Length | Select-Object -First 1"
+      solve: |
+        submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-ChildItem ~/data | Sort-Object Length | Select-Object -First 1).Name')"
+
+  - kind: task
+    prompt: "Lis config.json avec ConvertFrom-Json et envoie la valeur de port avec submit."
+    check: 'answer-is 8443'
+    solution: "(Get-Content config.json | ConvertFrom-Json).port"
+    solve: |
+      submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/config.json | ConvertFrom-Json).port')"
+    hints:
+      - text: "ConvertFrom-Json transforme le texte en objet : ses propriétés se lisent avec un point."
+
+  - kind: task
+    prompt: "Exporte la liste des fichiers de data, avec les colonnes Name et Length, dans fichiers.csv (Export-Csv)."
+    check: 'head -n 1 ~/fichiers.csv 2>/dev/null | grep -q "\"Name\",\"Length\"" && grep -q gros.bin ~/fichiers.csv'
+    solution: "Get-ChildItem data | Select-Object Name, Length | Export-Csv fichiers.csv"
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object Name, Length | Export-Csv ~/fichiers.csv'
+    hints:
+      - text: "Select-Object garde les colonnes voulues, Export-Csv écrit le fichier."
+
+  - kind: task
+    prompt: "Passe debug à true dans config.json : lis l'objet, modifie la propriété, réécris le JSON."
+    check: 'jq -e ".debug == true and .port == 8443" ~/config.json >/dev/null 2>&1'
+    solution: "$c = Get-Content config.json | ConvertFrom-Json; $c.debug = $true; $c | ConvertTo-Json | Set-Content config.json"
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command '$c = Get-Content ~/config.json | ConvertFrom-Json; $c.debug = $true; $c | ConvertTo-Json | Set-Content ~/config.json'
+    hints:
+      - text: "En PowerShell, vrai s'écrit $true."
+
+rewards:
+  xp: 360
+  unlocks: ps_pipeline_01
