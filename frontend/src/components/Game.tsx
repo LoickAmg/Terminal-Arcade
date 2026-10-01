@@ -260,7 +260,7 @@ export function Game({ levels }: { levels: Level[] }) {
   const screen = (() => {
     switch (state.screen.kind) {
       case "missions":
-        return <MissionBanners levels={levels} progress={state.progress} onRun={run} />;
+        return <MissionBanners levels={levels} progress={state.progress} track={state.screen.track} onRun={run} />;
       case "question":
         return <QuestionPanel state={state} levels={levels} onRun={run} />;
       case "recap": {

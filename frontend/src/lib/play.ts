@@ -95,7 +95,7 @@ export function openLevel(
   const level = levels.find((l) => l.id === id);
   if (!level) return { state, out: [`open: ${id} : niveau introuvable. Tape ls missions/.`] };
   if (!isUnlocked(level, levels, state.progress)) {
-    const parent = levels.find((l) => l.rewards.unlocks === level.id);
+    const parent = levels.find((l) => l.rewards.unlocks.includes(level.id));
     return {
       state,
       out: [`${id} est verrouillé.${parent ? ` Réussis d'abord ${ansi.cyan(parent.id)}.` : ""}`],
@@ -956,8 +956,11 @@ function finishLevel(state: GameState, levels: Level[], out: string[], timedOut:
   const result: Recap = { ...base, xp, passed };
 
   const progress = recordRun(state.progress, baseLevel, { xp, passed, mode });
-  const nextLevel = levels.find((l) => l.id === level.rewards.unlocks);
-  const nextId = nextLevel && isUnlocked(nextLevel, levels, progress) ? nextLevel.id : null;
+  // Suite du palier en priorité, sinon la suite du parcours.
+  const nextId =
+    level.rewards.unlocks
+      .map((id) => levels.find((l) => l.id === id))
+      .find((l) => l && isUnlocked(l, levels, progress))?.id ?? null;
   const replays = {
     timer: !isTimed(mode) && canReplayTimer(baseLevel, progress),
     chaos: !isChaos(mode) && canReplayChaos(baseLevel, progress),

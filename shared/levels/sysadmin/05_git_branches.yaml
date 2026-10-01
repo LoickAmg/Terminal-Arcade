@@ -1,0 +1,72 @@
+id: gg_branch_01
+title: "Conflits et remises"
+hook: "Deux branches touchent la même ligne. À toi de trancher, puis de ranger."
+tier: sysadmin
+tree: git_gud
+runtime: docker
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 480, par_s: 240 }
+intro: "Parcours Git-Gud : conflits de fusion, git stash, nettoyage des branches."
+setup: |
+  git config --global user.name agent
+  git config --global user.email agent@sandbox
+  git config --global init.defaultBranch main
+  mkdir -p ~/appli && cd ~/appli && git init -q
+  echo "couleur = bleu" > app.txt && echo "notes du projet" > notes.txt
+  git add . && git commit -qm "Départ"
+  git switch -qc rouge
+  echo "couleur = rouge" > app.txt && git commit -qam "Passe en rouge"
+  git switch -q main
+  echo "couleur = vert" > app.txt && git commit -qam "Passe en vert"
+questions:
+  - kind: task
+    prompt: "Dans appli, fusionne la branche rouge dans main. Il y aura un conflit sur app.txt : garde la version rouge, puis termine la fusion."
+    check: |
+      cd ~/appli && [ "$(git branch --show-current)" = main ] && [ ! -f .git/MERGE_HEAD ] \
+        && [ "$(cat app.txt)" = "couleur = rouge" ] && git merge-base --is-ancestor rouge main
+    solution: "git merge rouge, corrige app.txt (ou git checkout --theirs app.txt), git add app.txt, git commit"
+    solve: |
+      cd ~/appli && git merge rouge >/dev/null 2>&1; git checkout --theirs app.txt && git add app.txt && git commit -qm "Fusion de rouge"
+    hints:
+      - text: "Après le conflit, édite le fichier (ou git checkout --theirs), puis git add et git commit."
+      - text: "Les marqueurs <<<<<<<, ======= et >>>>>>> doivent disparaître du fichier."
+
+  - kind: task
+    prompt: "Tu as des modifications en cours dans notes.txt mais tu dois changer de sujet : mets-les de côté avec git stash."
+    setup: 'cd ~/appli && echo "brouillon à finir" >> notes.txt'
+    check: 'cd ~/appli && git stash list | grep -q . && [ -z "$(git status --porcelain --untracked-files=no)" ]'
+    solution: "git stash"
+    solve: |
+      cd ~/appli && git stash -q
+    hints:
+      - text: "git stash range les modifications non commitées et nettoie la copie de travail."
+
+  - kind: task
+    prompt: "C'est réglé : récupère tes modifications mises de côté."
+    check: 'cd ~/appli && [ -z "$(git stash list)" ] && grep -q "brouillon à finir" notes.txt'
+    solution: "git stash pop"
+    solve: |
+      cd ~/appli && git stash pop -q
+    hints:
+      - text: "pop ressort la dernière remise et la supprime de la liste."
+
+  - kind: task
+    prompt: "Combien de commits contient maintenant la branche main ? Envoie le nombre avec submit."
+    check: 'answer-is "$(git -C ~/appli rev-list --count main)"'
+    solution: "git rev-list --count main (ou git log --oneline | wc -l)"
+    solve: |
+      submit "$(git -C ~/appli rev-list --count main)"
+
+  - kind: task
+    prompt: "La branche rouge est fusionnée : supprime-la."
+    check: '! git -C ~/appli show-ref --verify --quiet refs/heads/rouge'
+    solution: "git branch -d rouge"
+    solve: |
+      git -C ~/appli branch -qd rouge
+    hints:
+      - text: "git branch -d supprime une branche déjà fusionnée."
+
+rewards:
+  xp: 360
+  unlocks: gg_history_01

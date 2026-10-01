@@ -144,7 +144,11 @@ export const levelSchema = z
     questions: z.array(questionSchema).min(1),
     rewards: z.object({
       xp: z.number().int().positive(),
-      unlocks: z.string().optional(),
+      // Niveau(x) débloqué(s) : la suite du palier, et parfois la suite d'un parcours.
+      unlocks: z
+        .union([z.string(), z.array(z.string())])
+        .optional()
+        .transform((u) => (u === undefined ? [] : Array.isArray(u) ? u : [u])),
     }),
   })
   .refine((l) => l.timer || !(l.type === "timer" || l.type === "chaos_timer" || l.replay.timer), {

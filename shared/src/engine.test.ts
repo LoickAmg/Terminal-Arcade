@@ -76,7 +76,7 @@ describe("déroulé d'une partie", () => {
 
 describe("progression", () => {
   it("débloque le niveau suivant et ne recompte que le gain de meilleur score", () => {
-    const next = { ...level, id: "test_02", rewards: { xp: 100 } };
+    const next = { ...level, id: "test_02", rewards: { xp: 100, unlocks: [] } };
     const levels = [level, next];
     expect(isUnlocked(next, levels, EMPTY_PROGRESS)).toBe(false);
 

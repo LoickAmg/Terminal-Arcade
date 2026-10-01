@@ -22,6 +22,23 @@ export const TIER_LABELS: Record<Tier, string> = {
   root_wizard: "Root Wizard",
 };
 
+// Parcours : un fil thématique à travers les paliers (chaque niveau garde
+// son palier). Pour l'instant un seul, Git-Gud, qui suit l'arbre git_gud.
+export const TRACKS = {
+  "git-gud": { tree: "git_gud" as Tree, label: "Git-Gud", hook: "Tout Git, de git init à git bisect." },
+} as const;
+export type TrackId = keyof typeof TRACKS;
+
+export function trackLevels(levels: Level[], track: TrackId): Level[] {
+  return levels.filter((l) => l.tree === TRACKS[track].tree);
+}
+
+/** Niveaux hors parcours, rangés par palier (l'écran principal des missions). */
+export function mainLevels(levels: Level[]): Level[] {
+  const tracked = new Set(Object.values(TRACKS).map((t) => t.tree));
+  return levels.filter((l) => !tracked.has(l.tree));
+}
+
 export const TREE_LABELS: Record<Tree, string> = {
   file_system_ninja: "File System Ninja",
   data_surgeon: "Data Surgeon",
@@ -41,7 +58,7 @@ export function sortLevels(levels: Level[]): Level[] {
 
 /** Un niveau est ouvert si aucun autre ne le débloque, ou si celui-ci est réussi. */
 export function isUnlocked(level: Level, levels: Level[], progress: Progress): boolean {
-  const parents = levels.filter((l) => l.rewards.unlocks === level.id);
+  const parents = levels.filter((l) => l.rewards.unlocks.includes(level.id));
   return parents.length === 0 || parents.some((p) => progress.levels[p.id]?.status === "passed");
 }
 

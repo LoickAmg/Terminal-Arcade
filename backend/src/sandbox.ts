@@ -21,12 +21,19 @@ export type Sandbox = {
 };
 
 export async function imageReady(): Promise<boolean> {
-  try {
-    await docker.getImage(IMAGE).inspect();
-    return true;
-  } catch {
-    return false;
+  // Docker Desktop répond parfois 404 sur une image présente (moteur qui se
+  // réveille) : on recoupe avec la liste des images et on réessaie.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await docker.getImage(IMAGE).inspect();
+      return true;
+    } catch {
+      const images = await docker.listImages().catch(() => []);
+      if (images.some((i) => i.RepoTags?.includes(IMAGE))) return true;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
   }
+  return false;
 }
 
 /** Supprime les conteneurs laissés par un arrêt brutal du serveur. */

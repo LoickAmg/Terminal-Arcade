@@ -199,6 +199,20 @@ describe("mode Chaos", () => {
   });
 });
 
+describe("parcours Git-Gud", () => {
+  it("a sa propre entrée : la liste principale l'annonce, ls missions/git-gud/ le détaille", () => {
+    const start = initialState(null, DEFAULT_PET);
+    const main = play(start, "ls missions/");
+    expect(main.out.join("\n")).toContain("git-gud/");
+    expect(main.out.join("\n")).not.toContain("gg_bisect_01");
+
+    const track = play(start, "ls missions/git-gud");
+    expect(track.state.screen).toEqual({ kind: "missions", track: "git-gud" });
+    expect(track.out.filter((l) => l.includes("gg_")).length).toBe(4);
+    expect(play(start, "cd missions/git-gud/").state.screen).toEqual({ kind: "missions", track: "git-gud" });
+  });
+});
+
 describe("éditeur de ligne", () => {
   it("gère saisie, flèches, retour arrière et historique", () => {
     let { state, actions } = feed(createEditor(), "lz\x7fs -a\x1b[D\x1b[D\x1b[3~\r");

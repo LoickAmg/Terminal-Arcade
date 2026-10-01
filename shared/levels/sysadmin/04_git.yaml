@@ -74,4 +74,4 @@ questions:
 
 rewards:
   xp: 340
-  unlocks: rw_proc_01
+  unlocks: [rw_proc_01, gg_branch_01]

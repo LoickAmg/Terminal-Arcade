@@ -1,0 +1,71 @@
+id: gg_history_01
+title: "Machine à remonter le temps"
+hook: "Un commit de trop, deux commits perdus, un correctif égaré. L'historique se répare."
+tier: root_wizard
+tree: git_gud
+runtime: docker
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 480, par_s: 240 }
+intro: "Parcours Git-Gud : revert, reflog, cherry-pick, et l'enquête dans l'historique."
+setup: |
+  git config --global user.name agent
+  git config --global user.email agent@sandbox
+  git config --global init.defaultBranch main
+  mkdir -p ~/journal && cd ~/journal && git init -q
+  for i in 1 2 3 4 5 6; do
+    echo "jour $i" >> journal.txt && git add journal.txt
+    if [ "$i" = 3 ]; then git commit -qm "jour $i" --author="Léna <lena@sandbox>"; else git commit -qm "jour $i"; fi
+  done
+questions:
+  - kind: task
+    prompt: "Dans journal, le dernier commit (« jour 6 ») est une erreur. Annule-le avec un nouveau commit, sans réécrire l'historique."
+    check: |
+      cd ~/journal && ! grep -q "jour 6" journal.txt && git log -1 --format=%s | grep -q "^Revert" && git log --format=%s | grep -qx "jour 6"
+    solution: "git revert HEAD"
+    solve: |
+      cd ~/journal && git revert --no-edit HEAD >/dev/null
+    hints:
+      - text: "git revert crée un commit qui défait un autre commit."
+
+  - kind: task
+    prompt: "Quelqu'un a fait git reset --hard et deux commits ont disparu. Retrouve « jour 8 » avec le reflog et ramène main dessus."
+    setup: |
+      cd ~/journal
+      echo "jour 7" >> journal.txt && git commit -qam "jour 7"
+      echo "jour 8" >> journal.txt && git commit -qam "jour 8"
+      git reset -q --hard HEAD~2
+    check: '[ "$(git -C ~/journal log -1 --format=%s)" = "jour 8" ] && [ "$(git -C ~/journal branch --show-current)" = main ]'
+    solution: "git reflog, repère le commit « jour 8 », puis git reset --hard <id>"
+    solve: |
+      cd ~/journal && git reset -q --hard "$(git reflog --format='%H %s' | grep ' jour 8$' | head -n 1 | cut -d' ' -f1)"
+    hints:
+      - text: "git reflog liste tout ce que HEAD a pointé, même les commits « perdus »."
+
+  - kind: task
+    prompt: "La branche correctif contient un brouillon (« wip: essai ») et un vrai correctif (« fix: virgule »). Applique uniquement le correctif sur main."
+    setup: |
+      cd ~/journal && git switch -qc correctif
+      echo "essai" > brouillon.txt && git add brouillon.txt && git commit -qm "wip: essai"
+      echo "virgule corrigée" > correctif.txt && git add correctif.txt && git commit -qm "fix: virgule"
+      git switch -q main
+    check: |
+      cd ~/journal && [ "$(git branch --show-current)" = main ] && git log --format=%s | grep -qx "fix: virgule" && ! git log --format=%s | grep -qx "wip: essai"
+    solution: "git log correctif, puis git cherry-pick <id du fix>"
+    solve: |
+      cd ~/journal && git cherry-pick "$(git log correctif --format=%H --grep='fix: virgule' -n 1)" >/dev/null
+    hints:
+      - text: "git cherry-pick recopie un seul commit sur la branche courante."
+
+  - kind: task
+    prompt: "Qui a écrit la ligne « jour 3 » de journal.txt ? Envoie son prénom avec submit."
+    check: 'answer-is Léna'
+    solution: "git blame journal.txt (ou git log -S \"jour 3\")"
+    solve: |
+      submit "$(git -C ~/journal log -S 'jour 3' --format=%an | tail -n 1)"
+    hints:
+      - text: "git blame affiche l'auteur de chaque ligne."
+
+rewards:
+  xp: 420
+  unlocks: gg_bisect_01

@@ -33,9 +33,8 @@ export function loadLevels(dir: string): Level[] {
     ids.add(level.id);
   }
   for (const level of levels) {
-    const target = level.rewards.unlocks;
-    if (target && !ids.has(target)) {
-      throw new Error(`${level.id} débloque un niveau inexistant : ${target}`);
+    for (const target of level.rewards.unlocks) {
+      if (!ids.has(target)) throw new Error(`${level.id} débloque un niveau inexistant : ${target}`);
     }
   }
   return sortLevels(levels);

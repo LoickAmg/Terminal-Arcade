@@ -3,8 +3,12 @@
 import { motion } from "motion/react";
 import {
   TIER_LABELS,
+  TRACKS,
   TREE_LABELS,
   canReplayChaos,
+  mainLevels,
+  trackLevels,
+  type TrackId,
   canReplayTimer,
   isChaos,
   isTimed,
@@ -40,20 +44,87 @@ const STATUS = {
 // Décalages irréguliers, comme les messages empilés de la référence.
 const OFFSETS = ["ml-2", "ml-6", "ml-0", "ml-4", "ml-8", "ml-1"];
 
-export function MissionBanners({
+/** Entrée d'un parcours dans la liste principale : une bannière à part. */
+function TrackBanner({
+  id,
   levels,
   progress,
   onRun,
 }: {
+  id: TrackId;
   levels: Level[];
   progress: Progress;
   onRun: (command: string) => void;
 }) {
+  const track = TRACKS[id];
+  const list = trackLevels(levels, id);
+  const done = list.filter((l) => statusOf(l.id, progress) === "passed").length;
+  const open = list.some((l) => isUnlocked(l, levels, progress));
+  const style = TREE_STYLE[track.tree];
+  return (
+    <button
+      type="button"
+      onClick={() => onRun(`ls missions/${id}/`)}
+      className="group edge-ink block w-full text-left"
+      aria-label={`Parcours ${track.label}, ${done} sur ${list.length} niveaux hackés`}
+    >
+      <div className="shape-banner flex items-center gap-3 bg-paper py-3 pr-6 pl-3 transition-transform group-hover:translate-x-1">
+        <span
+          className="grid size-12 shrink-0 rotate-3 place-items-center border-2 border-ink font-display text-xl text-ink"
+          style={{ background: style.color }}
+        >
+          {style.glyph}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="mb-1 flex flex-wrap items-center gap-2">
+            <span className="shape-tag bg-ink px-2 font-display text-sm tracking-wide text-warn">PARCOURS</span>
+            <span className="shape-tag border border-ink px-2 font-display text-sm tracking-wide text-ink">
+              {done}/{list.length} HACKÉS
+            </span>
+            {!open && (
+              <span className="shape-tag bg-neutral-400 px-2 font-display text-sm tracking-wide text-ink">VERROUILLÉ</span>
+            )}
+          </span>
+          <span className="block truncate font-display text-2xl tracking-wide text-ink">{track.label.toUpperCase()}</span>
+          <span className="block truncate text-sm text-neutral-700">{track.hook}</span>
+        </span>
+      </div>
+    </button>
+  );
+}
+
+export function MissionBanners({
+  levels,
+  progress,
+  track,
+  onRun,
+}: {
+  levels: Level[];
+  progress: Progress;
+  track?: TrackId;
+  onRun: (command: string) => void;
+}) {
+  const shown = track ? trackLevels(levels, track) : mainLevels(levels);
   return (
     <div>
-      <h2 className="mb-3 font-display text-3xl tracking-wide outlined">MISSIONS</h2>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+        <h2 className="font-display text-3xl tracking-wide outlined">
+          {track ? `PARCOURS ${TRACKS[track].label.toUpperCase()}` : "MISSIONS"}
+        </h2>
+        {track && (
+          <button type="button" onClick={() => onRun("ls missions/")} className="edge-ink">
+            <span className="shape-tag block bg-paper px-3 py-1 font-mono text-sm font-bold text-ink">← ls missions/</span>
+          </button>
+        )}
+      </div>
       <ul className="flex flex-col gap-3 pr-2">
-        {levels.map((level, i) => {
+        {!track &&
+          (Object.keys(TRACKS) as TrackId[]).map((id) => (
+            <li key={id} className="ml-3">
+              <TrackBanner id={id} levels={levels} progress={progress} onRun={onRun} />
+            </li>
+          ))}
+        {shown.map((level, i) => {
           const unlocked = isUnlocked(level, levels, progress);
           const status = STATUS[unlocked ? statusOf(level.id, progress) : "locked"];
           const tree = TREE_STYLE[level.tree];

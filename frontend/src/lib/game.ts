@@ -1,6 +1,10 @@
 import {
   EMPTY_PROGRESS,
   TIER_LABELS,
+  TRACKS,
+  mainLevels,
+  trackLevels,
+  type TrackId,
   TREE_LABELS,
   canReplayChaos,
   canReplayTimer,
@@ -84,6 +88,7 @@ export function promptFor(state: GameState, levels: Level[]): string {
 const LOBBY_COMMANDS = [
   "help",
   "ls missions/",
+  "ls missions/git-gud/",
   "open ",
   "whoami",
   "pet",
@@ -149,9 +154,17 @@ function helpLines(): string[] {
   ];
 }
 
-function missionLines(state: GameState, levels: Level[]): string[] {
-  const lines = [ansi.bold("missions/")];
-  for (const l of levels) {
+function trackProgress(state: GameState, levels: Level[], track: TrackId): string {
+  const list = trackLevels(levels, track);
+  const done = list.filter((l) => statusOf(l.id, state.progress) === "passed").length;
+  return `${done}/${list.length}`;
+}
+
+function missionLines(state: GameState, levels: Level[], track?: TrackId): string[] {
+  const shown = track ? trackLevels(levels, track) : mainLevels(levels);
+  const lines = [ansi.bold(track ? `missions/${track}/` : "missions/")];
+  if (track) lines.push(ansi.dim(`Parcours ${TRACKS[track].label} : ${TRACKS[track].hook}`));
+  for (const l of shown) {
     const unlocked = isUnlocked(l, levels, state.progress);
     const status = statusOf(l.id, state.progress);
     const tag = !unlocked
@@ -173,8 +186,27 @@ function missionLines(state: GameState, levels: Level[]): string[] {
       `  ${tag}  ${name}${marks.length ? ` ${marks.join(" ")}` : ""}  ${ansi.dim(`${TIER_LABELS[l.tier]} · ${l.title}`)}`,
     );
   }
-  lines.push("", ansi.dim("Lance un niveau avec : open <niveau>"));
+  if (!track) {
+    for (const [id, t] of Object.entries(TRACKS) as [TrackId, (typeof TRACKS)[TrackId]][]) {
+      lines.push(
+        `  ${ansi.yellow("PARCOURS  ")}  ${ansi.white(`${id}/`)}  ${ansi.dim(`${t.label} · ${trackProgress(state, levels, id)} niveaux hackés`)}`,
+      );
+    }
+  }
+  lines.push(
+    "",
+    ansi.dim(track ? "Lance un niveau avec : open <niveau> · retour : ls missions/" : "Lance un niveau avec : open <niveau> · parcours : ls missions/git-gud/"),
+  );
   return lines;
+}
+
+/** « missions », « missions/git-gud » (et variantes avec ou sans barre) → écran visé, ou null. */
+function missionTarget(path: string): { track?: TrackId } | null {
+  const clean = path.replace(/^\.?\/?/, "").replace(/\/+$/, "");
+  if (clean === "missions") return {};
+  const match = /^missions\/([a-z-]+)$/.exec(clean);
+  if (match && match[1] in TRACKS) return { track: match[1] as TrackId };
+  return null;
 }
 
 function profileLines(state: GameState, levels: Level[]): string[] {
@@ -207,20 +239,25 @@ function lobbyCommand(state: GameState, line: string, levels: Level[], rng: () =
     case "clear":
       return { state, out: [], clear: true };
     case "ls": {
-      const target = arg.replace(/\/+$/, "");
-      if (target === "") return { state, out: [`${ansi.cyan("missions/")}`] };
-      if (target === "missions") {
-        return { state: { ...state, screen: { kind: "missions" } }, out: missionLines(state, levels) };
+      if (arg === "") return { state, out: [`${ansi.cyan("missions/")}`] };
+      const target = missionTarget(arg);
+      if (target) {
+        return {
+          state: { ...state, screen: { kind: "missions", ...target } },
+          out: missionLines(state, levels, target.track),
+        };
       }
       return { state, out: [`ls: ${arg} : aucun fichier ou dossier de ce nom`] };
     }
     case "open":
     case "cd": {
       const { rest, options } = openFlags(args);
-      const id = rest.join(" ").replace(/^missions\//, "").replace(/\/+$/, "");
-      if (cmd === "cd" && (id === "" || id === "~" || id === "missions")) {
-        return { state: { ...state, screen: { kind: "missions" } }, out: [] };
+      const path = rest.join(" ");
+      const target = missionTarget(path);
+      if (cmd === "cd" && (path === "" || path === "~" || target)) {
+        return { state: { ...state, screen: { kind: "missions", ...(target ?? {}) } }, out: [] };
       }
+      const id = path.replace(/^missions\/([a-z-]+\/)?/, "").replace(/\/+$/, "");
       return openLevel(state, id, levels, options, rng);
     }
     case "whoami":

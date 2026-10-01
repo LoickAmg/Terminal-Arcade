@@ -9,6 +9,7 @@ import {
   type Recap,
   type Run,
   type TimerState,
+  type TrackId,
 } from "@terminal-arcade/shared";
 import { DEFAULT_PET, type PetConfig } from "./pet";
 
@@ -26,7 +27,8 @@ export type Feedback = {
 
 export type Screen =
   | { kind: "welcome" }
-  | { kind: "missions" }
+  // track : un parcours (Git-Gud) plutôt que la liste des paliers.
+  | { kind: "missions"; track?: TrackId }
   | { kind: "question" }
   | {
       kind: "recap";

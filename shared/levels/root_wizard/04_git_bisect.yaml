@@ -1,0 +1,66 @@
+id: gg_bisect_01
+title: "Le commit coupable"
+hook: "Quarante commits, un seul a cassé le calcul. git bisect va le coincer."
+tier: root_wizard
+tree: git_gud
+runtime: docker
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 540, par_s: 270 }
+intro: "Boss du parcours Git-Gud. ./test.sh réussit si le calcul est juste, et échoue sinon."
+setup: |
+  git config --global user.name agent
+  git config --global user.email agent@sandbox
+  git config --global init.defaultBranch main
+  mkdir -p ~/calcul && cd ~/calcul && git init -q
+  printf '#!/bin/bash\n[ "$(./calc.sh)" = 42 ]\n' > test.sh
+  echo 'echo 42' > calc.sh
+  chmod +x test.sh calc.sh
+  git add . && git commit -qm "Départ"
+  bad=$(( RANDOM % 25 + 10 ))
+  mkdir -p notes
+  for i in $(seq 1 40); do
+    echo "étape $i" > "notes/etape-$i.txt"
+    [ "$i" = "$bad" ] && echo 'echo 41' > calc.sh
+    git add -A && git commit -qm "refactor: étape $i"
+  done
+questions:
+  - kind: task
+    prompt: "Dans calcul, ./test.sh échoue sur la dernière version, mais passait au premier commit. Trouve le commit fautif avec git bisect et envoie son identifiant (au moins 7 caractères) avec submit."
+    check: |
+      cd ~/calcul
+      bad=$(git log main --reverse --format=%H | while read -r h; do git show "$h:calc.sh" | grep -q 41 && { echo "$h"; break; }; done)
+      [ -f ~/.arcade/submitted ] || exit 1
+      s=$(cat ~/.arcade/submitted)
+      [ ${#s} -ge 7 ] && [ "${bad#"$s"}" != "$bad" ] && exit 0
+      exit 2
+    solution: "git bisect start, git bisect bad, git bisect good <premier commit>, puis git bisect run ./test.sh"
+    solve: |
+      cd ~/calcul && git bisect start HEAD "$(git rev-list --max-parents=0 HEAD)" >/dev/null 2>&1 && git bisect run ./test.sh >/dev/null 2>&1
+      submit "$(git rev-parse refs/bisect/bad | cut -c1-7)"
+    hints:
+      - text: "git bisect start, git bisect bad (version actuelle), git bisect good <id du premier commit>."
+      - text: "git bisect run ./test.sh fait toute la recherche tout seul."
+
+  - kind: task
+    prompt: "Termine proprement la recherche pour revenir sur main."
+    setup: |
+      cd ~/calcul && [ -f .git/BISECT_LOG ] || git bisect start HEAD "$(git rev-list --max-parents=0 HEAD)" >/dev/null 2>&1
+    check: '[ ! -f ~/calcul/.git/BISECT_LOG ] && [ "$(git -C ~/calcul branch --show-current)" = main ]'
+    solution: "git bisect reset"
+    solve: |
+      cd ~/calcul && git bisect reset >/dev/null 2>&1
+    hints:
+      - text: "git bisect reset ramène là où tu étais avant la recherche."
+
+  - kind: task
+    prompt: "Corrige le calcul en annulant le commit fautif avec git revert, puis vérifie que ./test.sh passe."
+    check: 'cd ~/calcul && ./test.sh && git log -1 --format=%s | grep -q "^Revert"'
+    solution: "git revert <id du commit fautif>"
+    solve: |
+      cd ~/calcul && bad=$(git log --reverse --format=%H | while read -r h; do git show "$h:calc.sh" | grep -q 41 && { echo "$h"; break; }; done) && git revert --no-edit "$bad" >/dev/null
+    hints:
+      - text: "git revert annule un commit précis, même ancien."
+
+rewards:
+  xp: 500
