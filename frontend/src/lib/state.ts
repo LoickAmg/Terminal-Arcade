@@ -47,7 +47,7 @@ export type Screen =
   | { kind: "profile" }
   | { kind: "pet" };
 
-export type WizardStep = "form" | "color" | "accessory" | "name";
+export type WizardStep = "style" | "form" | "color" | "accessory" | "name";
 export type Wizard = { step: WizardStep; draft: PetConfig; firstTime: boolean };
 
 export type TimeEffect = {
@@ -142,7 +142,7 @@ export function initialState(
     active: null,
     mobile: options.mobile ?? false,
     feedback: null,
-    wizard: pet ? null : { step: "form", draft: DEFAULT_PET, firstTime: true },
+    wizard: pet ? null : { step: "style", draft: DEFAULT_PET, firstTime: true },
     progress: progress ?? EMPTY_PROGRESS,
     pet: pet ?? DEFAULT_PET,
     petHidden: false,

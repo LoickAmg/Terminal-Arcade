@@ -5,8 +5,10 @@ se fait en tapant des commandes ; Arcade, un compagnon en pixel art, se
 promène au-dessus du terminal.
 
 Trois paliers : Script Kiddie (5 niveaux, dans le navigateur), SysAdmin et
-Root Wizard (6 niveaux de défis réels, dans une sandbox Docker), dont le
-début du parcours Git-Gud. Compagnon, mobile, parties chronométrées et mode
+Root Wizard (9 niveaux de défis réels, dans une sandbox Docker), plus le
+parcours Git-Gud (4 niveaux, de git init à git bisect, avec sa propre entrée
+dans ls missions/). Arcade se dessine en pixel art ou façon Persona
+(pet style). Compagnon, mobile, parties chronométrées et mode
 Chaos sur tous les niveaux.
 
 ## Parties chronométrées
@@ -125,4 +127,5 @@ attendue de chaque question est bien acceptée.
 2. Timer (compte à rebours ou chrono, reverse, rachat) — fait
 3. Chaos (sabotages d'Arcade) — fait
 4. Docker (défis réels, paliers SysAdmin et Root Wizard, environnement hostile) — fait
-5. Extensions (parcours Git-Gud, style Persona pour Arcade, PowerShell)
+5. Extensions — parcours Git-Gud et style Persona faits ; restent PowerShell,
+   le mode hors ligne (PWA) et l'ouverture au public (revue de sécurité)

@@ -1,7 +1,7 @@
 import { isObject } from "./storage";
 
-// Configuration du compagnon. Le style « persona » est prévu par le cahier
-// des charges ; seul le pixel art est dessiné pour le MVP.
+// Configuration du compagnon : forme, couleur, accessoire, nom, et style de
+// dessin (pixel art ou façon Persona), au choix du joueur.
 
 export const PET_FORMS = [
   { id: "chat", label: "Chat" },
@@ -25,7 +25,13 @@ export const PET_ACCESSORIES = [
   { id: "casque", label: "Casque audio" },
 ] as const;
 
+export const PET_STYLES = [
+  { id: "pixel", label: "Pixel art" },
+  { id: "persona", label: "Façon Persona" },
+] as const;
+
 export type PetForm = (typeof PET_FORMS)[number]["id"];
+export type PetStyle = (typeof PET_STYLES)[number]["id"];
 export type PetColor = (typeof PET_COLORS)[number]["id"];
 export type PetAccessory = (typeof PET_ACCESSORIES)[number]["id"];
 
@@ -34,7 +40,7 @@ export type PetConfig = {
   form: PetForm;
   color: PetColor;
   accessory: PetAccessory;
-  style: "pixel";
+  style: PetStyle;
 };
 
 export const DEFAULT_PET: PetConfig = {
@@ -56,7 +62,7 @@ export function isPetConfig(v: unknown): v is PetConfig {
     PET_FORMS.some((f) => f.id === v.form) &&
     PET_COLORS.some((c) => c.id === v.color) &&
     PET_ACCESSORIES.some((a) => a.id === v.accessory) &&
-    v.style === "pixel"
+    PET_STYLES.some((s) => s.id === v.style)
   );
 }
 

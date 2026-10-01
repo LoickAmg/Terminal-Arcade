@@ -1,4 +1,5 @@
 import { colorHex, type PetConfig } from "@/lib/pet";
+import { PersonaSprite } from "./PersonaSprite";
 import { SPRITES } from "./sprites";
 
 export type PetMood = "idle" | "happy" | "sad" | "think" | "sleep" | "cheer";
@@ -85,6 +86,9 @@ export function PetSprite({
   size?: number;
   title?: string;
 }) {
+  if (config.style === "persona") {
+    return <PersonaSprite config={config} mood={mood} frame={frame} size={size} title={title} />;
+  }
   const px = pixels(config, mood, frame);
   // Cadre fixe par forme, assez large pour tous les accessoires, pour que
   // le compagnon ne « saute » pas quand il change d'humeur ou d'accessoire.

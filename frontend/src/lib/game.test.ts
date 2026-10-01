@@ -20,9 +20,10 @@ function play(state: GameState, ...lines: string[]) {
 
 describe("premier lancement", () => {
   it("crée le compagnon pas à pas, nom par défaut Arcade", () => {
-    const { state } = play(initialState(null, null), "2", "Cyan", "3", "");
+    const { state } = play(initialState(null, null), "2", "2", "Cyan", "3", "");
     expect(state.wizard).toBeNull();
-    expect(state.pet).toEqual({ ...DEFAULT_PET, form: "robot", color: "cyan", accessory: "lunettes" });
+    expect(state.pet).toEqual({ ...DEFAULT_PET, style: "persona", form: "robot", color: "cyan", accessory: "lunettes" });
+    expect(play(state, "pet style pixel").state.pet.style).toBe("pixel");
   });
 });
 

@@ -1,5 +1,5 @@
 import { ansi } from "./ansi";
-import { PET_ACCESSORIES, PET_COLORS, PET_FORMS, sanitizePetName, type PetConfig } from "./pet";
+import { PET_ACCESSORIES, PET_COLORS, PET_FORMS, PET_STYLES, sanitizePetName, type PetConfig } from "./pet";
 import { LEVEL_KEYWORDS, matches, type GameState, type LineResult, type Wizard, type WizardStep } from "./state";
 
 // Compagnon : commandes pet et création pas à pas (pet init).
@@ -13,12 +13,12 @@ export function petCommand(state: GameState, args: string[]): LineResult {
       return {
         state: { ...state, screen: { kind: "pet" } },
         out: [
-          `${ansi.bold(state.pet.name)} · ${labelOf(PET_FORMS, state.pet.form)}, ${labelOf(PET_COLORS, state.pet.color).toLowerCase()}, accessoire : ${labelOf(PET_ACCESSORIES, state.pet.accessory).toLowerCase()}`,
+          `${ansi.bold(state.pet.name)} · ${labelOf(PET_FORMS, state.pet.form)}, ${labelOf(PET_COLORS, state.pet.color).toLowerCase()}, accessoire : ${labelOf(PET_ACCESSORIES, state.pet.accessory).toLowerCase()}, style : ${labelOf(PET_STYLES, state.pet.style).toLowerCase()}`,
           ansi.dim("pet init : le recréer · pet name <nom> : le renommer"),
         ],
       };
     case "init": {
-      const wizard: Wizard = { step: "form", draft: state.pet, firstTime: false };
+      const wizard: Wizard = { step: "style", draft: state.pet, firstTime: false };
       return {
         state: { ...state, wizard, screen: { kind: "pet" } },
         out: wizardQuestion(wizard),
@@ -31,6 +31,16 @@ export function petCommand(state: GameState, args: string[]): LineResult {
         state: { ...state, pet: { ...state.pet, name } },
         out: [`Ton compagnon s'appelle maintenant ${ansi.bold(name)}.`],
         reaction: "happy",
+      };
+    }
+    case "style": {
+      const wanted = (rest[0] ?? "").toLowerCase();
+      const style = PET_STYLES.find((s) => s.id === wanted);
+      if (!style) return { state, out: [`Usage : ${ansi.cyan("pet style pixel")} ou ${ansi.cyan("pet style persona")}`] };
+      return {
+        state: { ...state, pet: { ...state.pet, style: style.id }, screen: { kind: "pet" } },
+        out: [`${state.pet.name} passe en style ${style.label.toLowerCase()}.`],
+        reaction: "cheer",
       };
     }
     case "hide":
@@ -47,12 +57,14 @@ function labelOf<T extends { id: string; label: string }>(list: readonly T[], id
 }
 
 const WIZARD_LISTS = {
+  style: PET_STYLES,
   form: PET_FORMS,
   color: PET_COLORS,
   accessory: PET_ACCESSORIES,
 } as const;
 
 const WIZARD_TITLES: Record<WizardStep, string> = {
+  style: "Choisis son style",
   form: "Choisis sa forme",
   color: "Choisis sa couleur",
   accessory: "Choisis un accessoire",
@@ -107,8 +119,8 @@ export function wizardInput(state: GameState, wizard: Wizard, line: string): Lin
   if (!item) return { state, out: [ansi.yellow(`Tape un numéro entre 1 et ${list.length}.`)] };
 
   const draft = { ...wizard.draft, [wizard.step]: item.id } as PetConfig;
-  const nextStep: WizardStep =
-    wizard.step === "form" ? "color" : wizard.step === "color" ? "accessory" : "name";
+  const order: WizardStep[] = ["style", "form", "color", "accessory", "name"];
+  const nextStep = order[order.indexOf(wizard.step) + 1];
   const next: Wizard = { ...wizard, draft, step: nextStep };
   return {
     state: { ...state, wizard: next },

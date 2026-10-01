@@ -415,10 +415,16 @@ export function PetPanel({ state, onRun }: { state: GameState; onRun: Run }) {
       {!wizard && (
         <div className="flex flex-wrap gap-3">
           <CommandChip command="pet init" onRun={onRun} />
+          <CommandChip
+            command={config.style === "pixel" ? "pet style persona" : "pet style pixel"}
+            onRun={onRun}
+          />
           <CommandChip command={state.petHidden ? "pet show" : "pet hide"} onRun={onRun} />
         </div>
       )}
-      <p className="text-sm text-paper/85">Style pixel art. Le style façon Persona arrivera plus tard.</p>
+      <p className="text-sm text-paper/85">
+        Style {config.style === "pixel" ? "pixel art" : "façon Persona"} · change-le avec pet style.
+      </p>
     </div>
   );
 }
