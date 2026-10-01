@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/* Palette inspirée de la messagerie de Persona 5 (valeurs relevées sur les
+   captures de référence, à affiner). Le jeu a une seule ambiance, rouge et
+   noire : pas de thème clair/sombre. */
+@theme inline {
+  --color-red: #e0141e;
+  --color-red-deep: #9b0a0a;
+  --color-ink: #0a0a0a;
+  --color-paper: #ffffff;
+  --color-cyan: #6fd6f2;
+  --color-orange: #f07818;
+  --color-good: #4ade80;
+  --color-warn: #ffd23f;
+
+  --font-display: var(--ff-display), Impact, sans-serif;
+  --font-sans: var(--ff-sans), system-ui, sans-serif;
+  --font-mono: var(--ff-mono), ui-monospace, monospace;
+}
+
+html,
+body {
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+body {
+  font-family: var(--font-sans);
+  /* Trame de points discrète, façon bande dessinée. */
+  background-image: radial-gradient(rgb(0 0 0 / 0.14) 1.2px, transparent 1.4px);
+  background-size: 9px 9px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-cyan);
+  outline-offset: 2px;
+}
+
+/* Texte blanc cerné de noir (tampons, titres). */
+.outlined {
+  text-shadow:
+    -2px -2px 0 var(--color-ink),
+    2px -2px 0 var(--color-ink),
+    -2px 2px 0 var(--color-ink),
+    2px 2px 0 var(--color-ink),
+    4px 4px 0 var(--color-ink);
+}
+
+/* Formes anguleuses. Le filtre du parent dessine le liseré décalé, qui suit
+   la découpe (une ombre portée classique serait rognée par clip-path). */
+.edge-white {
+  filter: drop-shadow(3px 3px 0 var(--color-paper));
+}
+.edge-ink {
+  filter: drop-shadow(3px 3px 0 var(--color-ink));
+}
+.shape-banner {
+  clip-path: polygon(1.5% 4%, 100% 0, 97.5% 100%, 0 92%);
+}
+.shape-panel {
+  clip-path: polygon(0 1.5%, 100% 0, 99% 100%, 1% 98.5%);
+}
+.shape-bubble-left {
+  clip-path: polygon(6% 6%, 100% 0, 97% 100%, 4% 90%, 4% 60%, 0 48%, 5% 40%);
+}
+.shape-bubble-right {
+  clip-path: polygon(0 4%, 94% 0, 95% 38%, 100% 52%, 95% 62%, 96% 100%, 2% 94%);
+}
+.shape-tag {
+  clip-path: polygon(6% 0, 100% 8%, 94% 100%, 0 90%);
+}
+
+/* Bulle du compagnon. */
+.pet-bubble {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 2px 8px;
+  clip-path: polygon(0 0, 100% 6%, 96% 100%, 4% 92%);
+}
+
+@keyframes pet-jump {
+  0%, 100% { translate: 0 0; }
+  30% { translate: 0 -14px; }
+  55% { translate: 0 0; }
+  75% { translate: 0 -6px; }
+}
+@keyframes pet-shake {
+  0%, 100% { translate: 0 0; }
+  20% { translate: -4px 0; }
+  40% { translate: 4px 0; }
+  60% { translate: -3px 0; }
+  80% { translate: 3px 0; }
+}
+.pet-jump { animation: pet-jump 0.7s ease-out; }
+.pet-shake { animation: pet-shake 0.45s ease-in-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-jump,
+  .pet-shake {
+    animation: none;
+  }
+}
+
+/* Barres de défilement discrètes, assorties au rouge. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink) transparent;
+}
+
+/* xterm : le conteneur prend toute la place du cadre. */
+.xterm {
+  height: 100%;
+  padding: 10px 12px;
+}
+.xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}

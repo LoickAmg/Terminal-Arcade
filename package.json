@@ -1,0 +1,21 @@
+{
+  "name": "terminal-arcade",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w frontend --",
+    "build": "npm run build -w frontend",
+    "lint": "npm run lint -w frontend",
+    "test": "vitest run",
+    "typecheck": "tsc -p shared --noEmit && tsc -p frontend --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

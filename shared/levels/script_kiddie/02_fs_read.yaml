@@ -1,0 +1,61 @@
+id: fs_read_01
+title: "Lire sans ouvrir"
+hook: "Des fichiers partout, et aucun éditeur. Lis-les quand même."
+tier: script_kiddie
+tree: file_system_ninja
+type: classic
+replay: { chaos: true, timer: true }
+intro: "Lire un fichier entier, le début, la fin, ou le parcourir page par page."
+questions:
+  - kind: command
+    prompt: "Affiche tout le contenu de notes.txt."
+    accept: ["cat notes.txt"]
+    output: |
+      Mot de passe Wi-Fi : changé lundi
+      Penser à vider /tmp
+    hints:
+      - text: "La commande la plus courte pour afficher un fichier : trois lettres."
+
+  - kind: fill
+    prompt: "Complète pour n'afficher que les 5 premières lignes de journal.log."
+    template: "head ___ 5 journal.log"
+    accept: ["-n"]
+    hints:
+      - text: "L'option qui fixe un nombre de lignes."
+
+  - kind: command
+    prompt: "Affiche les 10 dernières lignes de journal.log."
+    accept: ["tail journal.log", "tail -n 10 journal.log", "tail -n10 journal.log", "tail -10 journal.log"]
+    output: "… 10 dernières lignes du journal …"
+    explain: "Sans option, tail affiche déjà les 10 dernières lignes."
+    hints:
+      - text: "Le contraire de head."
+
+  - kind: mcq
+    prompt: "Quelle commande permet de parcourir un long fichier page par page ?"
+    choices: ["less", "cat", "echo", "touch"]
+    answer: 1
+    explain: "less ouvre le fichier sans tout afficher d'un coup. On en sort avec q."
+
+  - kind: predict
+    prompt: "liste.txt contient exactement 3 lignes. Qu'affiche cette commande ?"
+    code: "wc -l < liste.txt"
+    accept: ["3"]
+    explain: "Avec <, wc lit l'entrée standard et n'affiche que le nombre, sans le nom du fichier."
+    hints:
+      - text: "wc -l compte les lignes."
+
+  - kind: trap
+    prompt: "Tu veux lire notes.txt. Que fait réellement cette commande ?"
+    code: "cat > notes.txt"
+    choices:
+      - "Elle affiche le fichier"
+      - "Elle vide le fichier et attend du texte à écrire dedans"
+      - "Elle copie le fichier"
+      - "Elle renvoie une erreur"
+    answer: 2
+    explain: "> redirige la sortie vers le fichier et l'écrase. Pour lire : cat notes.txt, sans chevron."
+
+rewards:
+  xp: 140
+  unlocks: grep_01

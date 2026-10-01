@@ -1,0 +1,63 @@
+id: grep_01
+title: "L'aiguille dans la botte de foin"
+hook: "Un token administrateur a fuité quelque part dans les logs."
+tier: script_kiddie
+tree: data_surgeon
+type: classic
+replay: { chaos: true, timer: true }
+intro: "Chercher un mot dans un fichier, compter, et retrouver un fichier perdu."
+questions:
+  - kind: command
+    prompt: "Affiche les lignes de access.log qui contiennent CRITICAL."
+    accept: ["grep CRITICAL access.log"]
+    output: "CRITICAL_ERROR - API_KEY: xyz_789_admin"
+    hints:
+      - text: "grep MOT fichier"
+
+  - kind: command
+    prompt: "Même recherche, mais le mot peut aussi être écrit en minuscules. Ignore la casse."
+    accept:
+      - "grep -i CRITICAL access.log"
+      - "grep -i critical access.log"
+      - "grep --ignore-case CRITICAL access.log"
+      - "grep --ignore-case critical access.log"
+    output: |
+      CRITICAL_ERROR - API_KEY: xyz_789_admin
+      critical: disque presque plein
+    hints:
+      - text: "L'option i comme « ignore case »."
+
+  - kind: predict
+    prompt: "access.log contient 10000 lignes « Connexion OK » et une seule ligne CRITICAL. Qu'affiche cette commande ?"
+    code: "grep -c OK access.log"
+    accept: ["10000"]
+    explain: "-c compte les lignes qui correspondent au lieu de les afficher."
+
+  - kind: command
+    prompt: "Le fichier password.txt est caché quelque part sous le dossier courant. Trouve son chemin."
+    accept: ["find . -name password.txt", "find -name password.txt"]
+    output: "./archives/2024/old/password.txt"
+    explain: "find parcourt les sous-dossiers ; -name filtre sur le nom exact."
+    hints:
+      - text: "find DOSSIER -name NOM"
+
+  - kind: fill
+    prompt: "Complète pour chercher CRITICAL dans tous les fichiers de /var/log et de ses sous-dossiers."
+    template: "grep ___ CRITICAL /var/log"
+    accept: ["-r", "-R", "--recursive"]
+    hints:
+      - text: "r comme « récursif »."
+
+  - kind: trap
+    prompt: "Un collègue veut vider le cache avec cette commande. Où est le piège ?"
+    code: "rm -rf / tmp/cache"
+    choices:
+      - "Il manque sudo"
+      - "L'espace après / : la commande vise aussi la racine du système"
+      - "-rf doit s'écrire -fr"
+      - "Aucun, la commande est correcte"
+    answer: 2
+    explain: "rm reçoit deux chemins : / et tmp/cache. Toujours relire un chemin avant un rm -rf."
+
+rewards:
+  xp: 160

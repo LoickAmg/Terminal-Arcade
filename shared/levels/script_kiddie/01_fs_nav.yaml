@@ -1,0 +1,61 @@
+id: fs_nav_01
+title: "Premiers pas"
+hook: "Tu viens d'atterrir sur un serveur inconnu. Repère-toi."
+tier: script_kiddie
+tree: file_system_ninja
+type: classic
+replay: { chaos: true, timer: true }
+intro: "Navigation de base : savoir où l'on est, voir ce qu'il y a autour, se déplacer."
+questions:
+  - kind: command
+    prompt: "Affiche le chemin du dossier dans lequel tu te trouves."
+    accept: ["pwd"]
+    output: "/home/agent"
+    hints:
+      - text: "Trois lettres : « print working directory »."
+
+  - kind: command
+    prompt: "Liste le contenu du dossier courant."
+    accept: ["ls"]
+    output: "notes.txt  outils  rapport.md"
+    hints:
+      - text: "Deux lettres, abréviation de « list »."
+
+  - kind: command
+    prompt: "Certains fichiers commencent par un point et restent invisibles. Liste TOUT le contenu, fichiers cachés compris."
+    accept: ["ls -a", "ls -A", "ls --all", "ls -la"]
+    output: ".  ..  .secret  notes.txt  outils  rapport.md"
+    explain: "Un nom qui commence par un point est caché. -a les montre tous, -A aussi mais sans . et .."
+    hints:
+      - text: "Cherche l'option « all »."
+
+  - kind: mcq
+    prompt: "Que fait cd .. ?"
+    choices:
+      - "Remonte au dossier parent"
+      - "Revient au dossier personnel"
+      - "Liste les dossiers"
+      - "Ne fait rien"
+    answer: 1
+    explain: ".. désigne toujours le dossier parent. Pour revenir au dossier personnel : cd tout court, ou cd ~."
+
+  - kind: predict
+    prompt: "Qu'affiche la dernière commande ?"
+    code: |
+      cd /var/log
+      cd ..
+      pwd
+    accept: ["/var"]
+    hints:
+      - text: "Remonte d'un cran depuis /var/log."
+
+  - kind: command
+    prompt: "Entre dans le dossier outils."
+    accept: ["cd outils", "cd ./outils"]
+    output: ""
+    hints:
+      - text: "cd suivi du nom du dossier."
+
+rewards:
+  xp: 120
+  unlocks: fs_read_01
