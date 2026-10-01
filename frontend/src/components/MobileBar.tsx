@@ -11,16 +11,24 @@ import type { TerminalApi } from "./TerminalView";
 export function MobileBar({
   api,
   completer,
+  blockedKey,
+  disabled,
 }: {
   api: TerminalApi | null;
   completer: (buffer: string) => string[];
+  // Chaos : touche « mangée » par le compagnon, terminal fermé.
+  blockedKey: string | null;
+  disabled: boolean;
 }) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   // Position dans l'historique pendant la navigation avec ↑/↓.
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
 
+  const count = (text: string) => (blockedKey ? text.toLowerCase().split(blockedKey).length - 1 : 0);
+
   const send = () => {
+    if (disabled) return;
     api?.run(value);
     setValue("");
     setHistoryIndex(null);
@@ -93,13 +101,18 @@ export function MobileBar({
           id="mobile-input"
           ref={inputRef}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            // La touche bloquée ne s'ajoute pas ; le reste de la saisie est gardé.
+            if (count(e.target.value) > count(value)) return;
+            setValue(e.target.value);
+          }}
+          disabled={disabled}
           autoCapitalize="off"
           autoCorrect="off"
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="send"
-          placeholder="tape une commande…"
+          placeholder={disabled ? "terminal fermé…" : blockedKey ? `touche « ${blockedKey} » bloquée…` : "tape une commande…"}
           className="min-w-0 flex-1 border-2 border-cyan bg-ink px-3 py-2 font-mono text-base text-paper placeholder:text-neutral-500 focus:outline-none"
         />
         <button type="submit" className="bg-red px-4 font-display text-lg tracking-wide text-paper">

@@ -7,14 +7,15 @@ import {
   TREE_LABELS,
   currentQuestion,
   formatTime,
+  isChaos,
+  isTimed,
   nativeMode,
   statusOf,
   type Level,
-  type Recap,
   type TimerState,
   type Tree,
 } from "@terminal-arcade/shared";
-import { KIND_LABELS, activeLevel, wizardChoices, type GameState } from "@/lib/game";
+import { KIND_LABELS, playedLevel, wizardChoices, type GameState } from "@/lib/game";
 import { PetSprite } from "./pet/PetSprite";
 import { TREE_STYLE } from "./MissionBanners";
 
@@ -82,11 +83,17 @@ export function QuestionPanel({
   levels: Level[];
   onRun: Run;
 }) {
-  const level = activeLevel(state, levels);
-  const run = state.active?.run;
+  const level = playedLevel(state, levels);
+  const active = state.active;
+  const run = active?.run;
   const q = level && run ? currentQuestion(level, run) : null;
-  if (!level || !run || !q) return null;
+  if (!level || !active || !run || !q) return null;
   const tree = TREE_STYLE[level.tree];
+  const chaos = active.chaos;
+  // Code affiché : falsifié à l'écran par le compagnon, le terminal garde le vrai.
+  const shownCode = "code" in q && q.code ? (chaos?.falsified[run.index] ?? q.code) : null;
+  const mutated = chaos?.overrides[run.index] !== undefined;
+  const blocked = chaos?.blockedKey?.key ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -101,13 +108,26 @@ export function QuestionPanel({
         ))}
       </div>
 
+      {(chaos || blocked) && (
+        <div className="flex flex-wrap gap-2">
+          {chaos && (
+            <span className="shape-tag bg-ink px-2 font-display text-sm tracking-wide text-red">☠ CHAOS</span>
+          )}
+          {blocked && (
+            <span className="shape-tag bg-warn px-2 font-display text-sm tracking-wide text-ink">
+              TOUCHE « {blocked.toUpperCase()} » BLOQUÉE
+            </span>
+          )}
+        </div>
+      )}
+
       <FeedbackBubble state={state} />
 
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${level.id}-${run.index}`}
-          initial={{ x: -50, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
+          key={`${level.id}-${run.index}-${mutated ? "m" : ""}`}
+          initial={mutated ? { x: 0, opacity: 0, skewX: 25 } : { x: -50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1, skewX: 0 }}
           exit={{ x: 50, opacity: 0 }}
           transition={spring}
           className="flex flex-col gap-4"
@@ -136,9 +156,7 @@ export function QuestionPanel({
                     ))}
                   </pre>
                 )}
-                {"code" in q && q.code && (
-                  <pre className="mt-3 overflow-x-auto font-mono text-cyan">{q.code.trimEnd()}</pre>
-                )}
+                {shownCode && <pre className="mt-3 overflow-x-auto font-mono text-cyan">{shownCode.trimEnd()}</pre>}
               </BlackBubble>
             </div>
           </div>
@@ -173,6 +191,8 @@ export function QuestionPanel({
       <div className="flex flex-wrap gap-3">
         <CommandChip command="hint" onRun={onRun} label="hint · indice" />
         <CommandChip command="skip" onRun={onRun} label="skip · passer" />
+        {chaos && <CommandChip command="verify" onRun={onRun} label="verify · vérifier" />}
+        {active.timer && <CommandChip command="clock" onRun={onRun} label="clock · vrai temps" />}
         <CommandChip command="quit" onRun={onRun} label="quit · quitter" />
       </div>
     </div>
@@ -185,7 +205,7 @@ function FeedbackBubble({ state }: { state: GameState }) {
   const color = f.tone === "good" ? "text-good" : f.tone === "bad" ? "text-red" : "text-warn";
   return (
     <motion.div
-      key={`${f.title}-${state.active?.run.index}-${state.active?.run.wrongAttempts}-${state.active?.run.hintsUsed}`}
+      key={`${f.title}-${state.active?.run.index}-${state.active?.run.wrongAttempts}-${state.active?.run.hintsUsed}-${state.active?.chaos?.state.used}`}
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={spring}
@@ -193,6 +213,11 @@ function FeedbackBubble({ state }: { state: GameState }) {
       className="edge-ink"
     >
       <div className="shape-panel bg-paper px-4 py-2 text-ink">
+        {f.claimedBy && (
+          <p className="text-xs font-bold tracking-wide text-neutral-500 uppercase">
+            selon {f.claimedBy} (vérifiable avec verify)
+          </p>
+        )}
         <p className={`font-display text-lg tracking-wide ${color} [text-shadow:1px_1px_0_#0a0a0a]`}>{f.title}</p>
         {f.output && <pre className="mt-1 overflow-x-auto font-mono text-sm">{f.output}</pre>}
         {f.explain && <p className="mt-1 text-sm">{f.explain}</p>}
@@ -208,25 +233,25 @@ function timeLine(timer: TimerState, timedOut: boolean): string {
   return `${formatTime(timer.valueMs)} restant`;
 }
 
+type RecapScreen = Extract<GameState["screen"], { kind: "recap" }>;
+
 export function RecapPanel({
-  recap,
+  screen,
   level,
-  nextId,
-  timer,
-  timedOut,
-  timerReplay,
+  petName,
   onRun,
 }: {
-  recap: Recap;
+  screen: RecapScreen;
   level: Level;
-  nextId: string | null;
-  timer: TimerState | null;
-  timedOut: boolean;
-  timerReplay: boolean;
+  petName: string;
   onRun: Run;
 }) {
-  // Une partie Timer d'un niveau classique se rejoue avec --timer.
-  const retry = timer && nativeMode(level) === "classic" ? `open ${level.id} --timer` : `open ${level.id}`;
+  const { recap, nextId, timer, timedOut, mode, replays, chaosLog } = screen;
+  // Les couches ajoutées à la partie se retrouvent dans la commande pour rejouer.
+  const flags = [
+    isTimed(mode) && !isTimed(nativeMode(level)) ? " --timer" : "",
+    isChaos(mode) && !isChaos(nativeMode(level)) ? " --chaos" : "",
+  ].join("");
   return (
     <motion.div
       initial={{ scale: 0.85, rotate: -6, opacity: 0 }}
@@ -267,10 +292,35 @@ export function RecapPanel({
           </p>
         )}
       </BlackBubble>
+
+      {chaosLog && (
+        <div className="edge-white">
+          <div className="shape-panel bg-ink px-5 py-4">
+            <p className="font-display text-xl tracking-wide text-red">CE QUE {petName.toUpperCase()} A FAIT</p>
+            {chaosLog.length === 0 ? (
+              <p className="mt-1 text-sm text-neutral-300">Rien, finalement. Il était sage.</p>
+            ) : (
+              <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+                {chaosLog.map((e, i) => (
+                  <li key={i} className="flex gap-3">
+                    <span className="w-10 shrink-0 font-mono text-neutral-500">{formatTime(e.atMs)}</span>
+                    <span className="min-w-0 flex-1 text-neutral-200">{e.note}</span>
+                    <span className={`shrink-0 font-bold ${e.detected ? "text-good" : "text-red"}`}>
+                      {e.detected ? "démasqué" : "inaperçu"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-3">
         {recap.passed && nextId && <CommandChip command={`open ${nextId}`} onRun={onRun} />}
-        {timerReplay && <CommandChip command={`open ${level.id} --timer`} onRun={onRun} label="⏱ rejouer en Timer" />}
-        <CommandChip command={retry} onRun={onRun} label="rejouer" />
+        {replays.timer && <CommandChip command={`open ${level.id} --timer`} onRun={onRun} label="⏱ rejouer en Timer" />}
+        {replays.chaos && <CommandChip command={`open ${level.id} --chaos`} onRun={onRun} label="☠ rejouer en Chaos" />}
+        <CommandChip command={`open ${level.id}${flags}`} onRun={onRun} label="rejouer" />
         <CommandChip command="ls missions/" onRun={onRun} />
       </div>
     </motion.div>

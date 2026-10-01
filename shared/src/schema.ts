@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SABOTAGES } from "./sabotages";
 
 // Format d'un niveau (fichiers YAML de shared/levels). Les champs timer et
 // chaos sont acceptés dès maintenant pour que les niveaux puissent les
@@ -62,18 +63,27 @@ const fillQuestion = z.object({
   accept: z.array(z.string().min(1)).min(1),
 });
 
+const choicesInRange = (q: object) =>
+  !("choices" in q && "answer" in q) ||
+  (q.answer as number) <= (q.choices as string[]).length;
+
+const baseQuestionSchema = z
+  .discriminatedUnion("kind", [commandQuestion, mcqQuestion, trapQuestion, predictQuestion, fillQuestion])
+  .refine(choicesInRange, { message: "answer dépasse le nombre de choix" });
+
+// Variante : version modifiée de la question qu'Arcade peut substituer en
+// cours de partie (sabotage « mutation » du mode Chaos).
+const variant = { variant: baseQuestionSchema.optional() };
+
 export const questionSchema = z
   .discriminatedUnion("kind", [
-    commandQuestion,
-    mcqQuestion,
-    trapQuestion,
-    predictQuestion,
-    fillQuestion,
+    commandQuestion.extend(variant),
+    mcqQuestion.extend(variant),
+    trapQuestion.extend(variant),
+    predictQuestion.extend(variant),
+    fillQuestion.extend(variant),
   ])
-  .refine(
-    (q) => !("choices" in q) || q.answer <= q.choices.length,
-    { message: "answer dépasse le nombre de choix" },
-  );
+  .refine(choicesInRange, { message: "answer dépasse le nombre de choix" });
 
 const timerSchema = z.object({
   // random : le sens est tiré au lancement (rachat inclus si deficit_s > 0).
@@ -101,7 +111,12 @@ export const levelSchema = z
       .object({ chaos: z.boolean().default(true), timer: z.boolean().default(false) })
       .default({ chaos: true, timer: false }),
     timer: timerSchema.optional(),
-    chaos: z.record(z.string(), z.unknown()).optional(),
+    chaos: z
+      .object({
+        // Sabotages « signature », joués en priorité dans ce niveau.
+        signature: z.array(z.enum(SABOTAGES)).default([]),
+      })
+      .optional(),
     runtime: z.enum(["browser", "docker"]).default("browser"),
     intro: z.string().optional(),
     questions: z.array(questionSchema).min(1),

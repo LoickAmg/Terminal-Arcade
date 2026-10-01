@@ -2,7 +2,10 @@ import { TIERS, type Level, type Tier, type Tree } from "./schema";
 
 export type LevelStatus = "new" | "attempted" | "passed";
 
-export type PlayMode = "classic" | "timer";
+export type PlayMode = "classic" | "timer" | "chaos" | "chaos_timer";
+
+export const isTimed = (mode: PlayMode) => mode === "timer" || mode === "chaos_timer";
+export const isChaos = (mode: PlayMode) => mode === "chaos" || mode === "chaos_timer";
 
 export type Progress = {
   // modes : façons de jouer déjà réussies (absent dans les sauvegardes de
@@ -46,15 +49,45 @@ export function statusOf(levelId: string, progress: Progress): LevelStatus {
   return progress.levels[levelId]?.status ?? "new";
 }
 
-/** Mode imposé par le niveau : un niveau Timer se joue toujours chronométré. */
+/** Mode imposé par le niveau (son type natif). */
 export function nativeMode(level: Level): PlayMode {
-  return level.type === "timer" || level.type === "chaos_timer" ? "timer" : "classic";
+  return level.type;
+}
+
+/**
+ * Mode d'une partie lancée avec des options. Un niveau réussi se rejoue en
+ * Chaos s'il le prévoit ; en Timer si c'est un niveau sans timer natif qui
+ * le prévoit. Les couches s'ajoutent à son type natif. Renvoie null si la
+ * combinaison n'est pas permise.
+ */
+export function playMode(
+  level: Level,
+  progress: Progress,
+  options: { chaos: boolean; timer: boolean },
+): PlayMode | null {
+  const native = nativeMode(level);
+  const passed = statusOf(level.id, progress) === "passed";
+  let timed = isTimed(native);
+  let chaos = isChaos(native);
+  if (options.timer && !timed) {
+    if (!passed || !level.replay.timer || !level.timer) return null;
+    timed = true;
+  }
+  if (options.chaos && !chaos) {
+    if (!passed || !level.replay.chaos) return null;
+    chaos = true;
+  }
+  return chaos ? (timed ? "chaos_timer" : "chaos") : timed ? "timer" : "classic";
+}
+
+export function canReplayChaos(level: Level, progress: Progress): boolean {
+  return !isChaos(nativeMode(level)) && level.replay.chaos && statusOf(level.id, progress) === "passed";
 }
 
 /** Un niveau classique réussi peut être rejoué en Timer s'il le prévoit. */
 export function canReplayTimer(level: Level, progress: Progress): boolean {
   return (
-    nativeMode(level) === "classic" &&
+    !isTimed(nativeMode(level)) &&
     level.replay.timer &&
     !!level.timer &&
     statusOf(level.id, progress) === "passed"

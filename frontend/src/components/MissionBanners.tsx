@@ -4,7 +4,10 @@ import { motion } from "motion/react";
 import {
   TIER_LABELS,
   TREE_LABELS,
+  canReplayChaos,
   canReplayTimer,
+  isChaos,
+  isTimed,
   isUnlocked,
   nativeMode,
   passedModes,
@@ -54,9 +57,14 @@ export function MissionBanners({
           const unlocked = isUnlocked(level, levels, progress);
           const status = STATUS[unlocked ? statusOf(level.id, progress) : "locked"];
           const tree = TREE_STYLE[level.tree];
-          const timed = nativeMode(level) === "timer";
-          const replay = canReplayTimer(level, progress);
-          const timerDone = passedModes(level.id, progress).includes("timer");
+          const native = nativeMode(level);
+          const timed = isTimed(native);
+          const chaotic = isChaos(native);
+          const replayTimer = canReplayTimer(level, progress);
+          const replayChaos = canReplayChaos(level, progress);
+          const done = passedModes(level.id, progress);
+          const timerDone = !timed && done.some(isTimed);
+          const chaosDone = !chaotic && done.some(isChaos);
           return (
             <motion.li
               key={level.id}
@@ -97,22 +105,42 @@ export function MissionBanners({
                           {timed ? "⏱ TIMER" : "⏱ ✓"}
                         </span>
                       )}
+                      {(chaotic || chaosDone) && (
+                        <span className="shape-tag bg-paper px-2 font-display text-sm tracking-wide text-red">
+                          {chaotic ? "☠ CHAOS" : "☠ ✓"}
+                        </span>
+                      )}
                     </span>
                     <span className="block truncate font-sans text-lg font-bold text-cyan">{level.title}</span>
                     <span className="block truncate text-sm text-neutral-300">{level.hook}</span>
                   </span>
                 </div>
               </button>
-              {replay && (
-                <button
-                  type="button"
-                  onClick={() => onRun(`open ${level.id} --timer`)}
-                  className="edge-ink shrink-0"
-                  aria-label={`Rejouer ${level.title} en Timer`}
-                  title="Rejouer en Timer"
-                >
-                  <span className="shape-tag grid size-11 place-items-center bg-warn font-display text-xl text-ink">⏱</span>
-                </button>
+              {(replayTimer || replayChaos) && (
+                <span className="flex shrink-0 flex-col gap-1.5">
+                  {replayTimer && (
+                    <button
+                      type="button"
+                      onClick={() => onRun(`open ${level.id} --timer`)}
+                      className="edge-ink"
+                      aria-label={`Rejouer ${level.title} en Timer`}
+                      title="Rejouer en Timer"
+                    >
+                      <span className="shape-tag grid size-10 place-items-center bg-warn font-display text-lg text-ink">⏱</span>
+                    </button>
+                  )}
+                  {replayChaos && (
+                    <button
+                      type="button"
+                      onClick={() => onRun(`open ${level.id} --chaos`)}
+                      className="edge-ink"
+                      aria-label={`Rejouer ${level.title} en Chaos`}
+                      title="Rejouer en Chaos"
+                    >
+                      <span className="shape-tag grid size-10 place-items-center bg-paper font-display text-lg text-red">☠</span>
+                    </button>
+                  )}
+                </span>
               )}
             </motion.li>
           );

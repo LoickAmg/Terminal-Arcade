@@ -1,0 +1,82 @@
+id: sk_chaos_01
+title: "Arcade déraille"
+hook: "Ton compagnon a décidé de jouer contre toi. Ne crois que ce que tu vérifies."
+tier: script_kiddie
+tree: data_surgeon
+type: chaos
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 180, par_s: 90 }
+chaos:
+  signature: [false_red, block_key, mutation, falsify_code]
+intro: "Premier niveau Chaos. Les verdicts d'Arcade peuvent mentir ; le terminal, lui, dit toujours vrai."
+questions:
+  - kind: command
+    prompt: "Liste le contenu du dossier en format long (droits, taille, date)."
+    accept: ["ls -l"]
+    output: |
+      -rw-r--r-- 1 agent agent  812 oct.  1 09:12 notes.txt
+      drwxr-xr-x 2 agent agent 4096 oct.  1 09:10 outils
+    hints:
+      - text: "l comme « long »."
+    variant:
+      kind: command
+      prompt: "Liste le contenu du dossier en format long, fichiers cachés compris."
+      accept: ["ls -la"]
+      output: |
+        -rw-r--r-- 1 agent agent   42 oct.  1 09:01 .secret
+        -rw-r--r-- 1 agent agent  812 oct.  1 09:12 notes.txt
+      hints:
+        - text: "Combine -l et -a."
+
+  - kind: predict
+    prompt: "Qu'affiche cette commande ?"
+    code: "seq 4 | wc -l"
+    accept: ["4"]
+    explain: "seq 4 affiche 1 à 4, une ligne chacun ; wc -l compte les lignes."
+    hints:
+      - text: "seq N affiche les nombres de 1 à N, un par ligne."
+
+  - kind: mcq
+    prompt: "Quel caractère envoie la sortie d'une commande vers une autre commande ?"
+    choices: ["|", ">", "&", ";"]
+    answer: 1
+    variant:
+      kind: mcq
+      prompt: "Quel opérateur ajoute la sortie à la fin d'un fichier sans l'écraser ?"
+      choices: [">", ">>", "|", "<"]
+      answer: 2
+
+  - kind: command
+    prompt: "Cherche le mot root dans /etc/passwd."
+    accept: ["grep root /etc/passwd"]
+    output: "root:x:0:0:root:/root:/bin/bash"
+    hints:
+      - text: "grep MOT fichier"
+    variant:
+      kind: command
+      prompt: "Compte les lignes qui contiennent root dans /etc/passwd."
+      accept: ["grep -c root /etc/passwd"]
+      output: "1"
+      hints:
+        - text: "grep avec l'option qui compte."
+
+  - kind: trap
+    prompt: "Tu es dans ton dossier personnel. Que supprime cette commande ?"
+    code: "cd /tmp && rm -rf *"
+    choices:
+      - "Rien : cd échoue toujours"
+      - "Le contenu de /tmp, sauf les fichiers cachés"
+      - "Tout ton dossier personnel"
+      - "Seulement les fichiers cachés de /tmp"
+    answer: 2
+    explain: "&& n'exécute rm que si cd réussit ; * ne couvre pas les fichiers qui commencent par un point."
+
+  - kind: fill
+    prompt: "Complète pour suivre app.log en direct : les nouvelles lignes s'affichent au fur et à mesure."
+    template: "tail ___ app.log"
+    accept: ["-f", "-F", "--follow"]
+    hints:
+      - text: "f comme « follow »."
+
+rewards:
+  xp: 220

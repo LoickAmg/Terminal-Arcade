@@ -19,6 +19,7 @@ const LINES: Record<PetReaction, string[]> = {
   cheer: ["Niveau hacké !", "Trop fort.", "On enchaîne ?"],
   think: ["Tu cherches ?", "help, peut-être ?", "Hmm…"],
   alarm: ["Le temps file !", "Vite !", "Ça devient serré."],
+  mischief: ["Hé hé.", "Surprise !", "Oups…"],
 };
 
 const MOODS: Record<PetReaction, PetMood> = {
@@ -27,6 +28,7 @@ const MOODS: Record<PetReaction, PetMood> = {
   cheer: "cheer",
   think: "think",
   alarm: "think",
+  mischief: "happy",
 };
 
 function useReducedMotion(): boolean {
@@ -48,7 +50,8 @@ export function Pet({
 }: {
   config: PetConfig;
   // Change d'identifiant à chaque nouvelle réaction, même identique.
-  reaction: { kind: PetReaction; id: number } | null;
+  // text : phrase précise à dire (sinon une phrase au hasard du genre).
+  reaction: { kind: PetReaction; id: number; text?: string } | null;
   // Horodatage de la dernière action du joueur (réveille le compagnon).
   activity: number;
 }) {
@@ -80,7 +83,7 @@ export function Pet({
   const live = reaction && reaction.id !== doneReaction ? reaction : null;
   const asleep = asleepAt === activity;
   const mood: PetMood = live ? MOODS[live.kind] : asleep ? "sleep" : "idle";
-  const bubble = live ? LINES[live.kind][live.id % LINES[live.kind].length] : null;
+  const bubble = live ? (live.text ?? LINES[live.kind][live.id % LINES[live.kind].length]) : null;
   const anim = live ? (live.kind === "sad" || live.kind === "alarm" ? "shake" : live.kind === "think" ? null : "jump") : null;
 
   // Réactions aux réponses du joueur : affichées 1,8 s.

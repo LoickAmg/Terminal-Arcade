@@ -158,6 +158,19 @@ export function applyEvent(
   };
 }
 
+/**
+ * Ajustement direct du temps (sabotages du Chaos, coût d'une vérification).
+ * Delta vu du joueur : négatif = du temps en moins. Ni plafond ni gain compté.
+ */
+export function adjust(timer: TimerState, deltaMs: number): TimerState {
+  if (isExpired(timer) || deltaMs === 0) return timer;
+  const valueMs =
+    timer.mode === "chrono"
+      ? Math.min(timer.initialMs, Math.max(0, timer.valueMs - deltaMs))
+      : Math.max(0, Math.min(timer.mode === "buyback" ? timer.initialMs : Infinity, timer.valueMs + deltaMs));
+  return { ...timer, valueMs };
+}
+
 /** Objectif de temps atteint (seul le rachat a un objectif en plus du reste). */
 export function timeGoalMet(timer: TimerState): boolean {
   if (isExpired(timer)) return false;

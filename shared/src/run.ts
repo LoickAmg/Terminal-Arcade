@@ -5,7 +5,8 @@ import type { Level, Question } from "./schema";
 // Tout est immuable pour pouvoir le ranger tel quel dans l'état React.
 
 export type QuestionOutcome = {
-  status: "correct" | "skipped";
+  // fooled : mauvaise réponse qu'Arcade a fait passer pour juste (Chaos).
+  status: "correct" | "skipped" | "fooled";
   wrongAttempts: number;
   hintsUsed: number;
 };
@@ -58,6 +59,11 @@ export function skip(level: Level, run: Run): { run: Run; expected: string } | n
   return { run: advance(run, "skipped"), expected: expectedAnswer(q) };
 }
 
+/** Chaos : la partie avance comme si la réponse était juste, mais elle ne l'est pas. */
+export function fool(level: Level, run: Run): Run {
+  return currentQuestion(level, run) ? advance({ ...run, wrongAttempts: run.wrongAttempts + 1 }, "fooled") : run;
+}
+
 export function nextHint(level: Level, run: Run): { run: Run; text: string } | null {
   const q = currentQuestion(level, run);
   const h = q?.hints[run.hintsUsed];
@@ -71,7 +77,7 @@ export function nextHint(level: Level, run: Run): { run: Run; text: string } | n
 const PASS_RATIO = 0.6;
 
 export function questionXp(levelXp: number, total: number, outcome: QuestionOutcome): number {
-  if (outcome.status === "skipped") return 0;
+  if (outcome.status !== "correct") return 0;
   const share = levelXp / total;
   const factor = Math.max(0.3, 1 - 0.2 * outcome.wrongAttempts - 0.25 * outcome.hintsUsed);
   return share * factor;

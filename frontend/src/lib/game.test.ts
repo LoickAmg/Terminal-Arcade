@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadLevels } from "@terminal-arcade/shared/loader";
-import { completions, handleLine, initialState, promptFor, tickGame, type GameState } from "./game";
+import { completions, handleLine, initialState, promptFor, reopenTerminal, tickGame, type GameState } from "./game";
 import { stripAnsi } from "./ansi";
 import { DEFAULT_PET } from "./pet";
 import { createEditor, feed } from "./lineEditor";
@@ -64,7 +64,7 @@ describe("parties chronométrées", () => {
     expect(refused.out.join(" ")).toContain("Réussis d'abord");
 
     let state = play(refused.state, "open fs_nav_01", ...fsNavAnswers).state;
-    expect(completions(state, levels, "open fs_nav_01 -")).toEqual(["open fs_nav_01 --timer"]);
+    expect(completions(state, levels, "open fs_nav_01 --t")).toEqual(["open fs_nav_01 --timer"]);
     state = play(state, "open fs_nav_01 --timer").state;
     expect(state.active?.mode).toBe("timer");
     expect(state.active?.timer).not.toBeNull();
@@ -104,6 +104,98 @@ describe("parties chronométrées", () => {
     ).state;
     expect(state.screen).toMatchObject({ kind: "recap", recap: { passed: true } });
     expect(state.progress.levels.sk_rush_01.modes).toEqual(["timer"]);
+  });
+});
+
+describe("mode Chaos", () => {
+  const start = initialState(null, DEFAULT_PET);
+  const fsNavAnswers = ["pwd", "ls", "ls -a", "1", "/var", "cd outils"];
+  const rng = () => 0.5;
+
+  // Passe la pause de départ du Chaos sans déclencher de sabotage.
+  function afterQuiet(state: GameState): GameState {
+    const chaos = state.active!.chaos!;
+    return {
+      ...state,
+      active: { ...state.active!, chaos: { ...chaos, state: { ...chaos.state, elapsedMs: 60_000 } } },
+    };
+  }
+
+  it("se rejoue seulement après réussite, et se combine avec le Timer", () => {
+    expect(play(start, "open fs_nav_01 --chaos").state.active).toBeNull();
+    let state = play(start, "open fs_nav_01", ...fsNavAnswers).state;
+    state = handleLine(state, "open fs_nav_01 --chaos --timer", levels, rng).state;
+    expect(state.active?.mode).toBe("chaos_timer");
+    expect(state.active?.chaos).not.toBeNull();
+    expect(state.active?.timer).not.toBeNull();
+  });
+
+  it("un faux « faux » se démasque avec verify et la réponse est validée", () => {
+    const unlocked: GameState = {
+      ...start,
+      progress: { levels: { sk_rush_01: { status: "passed", bestXp: 1, modes: ["timer"] } }, xpByTree: {} },
+    };
+    let state = afterQuiet(handleLine(unlocked, "open sk_chaos_01", levels, rng).state);
+    let r = handleLine(state, "ls -l", levels);
+    expect(stripAnsi(r.out[0])).toBe("Arcade : ✘ Pas tout à fait.");
+    expect(r.state.active?.run.index).toBe(0);
+
+    r = handleLine(r.state, "verify", levels);
+    state = r.state;
+    expect(stripAnsi(r.out.join(" "))).toContain("Démasqué");
+    expect(state.active?.run.index).toBe(1);
+    expect(state.active?.chaos?.state.log[0]).toMatchObject({ kind: "false_red", detected: true });
+  });
+
+  it("un faux « correct » fait avancer, verify ramène à la question", () => {
+    let state = handleLine(
+      play(start, "open fs_nav_01", ...fsNavAnswers).state,
+      "open fs_nav_01 --chaos",
+      levels,
+      rng,
+    ).state;
+    state = afterQuiet(state);
+    const chaos = state.active!.chaos!;
+    state = {
+      ...state,
+      active: { ...state.active!, chaos: { ...chaos, state: { ...chaos.state, pending: ["false_green"] } } },
+    };
+
+    let r = handleLine(state, "ls", levels);
+    expect(stripAnsi(r.out[0])).toBe("Arcade : ✔ Correct.");
+    expect(r.state.active?.run.index).toBe(1);
+
+    r = handleLine(r.state, "verify", levels);
+    expect(r.state.active?.run.index).toBe(0);
+    expect(r.state.active?.run.wrongAttempts).toBe(1);
+  });
+
+  it("un verify inutile est compté, et le terminal fermé se rouvre sans rien perdre", () => {
+    let state = handleLine(
+      play(start, "open fs_nav_01", ...fsNavAnswers).state,
+      "open fs_nav_01 --chaos",
+      levels,
+      rng,
+    ).state;
+    state = handleLine(state, "verify", levels).state;
+    expect(state.active?.chaos?.uselessVerifies).toBe(1);
+
+    state = { ...state, active: { ...state.active!, chaos: { ...state.active!.chaos!, terminalClosed: true } } };
+    const r = reopenTerminal(state);
+    expect(r.state.active?.chaos?.terminalClosed).toBe(false);
+    expect(r.state.active?.run).toEqual(state.active?.run);
+  });
+
+  it("le récap révèle les sabotages et le niveau suivant", () => {
+    let state = handleLine(
+      play(start, "open fs_nav_01", ...fsNavAnswers).state,
+      "open fs_nav_01 --chaos",
+      levels,
+      rng,
+    ).state;
+    for (const answer of fsNavAnswers) state = handleLine(state, answer, levels).state;
+    expect(state.screen).toMatchObject({ kind: "recap", mode: "chaos", chaosLog: [] });
+    expect(state.progress.levels.fs_nav_01.modes).toEqual(["classic", "chaos"]);
   });
 });
 

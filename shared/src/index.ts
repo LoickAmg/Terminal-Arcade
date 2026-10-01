@@ -4,3 +4,4 @@ export * from "./check";
 export * from "./run";
 export * from "./catalog";
 export * from "./timer";
+export * from "./chaos";

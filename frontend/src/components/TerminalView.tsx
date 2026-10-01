@@ -24,6 +24,9 @@ type Props = {
   onReady: (api: TerminalApi) => void;
   onLine: (line: string) => LineOutcome;
   completer: (buffer: string) => string[];
+  // Saisie retirée avant traitement (touche bloquée, terminal fermé par le
+  // compagnon en mode Chaos).
+  filterInput: (data: string) => string;
   // Sur écran tactile, la saisie passe par la barre du bas : le terminal
   // n'ouvre pas le clavier virtuel quand on le touche.
   touchMode: boolean;
@@ -46,17 +49,19 @@ const THEME = {
   brightWhite: "#FFFFFF",
 };
 
-export default function TerminalView({ onReady, onLine, completer, touchMode }: Props) {
+export default function TerminalView({ onReady, onLine, completer, filterInput, touchMode }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   // Les callbacks changent à chaque rendu du jeu ; le terminal, lui, n'est
   // créé qu'une fois. On lit donc toujours la dernière version via des refs.
   const onLineRef = useRef(onLine);
   const completerRef = useRef(completer);
   const onReadyRef = useRef(onReady);
+  const filterRef = useRef(filterInput);
   useEffect(() => {
     onLineRef.current = onLine;
     completerRef.current = completer;
     onReadyRef.current = onReady;
+    filterRef.current = filterInput;
   });
 
   useEffect(() => {
@@ -141,7 +146,10 @@ export default function TerminalView({ onReady, onLine, completer, touchMode }: 
       }
     };
 
-    const dataSub = term.onData(handleData);
+    const dataSub = term.onData((data) => {
+      const allowed = filterRef.current(data);
+      if (allowed) handleData(allowed);
+    });
 
     const api: TerminalApi = {
       print: (lines) => {
