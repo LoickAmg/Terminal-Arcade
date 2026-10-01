@@ -8,6 +8,9 @@ import Docker from "dockerode";
 // limites de mémoire, de processeur et de nombre de processus.
 
 export const IMAGE = process.env.SANDBOX_IMAGE ?? "terminal-arcade-sandbox:1";
+// Runtime de conteneur : runsc (gVisor) ajoute un noyau en espace
+// utilisateur entre le joueur et l'hôte ; recommandé pour un serveur public.
+const RUNTIME = process.env.SANDBOX_RUNTIME || undefined;
 const LABEL = "terminal-arcade.sandbox";
 const MB = 1024 * 1024;
 
@@ -53,6 +56,7 @@ export async function createSandbox(sessionId: string, shellName: "bash" | "pwsh
     Labels: { [LABEL]: sessionId },
     NetworkDisabled: true,
     HostConfig: {
+      Runtime: RUNTIME,
       AutoRemove: true,
       Init: true,
       NetworkMode: "none",

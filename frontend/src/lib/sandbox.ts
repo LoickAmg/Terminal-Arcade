@@ -5,6 +5,10 @@ import { io, type Socket } from "socket.io-client";
 // et les verdicts de l'arbitre.
 
 export const SANDBOX_URL = process.env.NEXT_PUBLIC_SANDBOX_URL ?? "http://localhost:3108";
+// Jeton d'accès au serveur de sandbox, s'il en exige un (SANDBOX_TOKEN).
+// Visible dans le code du site : il limite l'accès à une instance privée,
+// il ne remplace pas de vrais comptes (voir SECURITY.md).
+const SANDBOX_TOKEN = process.env.NEXT_PUBLIC_SANDBOX_TOKEN;
 
 export type SandboxHandlers = {
   onOutput: (data: string) => void;
@@ -24,12 +28,19 @@ export class SandboxClient {
 
   async start(levelId: string, handlers: SandboxHandlers): Promise<void> {
     this.stop();
-    const socket = io(SANDBOX_URL, { transports: ["websocket"], reconnection: false, timeout: 4000 });
+    const socket = io(SANDBOX_URL, {
+      transports: ["websocket"],
+      reconnection: false,
+      timeout: 4000,
+      auth: SANDBOX_TOKEN ? { token: SANDBOX_TOKEN } : undefined,
+    });
     this.socket = socket;
 
     await new Promise<void>((resolve, reject) => {
       socket.once("connect", () => resolve());
-      socket.once("connect_error", () => reject(new Error(`serveur injoignable (${SANDBOX_URL})`)));
+      socket.once("connect_error", (error) =>
+        reject(new Error(error.message === "accès refusé" ? "accès refusé (jeton)" : `serveur injoignable (${SANDBOX_URL})`)),
+      );
     });
 
     socket.on("term:output", (data: string) => {

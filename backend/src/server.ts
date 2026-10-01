@@ -5,27 +5,45 @@ import { Server, type Socket } from "socket.io";
 import { loadLevels } from "@terminal-arcade/shared/loader";
 import type { Level, Question } from "@terminal-arcade/shared";
 import { HOSTILE_SCRIPTS, appendTyped, detectHostile } from "./hostile";
+import { OutputMeter, RateLimiter, clientAddress, tokenMatches } from "./limits";
 import { IMAGE, cleanupOrphans, createSandbox, imageReady, newFlag, runScript, type Sandbox } from "./sandbox";
 
 // Serveur des défis réels : un conteneur par partie, relié au terminal du
 // navigateur par Socket.io. L'arbitre exécute le script « check » de la
 // question après chaque commande et renvoie le verdict au jeu.
 //
-// N'écoute que sur 127.0.0.1 par défaut : l'ouvrir sur Internet demande une
-// revue de sécurité (cahier des charges, phase 4).
+// N'écoute que sur 127.0.0.1 par défaut. Avant de l'ouvrir sur Internet,
+// lire SECURITY.md : les réglages ci-dessous ne suffisent pas à eux seuls.
 
-const PORT = Number(process.env.PORT ?? 3108);
-const HOST = process.env.HOST ?? "127.0.0.1";
-const ORIGINS = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000,http://localhost:3107").split(",");
-const MAX_SESSIONS = Number(process.env.MAX_SESSIONS ?? 4);
+const env = process.env;
+const PORT = Number(env.PORT ?? 3108);
+const HOST = env.HOST ?? "127.0.0.1";
+const ORIGINS = (env.ALLOWED_ORIGINS ?? "http://localhost:3000,http://localhost:3107,http://localhost:3109").split(",");
+const MAX_SESSIONS = Number(env.MAX_SESSIONS ?? 4);
+// Parties simultanées et démarrages par heure, par adresse IP.
+const MAX_SESSIONS_PER_IP = Number(env.MAX_SESSIONS_PER_IP ?? 1);
+const STARTS_PER_HOUR = Number(env.STARTS_PER_HOUR ?? 30);
+// Jeton exigé à la connexion, si défini.
+const TOKEN = env.SANDBOX_TOKEN ?? "";
+// Derrière un proxy (TLS), croire X-Forwarded-For pour l'adresse du client.
+const TRUST_PROXY = env.TRUST_PROXY === "1";
 const SESSION_MAX_MS = 30 * 60_000;
+const IDLE_MS = Number(env.IDLE_MINUTES ?? 10) * 60_000;
+// Au-delà, la partie est coupée (déluge de sortie : yes, cat d'un gros fichier…).
+const OUTPUT_BYTES = 4 * 1024 * 1024;
+const OUTPUT_WINDOW_MS = 10_000;
 const MAX_INPUT = 4096;
+
+const startLimiter = new RateLimiter(STARTS_PER_HOUR, 60 * 60_000);
+setInterval(() => startLimiter.prune(), 10 * 60_000).unref();
 
 const levels = loadLevels(join(process.cwd(), "..", "shared", "levels"));
 const dockerLevels = new Map(levels.filter((l) => l.runtime === "docker").map((l) => [l.id, l]));
 
 type Session = {
   sandbox: Sandbox;
+  ip: string;
+  idle: NodeJS.Timeout;
   level: Level;
   question: Question | null;
   index: number;
@@ -47,6 +65,7 @@ async function stopSession(socket: Socket, reason: string) {
   if (!session) return;
   sessions.delete(socket.id);
   clearTimeout(session.expiry);
+  clearTimeout(session.idle);
   session.checkTimers.forEach(clearTimeout);
   await session.sandbox.stop();
   console.log(`[sandbox] fin ${session.level.id} (${reason}) — ${sessions.size} en cours`);
@@ -94,6 +113,20 @@ const httpServer = createServer((req, res) => {
 
 const io = new Server(httpServer, { cors: { origin: ORIGINS }, maxHttpBufferSize: 64 * 1024 });
 
+// Jeton d'accès : sans lui, la connexion est refusée avant toute partie.
+io.use((socket, next) => {
+  if (!TOKEN || tokenMatches(socket.handshake.auth?.token, TOKEN)) return next();
+  next(new Error("accès refusé"));
+});
+
+const addressOf = (socket: Socket) =>
+  clientAddress(socket.handshake.headers, socket.handshake.address, TRUST_PROXY);
+
+function endSession(socket: Socket, message: string, reason: string) {
+  socket.emit("session:ended", { reason: message });
+  void stopSession(socket, reason);
+}
+
 io.on("connection", (socket) => {
   socket.on("session:start", async (payload: unknown, ack: (r: { ok: boolean; error?: string }) => void) => {
     const reply = typeof ack === "function" ? ack : () => {};
@@ -102,12 +135,21 @@ io.on("connection", (socket) => {
     if (!level) return reply({ ok: false, error: `Niveau inconnu : ${levelId}` });
 
     await stopSession(socket, "nouvelle partie");
+    const ip = addressOf(socket);
     if (sessions.size >= MAX_SESSIONS) return reply({ ok: false, error: "Trop de parties en cours sur ce serveur." });
+    if ([...sessions.values()].filter((s) => s.ip === ip).length >= MAX_SESSIONS_PER_IP) {
+      return reply({ ok: false, error: "Une partie est déjà en cours depuis ton adresse." });
+    }
+    if (!startLimiter.take(ip)) {
+      return reply({ ok: false, error: "Trop de parties lancées récemment : réessaie dans un moment." });
+    }
 
     try {
       const sandbox = await createSandbox(socket.id, level.shell);
       const session: Session = {
         sandbox,
+        ip,
+        idle: setTimeout(() => endSession(socket, "Sandbox fermée après 10 minutes sans activité.", "inactivité"), IDLE_MS),
         level,
         question: null,
         index: -1,
@@ -116,14 +158,22 @@ io.on("connection", (socket) => {
         checkTimers: [],
         typed: "",
         hostile: new Set(),
-        expiry: setTimeout(() => {
-          socket.emit("session:ended", { reason: "Partie trop longue : la sandbox a été fermée (30 min)." });
-          void stopSession(socket, "expiration");
-        }, SESSION_MAX_MS),
+        expiry: setTimeout(
+          () => endSession(socket, "Partie trop longue : la sandbox a été fermée (30 min).", "expiration"),
+          SESSION_MAX_MS,
+        ),
       };
       sessions.set(socket.id, session);
       const decoder = new StringDecoder("utf8");
-      sandbox.shell.on("data", (chunk: Buffer) => socket.emit("term:output", decoder.write(chunk)));
+      const meter = new OutputMeter(OUTPUT_BYTES, OUTPUT_WINDOW_MS);
+      sandbox.shell.on("data", (chunk: Buffer) => {
+        if (sessions.get(socket.id) !== session) return;
+        if (!meter.add(chunk.length)) {
+          endSession(socket, "Trop de sortie d'un coup (plus de 4 Mo en 10 s) : la sandbox a été fermée.", "déluge de sortie");
+          return;
+        }
+        socket.emit("term:output", decoder.write(chunk));
+      });
       sandbox.shell.on("end", () => {
         if (sessions.get(socket.id) !== session) return;
         socket.emit("session:ended", { reason: "Le shell de la sandbox s'est fermé." });
@@ -162,6 +212,7 @@ io.on("connection", (socket) => {
   socket.on("term:input", (data: unknown) => {
     const session = sessions.get(socket.id);
     if (!session || typeof data !== "string" || data.length > MAX_INPUT) return;
+    session.idle.refresh();
     session.sandbox.shell.write(data);
     const { buffer, lines } = appendTyped(session.typed, data);
     session.typed = buffer;

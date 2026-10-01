@@ -78,8 +78,11 @@ Chaque partie a son conteneur, détruit à la fin : aucun réseau, aucune
 capacité Linux, utilisateur non root, système de fichiers en lecture seule
 (seuls le dossier personnel, /tmp et /srv sont inscriptibles, en mémoire),
 256 Mo de mémoire, un demi-processeur, 128 processus, 30 minutes au plus.
-Le serveur n'écoute que sur 127.0.0.1 : l'ouvrir sur Internet demande une
-revue de sécurité. Adresse côté jeu : `NEXT_PUBLIC_SANDBOX_URL`.
+Le serveur n'écoute que sur 127.0.0.1. Garde-fous réglables : jeton
+d'accès (`SANDBOX_TOKEN`), parties par adresse et par heure, fermeture
+après inactivité ou déluge de sortie, runtime gVisor (`SANDBOX_RUNTIME=runsc`).
+Côté jeu : `NEXT_PUBLIC_SANDBOX_URL` et `NEXT_PUBLIC_SANDBOX_TOKEN`. Avant
+toute ouverture sur Internet, lire [SECURITY.md](SECURITY.md).
 
 Les niveaux PowerShell (`shell: pwsh`) ouvrent un vrai `pwsh` 7 au lieu de
 bash ; leurs scripts d'arbitre restent en bash. Dans la sandbox,
@@ -131,5 +134,6 @@ attendue de chaque question est bien acceptée.
 2. Timer (compte à rebours ou chrono, reverse, rachat) — fait
 3. Chaos (sabotages d'Arcade) — fait
 4. Docker (défis réels, paliers SysAdmin et Root Wizard, environnement hostile) — fait
-5. Extensions — parcours Git-Gud, style Persona, PowerShell et mode hors ligne
-   faits ; reste l'ouverture au public (voir SECURITY.md)
+5. Extensions — parcours Git-Gud, style Persona, PowerShell, mode hors ligne
+   et durcissement du serveur faits ; l'ouverture au public attend les
+   étapes listées dans SECURITY.md (machine dédiée, gVisor, TLS, comptes)
