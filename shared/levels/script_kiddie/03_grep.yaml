@@ -14,6 +14,14 @@ questions:
     output: "CRITICAL_ERROR - API_KEY: xyz_789_admin"
     hints:
       - text: "grep MOT fichier"
+    variant:
+      kind: command
+      prompt: "Affiche les lignes de access.log qui contiennent 404."
+      accept: ["grep 404 access.log"]
+      output: "404 /image.png introuvable"
+      explain: "grep cherche du texte : un nombre est un motif comme un autre."
+      hints:
+        - text: "grep MOTIF fichier."
 
   - kind: command
     prompt: "Même recherche, mais le mot peut aussi être écrit en minuscules. Ignore la casse."
@@ -46,6 +54,14 @@ questions:
     explain: "find parcourt les sous-dossiers ; -name filtre sur le nom exact."
     hints:
       - text: "find DOSSIER -name NOM"
+    variant:
+      kind: command
+      prompt: "Le fichier config.yaml est caché quelque part sous le dossier courant. Trouve son chemin."
+      accept: ["find . -name config.yaml", "find -name config.yaml"]
+      output: "./srv/app/config.yaml"
+      explain: "find descend dans tous les sous-dossiers ; -name filtre sur le nom exact."
+      hints:
+        - text: "find DOSSIER -name NOM."
 
   - kind: fill
     prompt: "Complète pour chercher CRITICAL dans tous les fichiers de /var/log et de ses sous-dossiers."

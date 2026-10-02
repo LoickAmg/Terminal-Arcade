@@ -6,7 +6,7 @@ import { loadLevels } from "@terminal-arcade/shared/loader";
 import type { Level, Question } from "@terminal-arcade/shared";
 import { HOSTILE_SCRIPTS, appendTyped, detectHostile } from "./hostile";
 import { OutputMeter, RateLimiter, clientAddress, tokenMatches } from "./limits";
-import { IMAGE, cleanupOrphans, createSandbox, imageReady, newFlag, runScript, type Sandbox } from "./sandbox";
+import { IMAGE, cleanupOrphans, createSandbox, imageReady, newFlag, runScript, wrapCheck, type Sandbox } from "./sandbox";
 
 // Serveur des défis réels : un conteneur par partie, relié au terminal du
 // navigateur par Socket.io. L'arbitre exécute le script « check » de la
@@ -76,7 +76,7 @@ async function runCheck(socket: Socket, session: Session) {
   if (!q || q.kind !== "task" || session.checking || sessions.get(socket.id) !== session) return;
   session.checking = true;
   try {
-    const { code } = await runScript(session.sandbox.container, q.check, {
+    const { code } = await runScript(session.sandbox.container, wrapCheck(q.check), {
       FLAG: session.flag,
       SUBMITTED: "/home/agent/.arcade/submitted",
     });

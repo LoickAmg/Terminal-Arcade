@@ -1,0 +1,84 @@
+id: gg_workflow_01
+title: "Historique propre"
+hook: "Un dépôt qui grandit vite. Range l'historique, déplace un correctif, automatise le reste."
+tier: root_wizard
+tree: git_gud
+runtime: docker
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [false_red, mutation] }
+intro: "git stash, cherry-pick, rebase --autosquash et les hooks."
+setup: |
+  git config --global user.name agent
+  git config --global user.email agent@sandbox
+  git config --global init.defaultBranch main
+  rm -rf ~/atelier-git && mkdir -p ~/atelier-git && cd ~/atelier-git && git init -q
+  printf '# Projet\n' > README.md
+  git add . && git commit -qm "Initialisation"
+  git switch -qc experimental
+  printf 'brouillon\n' > brouillon.txt && git add . && git commit -qm "wip: brouillon"
+  printf 'echo corrige\n' > correctif.sh && git add . && git commit -qm "fix: le correctif important"
+  printf 'essai\n' > essai.txt && git add . && git commit -qm "wip: essai"
+  git switch -q main
+questions:
+  - kind: task
+    prompt: "Dans atelier-git, tu as modifié README.md mais tu dois changer de tâche sans commiter. Mets cette modification de côté : le dossier doit redevenir propre."
+    setup: |
+      cd ~/atelier-git && git switch -q main 2>/dev/null; printf 'travail en cours\n' >> README.md
+    check: |
+      cd ~/atelier-git && [ -z "$(git status --porcelain)" ] && [ "$(git stash list | wc -l)" -ge 1 ] && git stash show -p stash@{0} 2>/dev/null | grep -q "travail en cours"
+    solution: "git stash"
+    solve: |
+      cd ~/atelier-git && git stash -q
+    hints:
+      - text: "git stash range les modifications non commitées dans une pile ; git stash pop les ressort."
+
+  - kind: task
+    prompt: "Sur la branche experimental, un seul commit compte : « fix: le correctif important ». Applique-le sur main, sans les deux commits wip."
+    check: |
+      cd ~/atelier-git && [ "$(git branch --show-current)" = main ] && git cat-file -e main:correctif.sh 2>/dev/null \
+        && ! git cat-file -e main:brouillon.txt 2>/dev/null && ! git cat-file -e main:essai.txt 2>/dev/null
+    solution: "git log experimental --oneline pour trouver l'identifiant, puis git cherry-pick <id>"
+    solve: |
+      cd ~/atelier-git && git switch -q main && git cherry-pick "$(git log experimental --format='%h %s' | grep 'fix: le correctif' | cut -d' ' -f1)" >/dev/null
+    hints:
+      - text: "git cherry-pick ID recopie un seul commit sur la branche courante."
+      - text: "git log experimental --oneline affiche les identifiants courts."
+
+  - kind: task
+    prompt: "Sur la branche cleanup, le dernier commit est un « fixup! » du précédent. Fusionne-les en un seul avec un rebase interactif et --autosquash."
+    setup: |
+      cd ~/atelier-git && git switch -q main && git branch -D cleanup >/dev/null 2>&1
+      git switch -qc cleanup
+      printf 'journal v1\n' > journal.txt && git add journal.txt && git commit -qm "feat: ajoute le journal"
+      printf 'journal v2\n' >> journal.txt && git commit -qam "fixup! feat: ajoute le journal"
+    check: |
+      cd ~/atelier-git && [ "$(git rev-list --count main..cleanup)" = 1 ] && ! git log cleanup --format=%s | grep -q '^fixup!' \
+        && [ "$(git show cleanup:journal.txt | wc -l)" = 2 ]
+    solution: "git rebase -i --autosquash main (l'éditeur s'ouvre : enregistre et quitte tel quel)"
+    solve: |
+      cd ~/atelier-git && GIT_SEQUENCE_EDITOR=true git rebase -q -i --autosquash main
+    hints:
+      - text: "--autosquash place et marque tout seul les commits dont le message commence par fixup!."
+      - text: "L'éditeur ouvert par rebase -i est déjà prêt : il suffit d'enregistrer et quitter (:wq dans vi)."
+
+  - kind: task
+    prompt: "Installe un hook post-commit qui écrit le message du dernier commit dans ~/dernier-commit.txt. Puis, sur main, commite README.md avec le message « Hook actif »."
+    setup: |
+      cd ~/atelier-git && git switch -q main 2>/dev/null; rm -f .git/hooks/post-commit ~/dernier-commit.txt
+      printf 'ligne suivante\n' >> README.md
+    check: |
+      cd ~/atelier-git && [ -x .git/hooks/post-commit ] && [ "$(git log -1 --format=%s main)" = "Hook actif" ] \
+        && [ "$(cat ~/dernier-commit.txt 2>/dev/null)" = "Hook actif" ]
+    solution: "printf '#!/bin/sh\\ngit log -1 --format=%%s > ~/dernier-commit.txt\\n' > .git/hooks/post-commit && chmod +x .git/hooks/post-commit && git commit -am \"Hook actif\""
+    solve: |
+      cd ~/atelier-git
+      printf '#!/bin/sh\ngit log -1 --format=%%s > "$HOME/dernier-commit.txt"\n' > .git/hooks/post-commit
+      chmod +x .git/hooks/post-commit
+      git commit -qam "Hook actif"
+    hints:
+      - text: "Un hook est un script exécutable dans .git/hooks/, nommé d'après l'événement : post-commit."
+      - text: "git log -1 --format=%s affiche le message du dernier commit."
+
+rewards:
+  xp: 480

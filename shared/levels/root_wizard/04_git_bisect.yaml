@@ -30,10 +30,7 @@ questions:
     check: |
       cd ~/calcul
       bad=$(git log main --reverse --format=%H | while read -r h; do git show "$h:calc.sh" | grep -q 41 && { echo "$h"; break; }; done)
-      [ -f ~/.arcade/submitted ] || exit 1
-      s=$(cat ~/.arcade/submitted)
-      [ ${#s} -ge 7 ] && [ "${bad#"$s"}" != "$bad" ] && exit 0
-      exit 2
+      answer-prefix-of "$bad" 7
     solution: "git bisect start, git bisect bad, git bisect good <premier commit>, puis git bisect run ./test.sh"
     solve: |
       cd ~/calcul && git bisect start HEAD "$(git rev-list --max-parents=0 HEAD)" >/dev/null 2>&1 && git bisect run ./test.sh >/dev/null 2>&1

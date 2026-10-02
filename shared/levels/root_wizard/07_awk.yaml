@@ -1,0 +1,91 @@
+id: rw_awk_01
+title: "awk sans filet"
+hook: "Des fichiers de ventes, un rapport à produire. awk fait le reste."
+tier: root_wizard
+tree: data_surgeon
+runtime: docker
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_alias, time_accel] }
+intro: "awk comme un tableur : séparateur, filtres, sommes, tableaux associatifs. Les quantités changent à chaque partie."
+setup: |
+  mkdir -p ~/atelier/copies
+  for r in nord sud est; do
+    for p in pommes poires prunes pommes poires; do
+      echo "$r;$p;$((RANDOM % 20 + 1))"
+    done > ~/atelier/ventes_$r.csv
+  done
+  # Une grosse commande donne une région gagnante sans égalité possible.
+  gagnante=$(printf 'nord\nsud\nest\n' | shuf -n 1)
+  echo "$gagnante;prunes;100" >> ~/atelier/ventes_$gagnante.csv
+  printf 'ventes_nord.csv\nventes_sud.csv\nventes_est.csv\n' > ~/atelier/noms.txt
+questions:
+  - kind: task
+    prompt: "Écris dans ~/atelier/total_pommes.txt le total des quantités de pommes, tous fichiers de ventes confondus. Le fichier ne contient que le nombre."
+    check: |
+      attendu=$(awk -F';' '$2 == "pommes" {s += $3} END {print s + 0}' ~/atelier/ventes_*.csv)
+      [ "$(tr -d ' \n' < ~/atelier/total_pommes.txt 2>/dev/null)" = "$attendu" ]
+    solution: "awk -F';' '$2 == \"pommes\" {s += $3} END {print s}' ventes_*.csv > total_pommes.txt"
+    solve: |
+      cd ~/atelier && awk -F';' '$2 == "pommes" {s += $3} END {print s}' ventes_*.csv > total_pommes.txt
+    hints:
+      - text: "Le séparateur est le point-virgule : -F';'."
+      - text: "Filtre $2 == \"pommes\", accumule s += $3, affiche s dans un bloc END."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Écris dans ~/atelier/total_sud.txt le total des quantités vendues par la région sud, tous produits confondus. Le fichier ne contient que le nombre."
+      check: |
+        attendu=$(awk -F';' '$1 == "sud" {s += $3} END {print s + 0}' ~/atelier/ventes_*.csv)
+        [ "$(tr -d ' \n' < ~/atelier/total_sud.txt 2>/dev/null)" = "$attendu" ]
+      solution: "awk -F';' '$1 == \"sud\" {s += $3} END {print s}' ventes_*.csv > total_sud.txt"
+      solve: |
+        cd ~/atelier && awk -F';' '$1 == "sud" {s += $3} END {print s}' ventes_*.csv > total_sud.txt
+      hints:
+        - text: "Même principe, en filtrant sur la 1re colonne."
+
+  - kind: task
+    prompt: "Écris dans ~/atelier/par_produit.txt une ligne par produit au format produit:total, triée par nom de produit."
+    check: |
+      attendu=$(awk -F';' '{s[$2] += $3} END {for (p in s) print p ":" s[p]}' ~/atelier/ventes_*.csv | sort)
+      [ "$(cat ~/atelier/par_produit.txt 2>/dev/null)" = "$attendu" ]
+    solution: "awk -F';' '{s[$2] += $3} END {for (p in s) print p \":\" s[p]}' ventes_*.csv | sort > par_produit.txt"
+    solve: |
+      cd ~/atelier && awk -F';' '{s[$2] += $3} END {for (p in s) print p ":" s[p]}' ventes_*.csv | sort > par_produit.txt
+    hints:
+      - text: "Un tableau associatif : s[$2] += $3 additionne par produit."
+      - text: "for (p in s) parcourt le tableau dans le désordre : trie ensuite avec sort."
+        cost_s: 20
+
+  - kind: task
+    prompt: "Quelle région a vendu le plus, tous produits confondus ? Envoie son nom avec submit."
+    check: 'answer-is "$(awk -F";" "{s[\$1] += \$3} END {for (r in s) print s[r], r}" ~/atelier/ventes_*.csv | sort -rn | head -n 1 | cut -d" " -f2)"'
+    solution: "awk -F';' '{s[$1] += $3} END {for (r in s) print s[r], r}' ventes_*.csv | sort -rn | head -n 1"
+    solve: |
+      submit "$(awk -F';' '{s[$1] += $3} END {for (r in s) print s[r], r}' ~/atelier/ventes_*.csv | sort -rn | head -n 1 | cut -d' ' -f2)"
+    hints:
+      - text: "Additionne par région (1re colonne), puis classe avec sort -rn."
+
+  - kind: task
+    prompt: "Chaque ligne de ~/atelier/noms.txt est un fichier de ~/atelier. Avec xargs, copie chacun dans ~/atelier/copies/ sous le nom <nom>.bak."
+    check: |
+      cd ~/atelier && while read -r f; do cmp -s "$f" "copies/$f.bak" || exit 1; done < noms.txt
+    solution: "cd ~/atelier && xargs -I{} cp {} copies/{}.bak < noms.txt"
+    solve: |
+      cd ~/atelier && xargs -I{} cp {} copies/{}.bak < noms.txt
+    hints:
+      - text: "xargs -I{} remplace {} par chaque ligne lue sur l'entrée standard."
+
+  - kind: task
+    prompt: "Écris dans ~/atelier/gros.txt les lignes de tous les fichiers de ventes dont la quantité dépasse 15, au format region produit quantite séparés par des espaces."
+    check: |
+      attendu=$(awk -F';' '$3 > 15 {print $1, $2, $3}' ~/atelier/ventes_*.csv)
+      [ "$(cat ~/atelier/gros.txt 2>/dev/null)" = "$attendu" ]
+    solution: "awk -F';' '$3 > 15 {print $1, $2, $3}' ventes_*.csv > gros.txt"
+    solve: |
+      cd ~/atelier && awk -F';' '$3 > 15 {print $1, $2, $3}' ventes_*.csv > gros.txt
+    hints:
+      - text: "Une condition devant le bloc filtre les lignes ; print avec des virgules sépare par un espace."
+
+rewards:
+  xp: 420

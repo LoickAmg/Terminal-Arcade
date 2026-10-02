@@ -34,7 +34,9 @@ questions:
     solve: |
       submit "$(pwsh -NoProfile -NonInteractive -Command 'Select-String -Path ~/app.log -Pattern ERROR | ForEach-Object { ($_.Line -split " ")[3] } | Group-Object | Sort-Object Count -Descending | Select-Object -First 1 -ExpandProperty Name')"
     hints:
-      - text: "-split découpe une ligne en colonnes ; Group-Object compte les valeurs identiques."
+      - text: "Étape 1 : Select-String ERROR app.log | ForEach-Object { ($_.Line -split ' ')[3] } sort la colonne des services."
+      - text: "Étape 2 : ajoute | Group-Object | Sort-Object Count -Descending, le premier groupe est le bon."
+        cost_s: 20
 
   - kind: task
     prompt: "Renomme tous les fichiers .txt de rapports en .old, en un seul pipeline."

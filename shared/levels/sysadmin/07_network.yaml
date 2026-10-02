@@ -1,0 +1,101 @@
+id: np_local_01
+title: "Le service qui écoute"
+hook: "Deux services tournent sur cette machine. Trouve-les, parle-leur, fais taire le bon."
+tier: sysadmin
+tree: network_phantom
+runtime: docker
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_path, false_green] }
+intro: "Network Phantom : ss pour voir qui écoute, nc ou /dev/tcp pour parler. Tout reste sur 127.0.0.1, la machine n'a aucun accès à l'extérieur."
+setup: |
+  mkdir -p ~/net
+  # Deux ports tirés au hasard, l'accueil toujours plus petit que le coffre.
+  accueil=$((RANDOM % 2000 + 20000))
+  coffre=$((RANDOM % 2000 + 30000))
+  printf '%s\n%s\n' "$accueil" "$coffre" > /tmp/.np-ports
+  cat > ~/net/service.sh <<'EOF'
+  #!/bin/bash
+  # service.sh PORT FICHIER : renvoie le contenu de FICHIER à chaque connexion.
+  while true; do
+    nc -l 127.0.0.1 "$1" -q 0 < "$2" >/dev/null 2>&1
+    sleep 0.05
+  done
+  EOF
+  chmod +x ~/net/service.sh
+  printf 'SERVICE-LOCAL:PRET\n' > ~/net/.accueil
+  printf 'coffre vide\n' > ~/net/.coffre
+  setsid nohup ~/net/service.sh "$accueil" ~/net/.accueil >/dev/null 2>&1 &
+  setsid nohup ~/net/service.sh "$coffre" ~/net/.coffre >/dev/null 2>&1 &
+  sleep 0.5
+questions:
+  - kind: task
+    prompt: "Un service d'accueil écoute sur 127.0.0.1 : c'est le plus petit des ports TCP en écoute. Trouve-le et envoie-le avec submit."
+    check: 'answer-is "$(head -n 1 /tmp/.np-ports)"'
+    solution: "ss -tln, puis submit <port>"
+    solve: |
+      submit "$(ss -tlnH | awk '{print $4}' | sed 's/.*://' | sort -n | head -n 1)"
+    hints:
+      - text: "ss -tln liste les ports TCP (t) en écoute (l), en chiffres (n)."
+      - text: "Le port est à droite des deux-points, dans la colonne Local Address:Port."
+    variant:
+      kind: task
+      prompt: "Deux services écoutent sur 127.0.0.1. Trouve le plus GRAND des ports TCP en écoute et envoie-le avec submit."
+      check: 'answer-is "$(tail -n 1 /tmp/.np-ports)"'
+      solution: "ss -tln, puis submit <port>"
+      solve: |
+        submit "$(ss -tlnH | awk '{print $4}' | sed 's/.*://' | sort -n | tail -n 1)"
+      hints:
+        - text: "ss -tln liste les ports TCP en écoute."
+
+  - kind: task
+    prompt: "Le service d'accueil annonce son état dès qu'on se connecte. Récupère ce message et envoie-le avec submit."
+    check: 'answer-is "SERVICE-LOCAL:PRET"'
+    solution: "nc 127.0.0.1 <port> (ou cat < /dev/tcp/127.0.0.1/<port>), puis submit <message>"
+    solve: |
+      submit "$(cat < /dev/tcp/127.0.0.1/$(head -n 1 /tmp/.np-ports) | tr -d '\r\n')"
+    hints:
+      - text: "nc suivi de l'adresse et du port ouvre la connexion."
+      - text: "Sans nc, bash sait aussi se connecter : cat < /dev/tcp/127.0.0.1/PORT."
+
+  - kind: task
+    prompt: "Écris dans ~/net/ports.txt tous les ports TCP en écoute, un par ligne, du plus petit au plus grand."
+    check: 'diff -q /tmp/.np-ports <(grep -v "^[[:space:]]*$" ~/net/ports.txt 2>/dev/null | tr -d " \r") >/dev/null 2>&1'
+    solution: "ss -tlnH | awk '{print $4}' | sed 's/.*://' | sort -n > ~/net/ports.txt"
+    solve: |
+      ss -tlnH | awk '{print $4}' | sed 's/.*://' | sort -un > ~/net/ports.txt
+    hints:
+      - text: "ss -H retire la ligne d'en-tête ; la 4e colonne contient adresse:port."
+      - text: "sed 's/.*://' garde ce qui suit les deux-points, sort -n trie les nombres."
+        cost_s: 20
+
+  - kind: task
+    prompt: "Le second service, celui du plus grand port, garde maintenant un secret. Récupère-le et envoie-le avec submit."
+    flag: true
+    setup: |
+      printf '%s\n' "$FLAG" > ~/net/.coffre
+    check: 'answer-is "$FLAG"'
+    solution: "nc 127.0.0.1 <port du coffre>, puis submit <flag>"
+    solve: |
+      submit "$(cat < /dev/tcp/127.0.0.1/$(tail -n 1 /tmp/.np-ports) | tr -d '\r\n')"
+    hints:
+      - text: "Même geste que pour l'accueil, sur l'autre port."
+
+  - kind: task
+    prompt: "Le service du coffre n'a plus rien à faire ici. Arrête-le pour de bon : plus rien ne doit écouter sur son port, et l'accueil doit continuer de tourner."
+    check: |
+      c=$(tail -n 1 /tmp/.np-ports); a=$(head -n 1 /tmp/.np-ports)
+      sleep 0.3
+      ! ss -tlnH | grep -q ":$c " && ss -tlnH | grep -q ":$a "
+    solution: "ps -ef | grep service.sh pour trouver la boucle du coffre, puis kill -- -<PID> (tout le groupe) ou pkill -f \"service.sh <port>\""
+    solve: |
+      pkill -f "service.sh $(tail -n 1 /tmp/.np-ports)"
+      pkill -f "nc -l 127.0.0.1 $(tail -n 1 /tmp/.np-ports)"
+      sleep 0.2
+    hints:
+      - text: "Le nc qui écoute est relancé par une boucle : arrête d'abord la boucle, puis le nc."
+      - text: "ps -ef montre les arguments : le port apparaît sur la ligne de service.sh."
+        cost_s: 20
+
+rewards:
+  xp: 340

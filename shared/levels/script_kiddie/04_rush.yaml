@@ -21,6 +21,14 @@ questions:
     output: "10001 access.log"
     hints:
       - text: "wc avec l'option qui compte les lignes."
+    variant:
+      kind: command
+      prompt: "Compte les mots de access.log."
+      accept: ["wc -w access.log"]
+      output: "41230 access.log"
+      explain: "-w compte les mots, -l les lignes, -c les octets."
+      hints:
+        - text: "L'option w comme « words »."
 
   - kind: mcq
     prompt: "Quelle commande liste un dossier avec les détails (droits, taille, date) ?"
@@ -47,6 +55,14 @@ questions:
     code: "echo bonjour | grep -c o"
     accept: ["1"]
     explain: "grep -c compte les lignes qui contiennent o, pas les lettres : une seule ligne ici."
+    variant:
+      kind: predict
+      prompt: "Qu'affiche cette commande ?"
+      code: "echo un deux trois | wc -w"
+      accept: ["3"]
+      explain: "wc -w compte les mots qu'il reçoit par le pipe."
+      hints:
+        - text: "Compte les mots séparés par des espaces."
 
   - kind: command
     prompt: "Cherche ERROR dans journal.log, quelle que soit la casse."

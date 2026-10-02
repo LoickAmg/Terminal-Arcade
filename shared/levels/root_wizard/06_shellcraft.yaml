@@ -1,0 +1,92 @@
+id: rw_shellcraft_01
+title: "Scripts résistants"
+hook: "Un bon script ne fait pas que marcher : il sait quoi faire quand ça tourne mal."
+tier: root_wizard
+tree: system_overlord
+runtime: docker
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_path, time_accel] }
+intro: "xargs, trap, signaux, sauvegarde incrémentale et sed ciblé."
+questions:
+  - kind: task
+    prompt: "Pour chaque nom listé dans cibles.txt, crée un fichier vide portant ce nom suivi de .ok, avec xargs."
+    setup: |
+      rm -f ~/*.ok
+      for n in alpha beta gamma delta epsilon; do [ $((RANDOM % 3)) -gt 0 ] && echo "$n"; done > ~/cibles.txt
+      [ -s ~/cibles.txt ] || echo omega > ~/cibles.txt
+    check: |
+      cd ~ && [ "$(ls *.ok 2>/dev/null | sort)" = "$(sed 's/$/.ok/' cibles.txt | sort)" ]
+    solution: "xargs -I{} touch {}.ok < cibles.txt"
+    solve: |
+      cd ~ && xargs -I{} touch {}.ok < cibles.txt
+    hints:
+      - text: "xargs transforme les lignes reçues en arguments d'une autre commande."
+      - text: "xargs -I{} remplace {} par chaque ligne : touch {}.ok"
+        cost_s: 20
+
+  - kind: task
+    prompt: "Écris fin.sh : il crée travail.tmp pendant qu'il tourne, et grâce à trap, il le supprime et écrit nettoyage-ok dans nettoyage.txt quand il se termine. Rends-le exécutable puis lance-le."
+    setup: 'rm -f ~/fin.sh ~/travail.tmp ~/nettoyage.txt'
+    check: '[ -x ~/fin.sh ] && grep -q trap ~/fin.sh && [ "$(cat ~/nettoyage.txt 2>/dev/null)" = nettoyage-ok ] && [ ! -e ~/travail.tmp ]'
+    solution: "trap 'rm -f ~/travail.tmp; echo nettoyage-ok > ~/nettoyage.txt' EXIT, puis touch ~/travail.tmp"
+    solve: |
+      cat > ~/fin.sh <<'EOF'
+      #!/bin/bash
+      trap 'rm -f "$HOME/travail.tmp"; echo nettoyage-ok > "$HOME/nettoyage.txt"' EXIT
+      touch "$HOME/travail.tmp"
+      EOF
+      chmod +x ~/fin.sh && ~/fin.sh
+    hints:
+      - text: "trap 'COMMANDES' EXIT exécute les commandes quand le script se termine, quelle qu'en soit la raison."
+
+  - kind: task
+    prompt: "Le programme watcher tourne en fond et recharge sa configuration quand il reçoit le signal HUP. Envoie-lui ce signal."
+    setup: |
+      rm -f ~/reload.txt
+      cat > ~/watcher <<'EOF'
+      #!/bin/bash
+      trap 'echo recharge > "$HOME/reload.txt"' HUP
+      while true; do sleep 0.2; done
+      EOF
+      chmod +x ~/watcher
+      # Sans nohup : il ferait ignorer SIGHUP, que bash ne pourrait plus piéger.
+      pgrep -x watcher >/dev/null || { setsid ~/watcher </dev/null >/dev/null 2>&1 & sleep 0.2; }
+    check: 'grep -qx recharge ~/reload.txt 2>/dev/null && pgrep -x watcher >/dev/null'
+    solution: "pkill -HUP watcher (ou kill -HUP <PID>, PID trouvé avec pgrep watcher)"
+    solve: |
+      pkill -HUP -x watcher; sleep 0.4
+    hints:
+      - text: "kill ne sert pas qu'à arrêter : -HUP envoie un signal précis. Le programme doit continuer de tourner."
+
+  - kind: task
+    prompt: "Une sauvegarde complète base.tar.gz existe, avec son instantané backup.snar. Crée update.tar.gz, la sauvegarde incrémentale du dossier backup : seulement ce qui a changé depuis."
+    setup: |
+      cd ~ && rm -rf backup base.tar.gz update.tar.gz backup.snar
+      mkdir -p backup && echo A > backup/a.txt && echo B > backup/b.txt
+      tar -czf base.tar.gz --listed-incremental=backup.snar backup
+      sleep 1
+      echo "A modifié" > backup/a.txt && echo C > backup/c.txt
+    check: |
+      cd ~ && l=$(tar -tzf update.tar.gz 2>/dev/null) && echo "$l" | grep -qx backup/a.txt && echo "$l" | grep -qx backup/c.txt && ! echo "$l" | grep -qx backup/b.txt
+    solution: "tar -czf update.tar.gz --listed-incremental=backup.snar backup"
+    solve: |
+      cd ~ && tar -czf update.tar.gz --listed-incremental=backup.snar backup
+    hints:
+      - text: "--listed-incremental=FICHIER lit l'état précédent dans le .snar et ne garde que les changements."
+
+  - kind: task
+    prompt: "Dans settings.conf, remplace uniquement la valeur de https_port par 8443, sans toucher aux autres lignes."
+    setup: |
+      printf 'http_port=80\nhttps_port=443\nproxy_port=8443\nhttps_port_backup=443\n' > ~/settings.conf
+    check: '[ "$(cat ~/settings.conf)" = "$(printf "http_port=80\nhttps_port=8443\nproxy_port=8443\nhttps_port_backup=443")" ]'
+    solution: "sed -i 's/^https_port=.*/https_port=8443/' settings.conf"
+    solve: |
+      sed -i 's/^https_port=.*/https_port=8443/' ~/settings.conf
+    hints:
+      - text: "Ancre le motif : ^https_port= ne vise que la ligne qui commence exactement ainsi."
+      - text: "Attention à https_port_backup : il commence aussi par https_port."
+        cost_s: 20
+
+rewards:
+  xp: 460

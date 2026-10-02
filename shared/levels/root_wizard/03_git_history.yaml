@@ -68,4 +68,4 @@ questions:
 
 rewards:
   xp: 420
-  unlocks: gg_bisect_01
+  unlocks: [gg_bisect_01, gg_workflow_01]

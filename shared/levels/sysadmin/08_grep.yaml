@@ -1,0 +1,98 @@
+id: sa_grep_02
+title: "Traquer l'intrus"
+hook: "Deux cents lignes normales, quelques lignes qui ne le sont pas."
+tier: sysadmin
+tree: data_surgeon
+runtime: docker
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_decoy, mutation] }
+intro: "grep en profondeur : inverser, compter avec une expression régulière, chercher dans les sous-dossiers, afficher le contexte."
+setup: |
+  mkdir -p ~/logs/archives/2026
+  ok() { printf '2026-10-02 10:%02d 10.0.0.%d GET /page%d 200 OK\n' $(($1 % 60)) $(($1 % 5 + 1)) $(($1 % 4)); }
+  {
+    for i in $(seq 1 90); do ok "$i"; done
+    printf '2026-10-02 11:01 10.0.0.9 GET /admin 500 FAIL\n'
+    for i in $(seq 91 120); do ok "$i"; done
+    printf '2026-10-02 11:02 10.0.0.9 GET /admin 503 FAIL\n'
+    for i in $(seq 121 125); do ok "$i"; done
+    printf '2026-10-02 11:03 10.0.0.9 POST /token 401 FAIL\n'
+    for i in $(seq 126 170); do ok "$i"; done
+    printf '2026-10-02 11:01 10.0.0.9 GET /admin 500 FAIL\n'
+    for i in $(seq 171 200); do ok "$i"; done
+  } > ~/logs/sante.log
+  # Les codes 5xx en plus, tirés au hasard, pour que le compte change d'une partie à l'autre.
+  for i in $(seq 1 $((RANDOM % 4))); do printf '2026-10-02 12:%02d 10.0.0.8 GET /api 502 FAIL\n' "$i" >> ~/logs/sante.log; done
+  oublie="vieux-$((RANDOM % 900 + 100)).log"
+  printf '2026-10-01 09:00 10.0.0.2 GET / 200 OK\nTOKEN=%s\n' "$(head -c 6 /dev/urandom | od -An -tx1 | tr -d ' \n')" > ~/logs/archives/2026/"$oublie"
+  printf '2026-10-01 09:00 10.0.0.2 GET / 200 OK\n' > ~/logs/archives/propre.log
+questions:
+  - kind: task
+    prompt: "Écris dans ~/logs/suspectes.txt toutes les lignes de sante.log qui ne contiennent PAS OK."
+    check: 'diff -q <(grep -v OK ~/logs/sante.log) ~/logs/suspectes.txt >/dev/null 2>&1'
+    solution: "grep -v OK ~/logs/sante.log > ~/logs/suspectes.txt"
+    solve: |
+      grep -v OK ~/logs/sante.log > ~/logs/suspectes.txt
+    hints:
+      - text: "-v inverse la sélection : grep affiche ce qui ne correspond pas."
+    variant:
+      kind: task
+      prompt: "Écris dans ~/logs/admin.txt toutes les lignes de sante.log qui visent /admin."
+      check: 'diff -q <(grep /admin ~/logs/sante.log) ~/logs/admin.txt >/dev/null 2>&1'
+      solution: "grep /admin ~/logs/sante.log > ~/logs/admin.txt"
+      solve: |
+        grep /admin ~/logs/sante.log > ~/logs/admin.txt
+      hints:
+        - text: "Le motif peut contenir une barre oblique."
+
+  - kind: task
+    prompt: "Combien de lignes de sante.log portent un code HTTP de la famille 5xx (5 suivi de deux chiffres) ? Envoie le nombre avec submit."
+    check: 'answer-is "$(awk "\$6 ~ /^5[0-9][0-9]\$/ {n++} END {print n+0}" ~/logs/sante.log)"'
+    solution: "grep -cE ' 5[0-9]{2} ' sante.log, puis submit <nombre>"
+    solve: |
+      submit "$(grep -cE ' 5[0-9]{2} ' ~/logs/sante.log)"
+    hints:
+      - text: "Le code HTTP est la 6e colonne, entouré d'espaces."
+      - text: "grep -E accepte [0-9]{2} : deux chiffres. -c compte les lignes."
+        cost_s: 20
+
+  - kind: task
+    prompt: "Un fichier quelque part sous ~/logs contient le mot TOKEN. Envoie son nom seul (sans le dossier) avec submit."
+    check: 'answer-is "$(basename "$(grep -rl TOKEN ~/logs | head -n 1)")"'
+    solution: "grep -rl TOKEN ~/logs, puis submit <nom>"
+    solve: |
+      submit "$(basename "$(grep -rl TOKEN ~/logs | head -n 1)")"
+    hints:
+      - text: "-r cherche dans les sous-dossiers, -l n'affiche que le nom des fichiers."
+
+  - kind: task
+    prompt: "Écris dans ~/logs/contexte.txt la ligne de sante.log qui contient 503, suivie des deux lignes d'après."
+    check: 'diff -q <(grep -A 2 " 503 " ~/logs/sante.log) ~/logs/contexte.txt >/dev/null 2>&1'
+    solution: "grep -A 2 503 ~/logs/sante.log > ~/logs/contexte.txt"
+    solve: |
+      grep -A 2 " 503 " ~/logs/sante.log > ~/logs/contexte.txt
+    hints:
+      - text: "grep sait afficher des lignes après la correspondance : option -A comme « after »."
+    variant:
+      kind: task
+      prompt: "Écris dans ~/logs/avant.txt la ligne de sante.log qui contient 401, précédée des deux lignes d'avant."
+      check: 'diff -q <(grep -B 2 " 401 " ~/logs/sante.log) ~/logs/avant.txt >/dev/null 2>&1'
+      solution: "grep -B 2 401 ~/logs/sante.log > ~/logs/avant.txt"
+      solve: |
+        grep -B 2 " 401 " ~/logs/sante.log > ~/logs/avant.txt
+      hints:
+        - text: "-B comme « before »."
+
+  - kind: task
+    prompt: "Écris dans ~/logs/echecs.txt les lignes FAIL de sante.log, sans doublon, triées par ordre alphabétique."
+    check: 'diff -q <(grep FAIL ~/logs/sante.log | sort -u) ~/logs/echecs.txt >/dev/null 2>&1'
+    solution: "grep FAIL ~/logs/sante.log | sort -u > ~/logs/echecs.txt"
+    solve: |
+      grep FAIL ~/logs/sante.log | sort -u > ~/logs/echecs.txt
+    hints:
+      - text: "Une des lignes FAIL apparaît deux fois. sort -u trie et retire les doublons."
+
+rewards:
+  xp: 330
+  unlocks: rw_awk_01

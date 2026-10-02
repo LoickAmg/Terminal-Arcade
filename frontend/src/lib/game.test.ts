@@ -37,7 +37,7 @@ describe("parcours d'un niveau", () => {
   });
 
   it("joue fs_nav_01 en entier, débloque le suivant", () => {
-    const { state, out } = play(start, "open fs_nav_01", "pwd", "ls", "ls -al", "1", "/var", "cd outils/");
+    const { state, out } = play(start, "open fs_nav_01", "pwd", "ls", "ls -a", "1", "/var", "cd outils/");
     expect(state.active).toBeNull();
     expect(state.screen.kind).toBe("recap");
     expect(state.progress.levels.fs_nav_01).toEqual({ status: "passed", bestXp: 120, modes: ["classic"] });
@@ -209,7 +209,7 @@ describe("parcours Git-Gud", () => {
 
     const track = play(start, "ls missions/git-gud");
     expect(track.state.screen).toEqual({ kind: "missions", track: "git-gud" });
-    expect(track.out.filter((l) => l.includes("gg_")).length).toBe(4);
+    expect(track.out.filter((l) => l.includes("gg_")).length).toBe(6);
     expect(play(start, "cd missions/git-gud/").state.screen).toEqual({ kind: "missions", track: "git-gud" });
   });
 });

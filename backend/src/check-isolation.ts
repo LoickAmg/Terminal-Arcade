@@ -7,6 +7,10 @@ const MUST_FAIL: [string, string][] = [
   ["écrire hors des dossiers autorisés", "touch /usr/local/bin/pirate"],
   ["devenir root", "su -c id root </dev/null"],
   ["accéder au réseau", "getent hosts example.com || exec 3<>/dev/tcp/1.1.1.1/80"],
+  // nc et ss sont présents pour Network Phantom : seul 127.0.0.1 doit répondre.
+  ["joindre l'extérieur avec nc", "nc -z -w 2 1.1.1.1 443"],
+  ["avoir une route hors de la machine", "ip route | grep -q default"],
+  ["voir une autre interface que lo", "ip -o link | grep -qv ' lo:'"],
   ["changer le propriétaire d'un fichier", "touch ~/f && chown root ~/f"],
   ["dépasser la limite de processus", "for i in $(seq 1 300); do sleep 5 & done; wait"],
   ["voir le socket Docker", "test -e /var/run/docker.sock"],

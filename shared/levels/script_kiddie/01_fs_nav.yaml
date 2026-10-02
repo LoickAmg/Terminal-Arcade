@@ -14,6 +14,14 @@ questions:
     output: "/home/agent"
     hints:
       - text: "Trois lettres : « print working directory »."
+    variant:
+      kind: command
+      prompt: "Tu viens d'entrer dans /etc. Affiche le chemin du dossier dans lequel tu te trouves."
+      accept: ["pwd"]
+      output: "/etc"
+      explain: "pwd affiche toujours le dossier courant, où qu'il soit."
+      hints:
+        - text: "Trois lettres : « print working directory »."
 
   - kind: command
     prompt: "Liste le contenu du dossier courant."
@@ -21,19 +29,31 @@ questions:
     output: "notes.txt  outils  rapport.md"
     hints:
       - text: "Deux lettres, abréviation de « list »."
+    variant:
+      kind: command
+      prompt: "Liste le contenu du dossier outils, sans y entrer."
+      accept: ["ls outils", "ls outils/", "ls ./outils"]
+      output: "grep.sh  scan.txt"
+      explain: "ls accepte un dossier en argument : pas besoin d'y aller pour regarder dedans."
+      hints:
+        - text: "ls, puis le nom du dossier."
 
   - kind: command
     prompt: "Certains fichiers commencent par un point et restent invisibles. Liste TOUT le contenu, fichiers cachés compris."
-    accept: ["ls -a", "ls -A", "ls --all", "ls -la"]
+    accept: ["ls -a", "ls --all"]
     output: ".  ..  .secret  notes.txt  outils  rapport.md"
-    explain: "Un nom qui commence par un point est caché. -a les montre tous, -A aussi mais sans . et .."
+    explain: "Un nom qui commence par un point est caché. -a les montre tous, y compris . (ici) et .. (le parent). ls -A fait pareil sans . et .."
     hints:
       - text: "Cherche l'option « all »."
     variant:
       kind: command
       prompt: "Liste le contenu du dossier courant en format long : droits, taille, date."
       accept: ["ls -l"]
-      output: "-rw-r--r-- 1 agent agent 812 oct.  1 09:12 notes.txt"
+      output: |
+        total 12
+        -rw-r--r-- 1 agent agent  812 oct.  1 09:12 notes.txt
+        drwxr-xr-x 2 agent agent 4096 oct.  1 09:10 outils
+        -rw-r--r-- 1 agent agent 1530 oct.  1 09:14 rapport.md
 
   - kind: mcq
     prompt: "Que fait cd .. ?"
@@ -44,6 +64,16 @@ questions:
       - "Ne fait rien"
     answer: 1
     explain: ".. désigne toujours le dossier parent. Pour revenir au dossier personnel : cd tout court, ou cd ~."
+    variant:
+      kind: mcq
+      prompt: "Que fait la commande cd tapée seule, sans argument ?"
+      choices:
+        - "Elle remonte au dossier parent"
+        - "Elle ramène dans ton dossier personnel"
+        - "Elle affiche le dossier courant"
+        - "Elle renvoie une erreur"
+      answer: 2
+      explain: "cd tout seul équivaut à cd ~ : retour au dossier personnel."
 
   - kind: predict
     prompt: "Qu'affiche la dernière commande ?"
@@ -54,6 +84,17 @@ questions:
     accept: ["/var"]
     hints:
       - text: "Remonte d'un cran depuis /var/log."
+    variant:
+      kind: predict
+      prompt: "Qu'affiche la dernière commande ?"
+      code: |
+        cd /etc
+        cd ..
+        pwd
+      accept: ["/"]
+      explain: "/etc est juste sous la racine : son parent est donc /."
+      hints:
+        - text: "Le parent de /etc est le tout premier dossier du système."
 
   - kind: command
     prompt: "Entre dans le dossier outils."
@@ -61,6 +102,14 @@ questions:
     output: ""
     hints:
       - text: "cd suivi du nom du dossier."
+    variant:
+      kind: command
+      prompt: "Entre dans le dossier /var/log."
+      accept: ["cd /var/log", "cd /var/log/"]
+      output: ""
+      explain: "Un chemin qui commence par / part de la racine : il marche d'où que tu sois."
+      hints:
+        - text: "cd, puis le chemin complet."
 
 rewards:
   xp: 120

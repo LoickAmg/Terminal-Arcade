@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { loadLevels } from "@terminal-arcade/shared/loader";
 import type { Question } from "@terminal-arcade/shared";
-import { createSandbox, imageReady, newFlag, runScript, IMAGE } from "./sandbox";
+import { createSandbox, imageReady, newFlag, runScript, wrapCheck, IMAGE } from "./sandbox";
 
 // Test d'intégration des niveaux Docker : pour chaque défi (et sa variante),
 // dans une vraie sandbox, l'arbitre doit refuser l'état de départ puis
@@ -21,14 +21,14 @@ async function checkTask(container: Parameters<typeof runScript>[0], q: Question
     const setup = await runScript(container, q.setup, env);
     if (setup.code !== 0) errors.push(`${label} : setup en échec (${setup.code}) ${setup.output.trim()}`);
   }
-  const before = await runScript(container, q.check, env);
+  const before = await runScript(container, wrapCheck(q.check), env);
   if (before.code === 0) errors.push(`${label} : l'arbitre valide avant toute action`);
   if (!q.solve) return [...errors, `${label} : pas de script solve`];
   const solve = await runScript(container, q.solve, env);
   if (solve.code !== 0) errors.push(`${label} : solve en échec (${solve.code}) ${solve.output.trim()}`);
   // Laisse aux processus tués le temps de disparaître.
   await new Promise((r) => setTimeout(r, 400));
-  const after = await runScript(container, q.check, env);
+  const after = await runScript(container, wrapCheck(q.check), env);
   if (after.code !== 0) errors.push(`${label} : l'arbitre refuse la solution (code ${after.code})`);
   return errors;
 }

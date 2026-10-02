@@ -16,7 +16,7 @@ setup: |
 questions:
   - kind: task
     prompt: "Un processus nommé virus tourne. Trouve son PID et envoie-le avec submit."
-    setup: 'pgrep -x virus >/dev/null || setsid nohup ~/.bin/virus 100000 >/dev/null 2>&1 &'
+    setup: 'pgrep -x virus >/dev/null || { setsid nohup ~/.bin/virus 100000 >/dev/null 2>&1 & sleep 0.2; }'
     check: 'answer-is "$(pgrep -x virus | head -n 1)"'
     solution: "pgrep virus (ou ps aux | grep virus), puis submit <PID>"
     solve: |
@@ -26,7 +26,7 @@ questions:
 
   - kind: task
     prompt: "Arrête ce processus."
-    setup: 'pgrep -x virus >/dev/null || setsid nohup ~/.bin/virus 100000 >/dev/null 2>&1 &'
+    setup: 'pgrep -x virus >/dev/null || { setsid nohup ~/.bin/virus 100000 >/dev/null 2>&1 & sleep 0.2; }'
     check: '! pgrep -x virus >/dev/null'
     solution: "kill <PID> (ou pkill virus)"
     solve: |
@@ -57,4 +57,4 @@ questions:
 
 rewards:
   xp: 380
-  unlocks: rw_script_01
+  unlocks: [rw_script_01, rw_shellcraft_01]

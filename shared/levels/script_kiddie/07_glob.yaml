@@ -1,0 +1,91 @@
+id: sk_glob_01
+title: "Les jokers du shell"
+hook: "Deux caractères remplacent des dizaines de noms de fichiers. Et peuvent tout effacer."
+tier: script_kiddie
+tree: file_system_ninja
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [false_red, mutation] }
+intro: "L'étoile et le point d'interrogation : viser plusieurs fichiers sans les nommer un par un."
+questions:
+  - kind: mcq
+    prompt: "Dans le shell, que remplace l'étoile * dans un nom de fichier ?"
+    choices: ["Un seul caractère", "Zéro, un ou plusieurs caractères", "Un chiffre uniquement", "Un dossier uniquement"]
+    answer: 2
+    explain: "* remplace n'importe quelle suite de caractères, y compris aucune : *.log correspond aussi à .log."
+    variant:
+      kind: mcq
+      prompt: "Dans le shell, que remplace le point d'interrogation ? dans un nom de fichier ?"
+      choices: ["Exactement un caractère", "Zéro ou un caractère", "N'importe quel nombre de caractères", "Un point"]
+      answer: 1
+      explain: "? remplace exactement un caractère, ni plus ni moins."
+
+  - kind: command
+    prompt: "Liste, en une seule commande, tous les fichiers du dossier courant dont le nom se termine par .log."
+    accept: ["ls *.log"]
+    output: "app.log  erreur.log  systeme.log"
+    explain: "Le shell remplace *.log par la liste des fichiers correspondants avant même de lancer ls."
+    hints:
+      - text: "Une étoile, puis l'extension."
+    variant:
+      kind: command
+      prompt: "Liste, en une seule commande, tous les fichiers du dossier courant dont le nom commence par rapport."
+      accept: ["ls rapport*"]
+      output: "rapport_fevrier.txt  rapport_janvier.txt  rapport_mars.txt"
+      explain: "Le joker peut être au début, au milieu ou à la fin du motif."
+      hints:
+        - text: "Le début du nom, puis l'étoile."
+
+  - kind: command
+    prompt: "Le dossier contient journal01.txt à journal09.txt, et aussi journal.txt et journal-final.txt. Liste seulement les neuf journaux numérotés, avec des ? pour les chiffres."
+    accept: ["ls journal??.txt"]
+    output: "journal01.txt  journal02.txt  journal03.txt  journal04.txt  journal05.txt  journal06.txt  journal07.txt  journal08.txt  journal09.txt"
+    explain: "Un ? par caractère variable : ?? en vise exactement deux. journal*.txt aurait aussi pris journal.txt et journal-final.txt."
+    hints:
+      - text: "Les numéros ont deux chiffres : il faut donc deux jokers d'un caractère."
+    variant:
+      kind: command
+      prompt: "Le dossier contient photo1.jpg à photo9.jpg, et aussi photo10.jpg. Liste seulement photo1.jpg à photo9.jpg avec un ?."
+      accept: ["ls photo?.jpg"]
+      output: "photo1.jpg  photo2.jpg  photo3.jpg  photo4.jpg  photo5.jpg  photo6.jpg  photo7.jpg  photo8.jpg  photo9.jpg"
+      explain: "photo?.jpg exige exactement un caractère : photo10.jpg, qui en a deux, est écarté."
+      hints:
+        - text: "Un seul caractère change."
+
+  - kind: predict
+    prompt: "Le dossier contient exactement a.txt, notes.txt et image.png. Qu'affiche cette commande ?"
+    code: "echo *.txt"
+    accept: ["a.txt notes.txt"]
+    explain: "Le shell remplace *.txt par les noms correspondants, triés, puis echo les affiche séparés par un espace."
+    hints:
+      - text: "image.png ne finit pas par .txt."
+    variant:
+      kind: predict
+      prompt: "Le dossier courant ne contient aucun fichier .txt. Qu'affiche cette commande ?"
+      code: "echo *.txt"
+      accept: ["*.txt"]
+      explain: "Quand rien ne correspond, bash laisse le motif tel quel : echo affiche donc *.txt."
+
+  - kind: mcq
+    prompt: "Que devient l'étoile quand elle est entre guillemets, comme dans ls \"*.log\" ?"
+    choices:
+      - "Elle est remplacée par les fichiers, comme d'habitude"
+      - "Elle reste une vraie étoile : ls cherche un fichier nommé *.log"
+      - "Elle désigne les fichiers cachés"
+      - "Elle devient une expression régulière"
+    answer: 2
+    explain: "Les guillemets empêchent le shell de développer le joker. Utile pour passer un motif à find -name."
+
+  - kind: trap
+    prompt: "Tu es dans ton dossier personnel, qui contient projets, sauvegardes et notes.txt. Que fait cette commande ?"
+    code: "rm -r *"
+    choices:
+      - "Rien : il manque un nom de fichier"
+      - "Elle supprime tout le contenu visible du dossier courant, dossiers compris"
+      - "Elle supprime seulement les fichiers cachés"
+      - "Elle supprime tout le disque"
+    answer: 2
+    explain: "* devient tous les noms visibles du dossier courant, et -r descend dans les dossiers. Lance d'abord ls * pour voir ce qui serait touché."
+
+rewards:
+  xp: 190

@@ -32,6 +32,16 @@ questions:
       cd ~/projet && git add README.md && git commit -qm "Premier commit"
     hints:
       - text: "git add prépare le fichier, git commit -m \"message\" l'enregistre."
+    variant:
+      kind: task
+      prompt: "Ajoute README.md et fais un premier commit avec le message « Documentation »."
+      setup: 'cd ~/projet && echo "Documentation du projet." >> README.md'
+      check: 'git -C ~/projet ls-files | grep -qx README.md && [ "$(git -C ~/projet log -1 --format=%s 2>/dev/null)" = Documentation ]'
+      solution: "git add README.md && git commit -m Documentation"
+      solve: |
+        cd ~/projet && git add README.md && git commit -qm Documentation
+      hints:
+        - text: "git add prépare le fichier, git commit -m donne le message."
 
   - kind: task
     prompt: "Crée une branche nommée feature et place-toi dessus."
@@ -44,7 +54,7 @@ questions:
 
   - kind: task
     prompt: "Sur feature, modifie README.md puis commite. Le commit doit être sur feature, pas sur main."
-    check: '[ "$(git -C ~/projet rev-list --count main..feature 2>/dev/null)" -ge 1 ]'
+    check: '[ "$(git -C ~/projet rev-list --count main..feature 2>/dev/null)" -ge 1 ] && git -C ~/projet diff --name-only main feature | grep -qx README.md'
     solution: "echo \"Nouveauté\" >> README.md && git commit -am \"Nouveauté\""
     solve: |
       cd ~/projet && echo nouveau >> README.md && git commit -qam "Nouveauté"

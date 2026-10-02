@@ -13,7 +13,7 @@ setup: |
     echo "2026-10-01 10:$(printf %02d $((i % 60))) 10.0.0.$((i % 7 + 1)) GET /page$((i % 5)) 200"
   done > ~/access.log
   for i in 1 2 3 4 5; do echo "2026-10-01 10:59 10.0.0.3 GET /favori 200"; done >> ~/access.log
-  echo "2026-10-01 11:00 10.0.0.66 POST /admin 403" >> ~/access.log
+  echo "2026-10-01 11:00 10.0.0.$((RANDOM % 150 + 100)) POST /admin 403" >> ~/access.log
   printf 'INFO démarrage\nERROR disque plein\nINFO reprise\nERROR timeout base\nERROR disque plein\n' > ~/app.log
 questions:
   - kind: task
@@ -52,10 +52,21 @@ questions:
 
   - kind: task
     prompt: "Une requête a été refusée (code 403). Quelle IP l'a faite ? Envoie-la avec submit."
-    check: 'answer-is 10.0.0.66'
-    solution: "grep 403 access.log, puis submit 10.0.0.66"
+    check: 'answer-is "$(awk "\$6 == 403 {print \$3}" ~/access.log)"'
+    solution: "grep 403 access.log (ou awk '$6 == 403' access.log), puis submit <IP>"
     solve: |
-      submit 10.0.0.66
+      submit "$(awk '$6 == 403 {print $3}' ~/access.log)"
+    hints:
+      - text: "Le code HTTP est la 6e colonne ; grep 403 suffit pour le repérer."
+    variant:
+      kind: task
+      prompt: "Combien de requêtes de access.log ont réussi (code 200) ? Envoie le nombre avec submit."
+      check: 'answer-is "$(awk "\$6 == 200 {n++} END {print n+0}" ~/access.log)"'
+      solution: "grep -c ' 200$' access.log, puis submit <nombre>"
+      solve: |
+        submit "$(awk '$6 == 200 {n++} END {print n+0}' ~/access.log)"
+      hints:
+        - text: "Le code HTTP est la 6e colonne, en fin de ligne."
 
   - kind: task
     prompt: "Quelle IP apparaît le plus souvent dans access.log ? Envoie-la avec submit."
@@ -68,4 +79,4 @@ questions:
 
 rewards:
   xp: 320
-  unlocks: sa_pipes_01
+  unlocks: [sa_pipes_01, sa_grep_02]

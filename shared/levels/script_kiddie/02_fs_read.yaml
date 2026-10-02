@@ -16,6 +16,16 @@ questions:
       Penser à vider /tmp
     hints:
       - text: "La commande la plus courte pour afficher un fichier : trois lettres."
+    variant:
+      kind: command
+      prompt: "Affiche tout le contenu de rapport.md."
+      accept: ["cat rapport.md"]
+      output: |
+        # Rapport de la semaine
+        Rien à signaler.
+      explain: "cat recopie le fichier tel quel dans le terminal."
+      hints:
+        - text: "La même commande que pour notes.txt."
 
   - kind: fill
     prompt: "Complète pour n'afficher que les 5 premières lignes de journal.log."
@@ -42,14 +52,28 @@ questions:
     choices: ["less", "cat", "echo", "touch"]
     answer: 1
     explain: "less ouvre le fichier sans tout afficher d'un coup. On en sort avec q."
+    variant:
+      kind: mcq
+      prompt: "Tu es dans less et tu as fini de lire. Quelle touche te rend la main ?"
+      choices: ["q", "Échap", "Entrée", "x"]
+      answer: 1
+      explain: "q quitte less (et man, qui l'utilise pour afficher les pages)."
 
   - kind: predict
-    prompt: "liste.txt contient exactement 3 lignes. Qu'affiche cette commande ?"
+    prompt: "liste.txt contient exactement 3 lignes, chacune terminée par un retour à la ligne. Qu'affiche cette commande ?"
     code: "wc -l < liste.txt"
     accept: ["3"]
-    explain: "Avec <, wc lit l'entrée standard et n'affiche que le nombre, sans le nom du fichier."
+    explain: "Avec <, wc lit l'entrée standard et n'affiche que le nombre, sans le nom du fichier. wc -l compte les retours à la ligne : une dernière ligne sans retour ne serait pas comptée."
     hints:
       - text: "wc -l compte les lignes."
+    variant:
+      kind: predict
+      prompt: "liste.txt contient exactement 3 lignes, chacune terminée par un retour à la ligne. Qu'affiche cette commande ?"
+      code: "wc -l liste.txt"
+      accept: ["3 liste.txt"]
+      explain: "Sans <, wc reçoit un nom de fichier et l'ajoute à sa réponse."
+      hints:
+        - text: "Cette fois, wc connaît le nom du fichier."
 
   - kind: trap
     prompt: "Tu veux lire notes.txt. Que fait réellement cette commande ?"
@@ -64,4 +88,4 @@ questions:
 
 rewards:
   xp: 140
-  unlocks: grep_01
+  unlocks: [grep_01, sk_aide_01]

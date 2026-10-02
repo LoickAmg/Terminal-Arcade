@@ -1,0 +1,112 @@
+id: sk_aide_01
+title: "Le terminal sait aider"
+hook: "Personne ne connaît toutes les options par cœur. Le terminal, lui, a une mémoire."
+tier: script_kiddie
+tree: file_system_ninja
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [block_key, mutation] }
+intro: "Le manuel, l'aide rapide, l'historique et les réflexes clavier qui sauvent."
+questions:
+  - kind: command
+    prompt: "Affiche le manuel de la commande ls."
+    accept: ["man ls"]
+    output: |
+      LS(1)                    User Commands                    LS(1)
+
+      NAME
+             ls - list directory contents
+      (le manuel s'ouvre page par page : q pour quitter)
+    explain: "man ouvre le manuel : flèches pour défiler, / pour chercher, q pour quitter."
+    hints:
+      - text: "Trois lettres, l'abréviation de « manual »."
+    variant:
+      kind: command
+      prompt: "Affiche le manuel de la commande grep."
+      accept: ["man grep"]
+      output: |
+        GREP(1)                  User Commands                  GREP(1)
+
+        NAME
+               grep - print lines that match patterns
+      explain: "man marche pour toutes les commandes : seul le nom change."
+      hints:
+        - text: "man, puis le nom de la commande."
+
+  - kind: command
+    prompt: "Tu ne connais pas les options de tar. Demande son aide rapide, sans ouvrir le manuel."
+    accept: ["tar --help"]
+    output: |
+      Usage: tar [OPTION...] [FILE]...
+        -c, --create      create a new archive
+        -x, --extract     extract files from an archive
+        -z, --gzip        filter the archive through gzip
+    explain: "--help résume les options en une page, directement dans le terminal."
+    hints:
+      - text: "Deux tirets, puis le mot anglais pour « aide »."
+    variant:
+      kind: command
+      prompt: "Demande l'aide rapide de la commande grep, sans ouvrir le manuel."
+      accept: ["grep --help"]
+      output: |
+        Usage: grep [OPTION]... PATTERNS [FILE]...
+          -i, --ignore-case         ignore case distinctions
+          -r, --recursive           read all files under each directory
+      explain: "--help est le réflexe à prendre avant de tâtonner."
+      hints:
+        - text: "La même option marche sur presque toutes les commandes."
+
+  - kind: command
+    prompt: "Affiche l'historique des commandes que tu as tapées."
+    accept: ["history"]
+    output: |
+      101  pwd
+      102  ls -a
+      103  cat notes.txt
+      104  history
+    explain: "Le shell numérote et garde tes commandes. !103 relancerait cat notes.txt."
+    hints:
+      - text: "Le mot anglais pour « historique »."
+    variant:
+      kind: fill
+      prompt: "Complète pour n'afficher que les 5 dernières commandes de l'historique."
+      template: "history | tail -n ___"
+      accept: ["5"]
+      explain: "tail -n 5 ne garde que les 5 dernières lignes de ce que history affiche."
+
+  - kind: mcq
+    prompt: "Tu as tapé « cat rapp » et tu veux que le shell finisse le nom du fichier. Quelle touche ?"
+    choices: ["Tab", "Entrée", "Échap", "Ctrl+L"]
+    answer: 1
+    explain: "Tab complète. Deux fois Tab affiche toutes les possibilités quand il y en a plusieurs."
+    variant:
+      kind: mcq
+      prompt: "Quelle commande relance exactement la commande précédente ?"
+      choices: ["!!", "redo", "!-0", "history last"]
+      answer: 1
+      explain: "!! est remplacé par la dernière commande de l'historique. sudo !! relance la précédente en administrateur."
+
+  - kind: trap
+    prompt: "Un stagiaire voit cette ligne dans un historique et panique : il croit que des fichiers ont été supprimés. Que s'est-il passé ?"
+    code: "man rm"
+    choices:
+      - "Rien n'a été supprimé : man ne fait qu'afficher la documentation de rm"
+      - "Le manuel de rm a été supprimé"
+      - "Tous les fichiers du dossier ont été supprimés"
+      - "L'historique du shell a été vidé"
+    answer: 1
+    explain: "man lit et affiche une page de documentation. Il n'exécute jamais la commande décrite."
+
+  - kind: trap
+    prompt: "Une commande tourne depuis deux minutes sans rien afficher et le curseur ne revient pas. Que fait Ctrl+C ?"
+    choices:
+      - "Elle ferme le terminal"
+      - "Elle interrompt la commande en cours et rend la main"
+      - "Elle copie le texte sélectionné"
+      - "Elle redémarre la machine"
+    answer: 2
+    explain: "Dans un terminal, Ctrl+C interrompt le programme au premier plan. Pour copier, c'est souvent Ctrl+Maj+C."
+
+rewards:
+  xp: 180
+  unlocks: sk_glob_01

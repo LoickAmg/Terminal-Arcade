@@ -1,7 +1,8 @@
 # Image des défis réels de Terminal Arcade. Le conteneur tourne sans réseau,
 # sans privilèges, avec un système de fichiers en lecture seule : seuls le
 # dossier personnel, /tmp et /srv sont inscriptibles (montés en mémoire par
-# le serveur au lancement).
+# le serveur au lancement). ss (iproute2) et nc (netcat-openbsd) servent à
+# l'arbre Network Phantom : sans réseau, ils n'atteignent que 127.0.0.1.
 FROM debian:bookworm-slim
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 TERM=xterm-256color
@@ -25,7 +26,14 @@ RUN apt-get update \
  && apt-get purge -y curl && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/* /tmp/pwsh.deb
 
-COPY --chmod=755 submit arcade answer-is /usr/local/bin/
+# Outils de l'arbre Network Phantom. jq est retiré : il servait de raccourci
+# à un exercice PowerShell. Couche à part, pour garder les précédentes en cache.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends iproute2 netcat-openbsd \
+ && apt-get purge -y jq && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --chmod=755 submit arcade answer-is answer-prefix-of /usr/local/bin/
 COPY bash.bashrc /etc/bash.bashrc
 COPY profile.ps1 /opt/microsoft/powershell/7/profile.ps1
 

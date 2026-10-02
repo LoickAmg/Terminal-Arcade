@@ -1,0 +1,10 @@
+#!/bin/bash
+# Aide pour les scripts « check » : la réponse soumise doit être un début
+# d'au moins N caractères de la valeur attendue (identifiant de commit).
+#   answer-prefix-of <valeur complète> <longueur minimale>
+#   0 = juste, 1 = rien de soumis, 2 = réponse fausse
+f="$HOME/.arcade/submitted"
+[ -f "$f" ] || exit 1
+s=$(cat "$f")
+[ "${#s}" -ge "${2:-7}" ] && [ "${1#"$s"}" != "$1" ] && exit 0
+exit 2

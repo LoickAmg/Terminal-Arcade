@@ -13,10 +13,10 @@ setup: |
   mkdir -p ~/data ~/logs
   for n in app web db; do echo "journal $n" > ~/logs/$n.log; done
   echo "notes" > ~/logs/lisezmoi.txt
-  head -c 2000000 /dev/zero > ~/data/gros.bin
+  head -c $(( (RANDOM % 3 + 2) * 1000000 )) /dev/zero > ~/data/archive-$((RANDOM % 900 + 100)).bin
   echo "petit" > ~/data/a.txt
   echo "moyen moyen" > ~/data/b.txt
-  printf '{"nom": "api", "port": 8443, "debug": false}\n' > ~/config.json
+  printf '{"nom": "api", "port": %d, "debug": false}\n' $((RANDOM % 2000 + 8000)) > ~/config.json
 questions:
   - kind: task
     prompt: "Combien de fichiers .log contient le dossier logs ? Utilise Get-ChildItem, puis envoie le nombre avec submit."
@@ -29,7 +29,7 @@ questions:
 
   - kind: task
     prompt: "Avec Where-Object, trouve le fichier de data qui dépasse 1 Mo et envoie son nom avec submit."
-    check: 'answer-is gros.bin'
+    check: 'answer-is "$(find ~/data -maxdepth 1 -type f -size +1M -printf "%f")"'
     solution: "Get-ChildItem data | Where-Object Length -gt 1MB"
     solve: |
       submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-ChildItem ~/data | Where-Object Length -gt 1MB).Name')"
@@ -38,14 +38,14 @@ questions:
     variant:
       kind: task
       prompt: "Avec Sort-Object, trouve le plus petit fichier de data et envoie son nom avec submit."
-      check: 'answer-is a.txt'
+      check: 'answer-is "$(find ~/data -maxdepth 1 -type f -printf "%s %f\n" | sort -n | head -n 1 | cut -d" " -f2)"'
       solution: "Get-ChildItem data | Sort-Object Length | Select-Object -First 1"
       solve: |
         submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-ChildItem ~/data | Sort-Object Length | Select-Object -First 1).Name')"
 
   - kind: task
     prompt: "Lis config.json avec ConvertFrom-Json et envoie la valeur de port avec submit."
-    check: 'answer-is 8443'
+    check: 'answer-is "$(grep -o "\"port\": *[0-9]*" ~/config.json | grep -o "[0-9]*$")"'
     solution: "(Get-Content config.json | ConvertFrom-Json).port"
     solve: |
       submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/config.json | ConvertFrom-Json).port')"
@@ -54,7 +54,7 @@ questions:
 
   - kind: task
     prompt: "Exporte la liste des fichiers de data, avec les colonnes Name et Length, dans fichiers.csv (Export-Csv)."
-    check: 'head -n 1 ~/fichiers.csv 2>/dev/null | grep -q "\"Name\",\"Length\"" && grep -q gros.bin ~/fichiers.csv'
+    check: 'head -n 1 ~/fichiers.csv 2>/dev/null | grep -q "\"Name\",\"Length\"" && grep -q "\.bin\"" ~/fichiers.csv'
     solution: "Get-ChildItem data | Select-Object Name, Length | Export-Csv fichiers.csv"
     solve: |
       pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object Name, Length | Export-Csv ~/fichiers.csv'
@@ -63,7 +63,7 @@ questions:
 
   - kind: task
     prompt: "Passe debug à true dans config.json : lis l'objet, modifie la propriété, réécris le JSON."
-    check: 'jq -e ".debug == true and .port == 8443" ~/config.json >/dev/null 2>&1'
+    check: 'grep -Eq "\"debug\": *true" ~/config.json && grep -Eq "\"nom\": *\"api\"" ~/config.json && grep -Eq "\"port\": *[0-9]+" ~/config.json'
     solution: "$c = Get-Content config.json | ConvertFrom-Json; $c.debug = $true; $c | ConvertTo-Json | Set-Content config.json"
     solve: |
       pwsh -NoProfile -NonInteractive -Command '$c = Get-Content ~/config.json | ConvertFrom-Json; $c.debug = $true; $c | ConvertTo-Json | Set-Content ~/config.json'

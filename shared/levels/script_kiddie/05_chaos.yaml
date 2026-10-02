@@ -35,6 +35,14 @@ questions:
     explain: "seq 4 affiche 1 à 4, une ligne chacun ; wc -l compte les lignes."
     hints:
       - text: "seq N affiche les nombres de 1 à N, un par ligne."
+    variant:
+      kind: predict
+      prompt: "Qu'affiche cette commande ?"
+      code: "printf 'ok\nfail\nok\n' | grep -c ok"
+      accept: ["2"]
+      explain: "grep -c compte les lignes qui contiennent le motif, pas le nombre total de lignes."
+      hints:
+        - text: "Trois lignes passent dans le pipe : combien contiennent ok ?"
 
   - kind: mcq
     prompt: "Quel caractère envoie la sortie d'une commande vers une autre commande ?"
@@ -77,6 +85,14 @@ questions:
     accept: ["-f", "-F", "--follow"]
     hints:
       - text: "f comme « follow »."
+    variant:
+      kind: fill
+      prompt: "Complète pour suivre app.log en direct, même si le fichier est remplacé par un nouveau (rotation des logs)."
+      template: "tail ___ app.log"
+      accept: ["-F", "--follow=name --retry"]
+      explain: "-F suit le NOM du fichier et se raccroche au nouveau après une rotation ; -f suivrait l'ancien fichier."
+      hints:
+        - text: "La version majuscule de l'option de suivi."
 
 rewards:
   xp: 220

@@ -1,0 +1,86 @@
+id: gg_tags_01
+title: "Étiquettes et versions"
+hook: "Un dépôt propre : des versions étiquetées, des fichiers générés ignorés, deux copies de travail."
+tier: sysadmin
+tree: git_gud
+runtime: docker
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_chmod, mutation] }
+intro: "Tags annotés, .gitignore et git worktree."
+setup: |
+  git config --global user.name agent
+  git config --global user.email agent@sandbox
+  git config --global init.defaultBranch main
+  rm -rf ~/site ~/site-hotfix
+  mkdir -p ~/site/src ~/site/build
+  cd ~/site && git init -q
+  printf '# Site\n' > README.md
+  printf "console.log('ok')\n" > src/app.js
+  git add . && git commit -qm "Version initiale"
+  printf 'trace\n' > debug.log
+  printf 'binaire\n' > build/sortie.o
+questions:
+  - kind: task
+    prompt: "Dans le dépôt site, pose un tag annoté v1.0.0 sur le dernier commit, avec le message « Première version »."
+    check: '[ "$(git -C ~/site cat-file -t v1.0.0 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v1.0.0)" = "Première version" ]'
+    solution: "git tag -a v1.0.0 -m \"Première version\""
+    solve: |
+      git -C ~/site tag -a v1.0.0 -m "Première version"
+    hints:
+      - text: "Un tag annoté se crée avec -a et un message -m. Sans -a, le tag est « léger »."
+    variant:
+      kind: task
+      prompt: "Dans le dépôt site, pose un tag annoté v0.9.0-beta sur le dernier commit, avec le message « Bêta »."
+      check: '[ "$(git -C ~/site cat-file -t v0.9.0-beta 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v0.9.0-beta)" = "Bêta" ]'
+      solution: "git tag -a v0.9.0-beta -m \"Bêta\""
+      solve: |
+        git -C ~/site tag -a v0.9.0-beta -m "Bêta"
+      hints:
+        - text: "git tag -a NOM -m MESSAGE."
+
+  - kind: task
+    prompt: "debug.log et le dossier build/ ne doivent jamais être suivis. Écris un .gitignore qui ignore tous les .log et le dossier build/, puis commite-le."
+    check: |
+      cd ~/site || exit 1
+      git check-ignore -q debug.log && git check-ignore -q build/sortie.o && git check-ignore -q autre.log \
+        && ! git check-ignore -q README.md && git ls-files --error-unmatch .gitignore >/dev/null 2>&1 \
+        && [ -z "$(git status --porcelain)" ]
+    solution: "printf '*.log\\nbuild/\\n' > .gitignore && git add .gitignore && git commit -m \"Ignore les fichiers générés\""
+    solve: |
+      cd ~/site && printf '*.log\nbuild/\n' > .gitignore && git add .gitignore && git commit -qm "Ignore les fichiers générés"
+    hints:
+      - text: "Un motif par ligne : *.log, puis build/ (la barre finale désigne un dossier)."
+      - text: "git check-ignore FICHIER confirme qu'un chemin est bien ignoré."
+
+  - kind: task
+    prompt: "Ouvre une seconde copie de travail du dépôt dans ~/site-hotfix, sur une nouvelle branche nommée hotfix."
+    check: |
+      git -C ~/site worktree list --porcelain | grep -qx "worktree /home/agent/site-hotfix" \
+        && [ "$(git -C ~/site-hotfix branch --show-current 2>/dev/null)" = hotfix ]
+    solution: "git worktree add -b hotfix ~/site-hotfix"
+    solve: |
+      cd ~/site && git worktree add -q -b hotfix ~/site-hotfix
+    hints:
+      - text: "git worktree add DOSSIER -b BRANCHE crée la branche et la copie d'un coup."
+
+  - kind: task
+    prompt: "Dans ~/site-hotfix, crée hotfix.txt contenant le mot urgent et commite-le sur hotfix. main ne doit pas changer."
+    check: '[ "$(git -C ~/site show hotfix:hotfix.txt 2>/dev/null)" = urgent ] && ! git -C ~/site cat-file -e main:hotfix.txt 2>/dev/null'
+    solution: "cd ~/site-hotfix && echo urgent > hotfix.txt && git add hotfix.txt && git commit -m \"Correctif urgent\""
+    solve: |
+      cd ~/site-hotfix && printf 'urgent\n' > hotfix.txt && git add hotfix.txt && git commit -qm "Correctif urgent"
+    hints:
+      - text: "Dans ~/site-hotfix, la branche courante est déjà hotfix."
+
+  - kind: task
+    prompt: "Le correctif est commité. Supprime la copie de travail ~/site-hotfix proprement, sans supprimer la branche hotfix."
+    check: '[ ! -d ~/site-hotfix ] && git -C ~/site show-ref --verify --quiet refs/heads/hotfix && ! git -C ~/site worktree list | grep -q site-hotfix'
+    solution: "git worktree remove ~/site-hotfix"
+    solve: |
+      cd ~/site && git worktree remove ~/site-hotfix
+    hints:
+      - text: "L'inverse de worktree add. Un simple rm -rf laisserait une trace dans git worktree list."
+
+rewards:
+  xp: 360

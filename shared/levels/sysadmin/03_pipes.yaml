@@ -11,17 +11,26 @@ intro: "Redirections et pipes : >, >>, 2> et |."
 questions:
   - kind: task
     prompt: "Enregistre la liste des fichiers de /etc dans etc.txt."
-    check: '[ -s ~/etc.txt ] && grep -qx passwd ~/etc.txt'
+    check: 'diff -q <(ls /etc) ~/etc.txt >/dev/null 2>&1'
     solution: "ls /etc > etc.txt"
     solve: |
       ls /etc > ~/etc.txt
     hints:
       - text: "> envoie la sortie d'une commande dans un fichier."
+    variant:
+      kind: task
+      prompt: "Enregistre la liste des fichiers de /usr/bin dans bin.txt."
+      check: 'diff -q <(ls /usr/bin) ~/bin.txt >/dev/null 2>&1'
+      solution: "ls /usr/bin > bin.txt"
+      solve: |
+        ls /usr/bin > ~/bin.txt
+      hints:
+        - text: "> envoie la sortie d'une commande dans un fichier."
 
   - kind: task
     prompt: "Ajoute la ligne FIN à la fin de etc.txt, sans effacer ce qu'il contient."
-    setup: '[ -s ~/etc.txt ] || ls /etc > ~/etc.txt'
-    check: '[ "$(tail -n 1 ~/etc.txt)" = FIN ] && grep -qx passwd ~/etc.txt'
+    setup: 'diff -q <(ls /etc) ~/etc.txt >/dev/null 2>&1 || ls /etc > ~/etc.txt'
+    check: '[ "$(tail -n 1 ~/etc.txt)" = FIN ] && diff -q <(ls /etc) <(head -n -1 ~/etc.txt) >/dev/null 2>&1'
     solution: "echo FIN >> etc.txt"
     solve: |
       echo FIN >> ~/etc.txt
@@ -30,7 +39,7 @@ questions:
 
   - kind: task
     prompt: "Lance ls /nexistepas et envoie uniquement son message d'erreur dans erreurs.log."
-    check: 'grep -q nexistepas ~/erreurs.log 2>/dev/null'
+    check: 'diff -q <(ls /nexistepas 2>&1) ~/erreurs.log >/dev/null 2>&1'
     solution: "ls /nexistepas 2> erreurs.log"
     solve: |
       ls /nexistepas 2> ~/erreurs.log; true
@@ -62,4 +71,4 @@ questions:
 
 rewards:
   xp: 320
-  unlocks: [gg_git_01, ps_basics_01]
+  unlocks: [gg_git_01, ps_basics_01, sa_find_01, np_local_01]

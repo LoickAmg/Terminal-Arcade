@@ -157,6 +157,9 @@ dossier de son palier, pas dans un dossier `git_gud`). Ne mets pas de
   commit abrégé, par exemple). **Ne lis jamais `~/.arcade/submitted`
   toi-même.**
 - Processus de fond lancé par `setup` : `setsid nohup <commande> >/dev/null 2>&1 &`.
+  Exception : un processus qui doit **réagir à SIGHUP** se lance sans
+  `nohup` (`setsid <commande> </dev/null >/dev/null 2>&1 &`) : `nohup` fait
+  ignorer ce signal, et bash ne peut plus le piéger.
 
 ### Règles (issues des bugs trouvés à la première vague)
 

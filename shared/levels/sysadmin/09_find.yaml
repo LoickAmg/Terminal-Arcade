@@ -1,0 +1,91 @@
+id: sa_find_01
+title: "Chasse aux fichiers"
+hook: "Le disque est plein. Ne fouille pas au hasard : filtre précisément."
+tier: sysadmin
+tree: file_system_ninja
+runtime: docker
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_alias, mutation] }
+intro: "find en profondeur : exclure un dossier, filtrer par taille, par contenu vide, par droits, et agir sur chaque résultat. Les chemins peuvent être relatifs (audit/...) ou absolus."
+setup: |
+  mkdir -p ~/audit/vendor/lib ~/audit/conf ~/audit/vide ~/audit/public
+  printf 'application\n' > ~/audit/app.log
+  printf 'public\n' > ~/audit/public/acces.log
+  printf 'a ignorer\n' > ~/audit/vendor/skip.log
+  printf 'a ignorer\n' > ~/audit/vendor/lib/deep.log
+  printf 'mode=ok\n' > ~/audit/conf/app.conf
+  head -c $((RANDOM % 50000 + 120000)) /dev/zero > ~/audit/app.data
+  head -c 50000 /dev/zero > ~/audit/cache.data
+  head -c 300000 /dev/zero > ~/audit/vendor/lib/gros.so
+  for i in $(seq 1 $((RANDOM % 4 + 2))); do : > ~/audit/vide/rien$i.txt; done
+  printf 'prive\n' > ~/audit/conf/secret.txt
+  chmod 600 ~/audit/conf/secret.txt
+  chmod 640 ~/audit/conf/app.conf
+questions:
+  - kind: task
+    prompt: "Écris dans logs.txt les fichiers .log de audit, en excluant complètement le dossier vendor, un chemin par ligne."
+    check: |
+      norm() { sed -e "s#^$HOME/##" -e 's#^\./##' | sort; }
+      diff -q <(cd ~ && find audit -path audit/vendor -prune -o -type f -name '*.log' -print | norm) <(norm < ~/logs.txt) >/dev/null 2>&1
+    solution: "find audit -path audit/vendor -prune -o -type f -name '*.log' -print > logs.txt"
+    solve: |
+      cd ~ && find audit -path audit/vendor -prune -o -type f -name '*.log' -print > logs.txt
+    hints:
+      - text: "-prune empêche find de descendre dans un dossier."
+      - text: "Forme classique : find audit -path audit/vendor -prune -o <tes filtres> -print"
+        cost_s: 20
+
+  - kind: task
+    prompt: "Écris dans gros.txt les fichiers réguliers de audit qui dépassent 100 Ko, vendor compris, un chemin par ligne."
+    check: |
+      norm() { sed -e "s#^$HOME/##" -e 's#^\./##' | sort; }
+      diff -q <(cd ~ && find audit -type f -size +100k | norm) <(norm < ~/gros.txt) >/dev/null 2>&1
+    solution: "find audit -type f -size +100k > gros.txt"
+    solve: |
+      cd ~ && find audit -type f -size +100k > gros.txt
+    hints:
+      - text: "-size +100k : plus de 100 kibioctets."
+    variant:
+      kind: task
+      prompt: "Écris dans petits.txt les fichiers réguliers de audit qui font moins de 100 Ko mais ne sont pas vides, un chemin par ligne."
+      check: |
+        norm() { sed -e "s#^$HOME/##" -e 's#^\./##' | sort; }
+        diff -q <(cd ~ && find audit -type f -size -100k ! -empty | norm) <(norm < ~/petits.txt) >/dev/null 2>&1
+      solution: "find audit -type f -size -100k ! -empty > petits.txt"
+      solve: |
+        cd ~ && find audit -type f -size -100k ! -empty > petits.txt
+      hints:
+        - text: "-size -100k, et ! -empty pour exclure les fichiers vides."
+
+  - kind: task
+    prompt: "Combien de fichiers vides y a-t-il sous audit ? Envoie le nombre avec submit."
+    check: 'answer-is "$(find ~/audit -type f -empty | wc -l)"'
+    solution: "find audit -type f -empty | wc -l, puis submit <nombre>"
+    solve: |
+      submit "$(find ~/audit -type f -empty | wc -l)"
+    hints:
+      - text: "Le filtre -empty repère les fichiers vides ; wc -l compte les lignes."
+
+  - kind: task
+    prompt: "Combien de fichiers réguliers de audit sont lisibles par les autres utilisateurs (droit r pour « others ») ? Envoie le nombre avec submit."
+    check: 'answer-is "$(find ~/audit -type f -perm -o=r | wc -l)"'
+    solution: "find audit -type f -perm -o=r | wc -l (ou -perm -004)"
+    solve: |
+      submit "$(find ~/audit -type f -perm -004 | wc -l)"
+    hints:
+      - text: "-perm -004 : au moins le droit de lecture pour les autres. -perm -o=r dit la même chose."
+
+  - kind: task
+    prompt: "Crée hashes.txt avec l'empreinte SHA-256 de chaque fichier .log sous audit (vendor compris), en une commande find."
+    check: |
+      norm() { sed -e "s#  $HOME/#  #" -e 's#  \./#  #' | sort; }
+      diff -q <(cd ~ && find audit -type f -name '*.log' -exec sha256sum {} + | norm) <(norm < ~/hashes.txt) >/dev/null 2>&1
+    solution: "find audit -type f -name '*.log' -exec sha256sum {} + > hashes.txt"
+    solve: |
+      cd ~ && find audit -type f -name '*.log' -exec sha256sum {} + > hashes.txt
+    hints:
+      - text: "find lance une commande sur ses résultats avec -exec ... {} +"
+
+rewards:
+  xp: 350

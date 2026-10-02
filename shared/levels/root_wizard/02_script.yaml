@@ -19,6 +19,7 @@ questions:
     solve: |
       cd ~ && for f in rapports/*.txt; do mv "$f" "${f%.txt}.bak"; done
     hints:
+      - text: "for f in rapports/*.txt; do ...; done traite les fichiers un par un, chacun dans $f."
       - text: '${f%.txt} retire l''extension .txt du nom contenu dans $f.'
 
   - kind: task
@@ -46,12 +47,22 @@ questions:
   - kind: task
     prompt: "Écris dans total.txt la somme des nombres de nombres.txt (un par ligne)."
     setup: 'seq 1 50 | shuf > ~/nombres.txt'
-    check: '[ "$(tr -d " \n" < ~/total.txt 2>/dev/null)" = 1275 ]'
+    check: '[ "$(tr -d " \n" < ~/total.txt 2>/dev/null)" = "$(awk "{s += \$1} END {print s}" ~/nombres.txt)" ]'
     solution: "awk '{s += $1} END {print s}' nombres.txt > total.txt"
     solve: |
       awk '{s += $1} END {print s}' ~/nombres.txt > ~/total.txt
     hints:
       - text: "awk peut accumuler une somme et l'afficher dans un bloc END."
+    variant:
+      kind: task
+      prompt: "Écris dans maximum.txt le plus grand nombre de nombres.txt (un par ligne, dans le désordre)."
+      setup: 'seq 1 $((RANDOM % 50 + 50)) | shuf > ~/nombres.txt'
+      check: '[ "$(tr -d " \n" < ~/maximum.txt 2>/dev/null)" = "$(sort -n ~/nombres.txt | tail -n 1)" ]'
+      solution: "sort -n nombres.txt | tail -n 1 > maximum.txt (ou awk)"
+      solve: |
+        sort -n ~/nombres.txt | tail -n 1 > ~/maximum.txt
+      hints:
+        - text: "Trie numériquement, puis garde la dernière ligne."
 
 rewards:
   xp: 400

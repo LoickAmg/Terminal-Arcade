@@ -23,6 +23,18 @@ questions:
       chmod +x ~/deploy.sh
     hints:
       - text: "chmod ajoute un droit avec +, et x veut dire exécution."
+    variant:
+      kind: task
+      prompt: "Le script report.sh a trop de droits. Donne-lui rwx pour toi, r-- pour le groupe et aucun droit aux autres."
+      setup: |
+        printf '#!/bin/bash\necho rapport\n' > ~/report.sh
+        chmod 777 ~/report.sh
+      check: '[ "$(stat -c %a ~/report.sh)" = 740 ]'
+      solution: "chmod 740 report.sh"
+      solve: |
+        chmod 740 ~/report.sh
+      hints:
+        - text: "Lecture 4, écriture 2, exécution 1 : additionne pour chaque groupe."
 
   - kind: task
     prompt: "Lance deploy.sh et envoie le code qu'il affiche avec : submit <code>."

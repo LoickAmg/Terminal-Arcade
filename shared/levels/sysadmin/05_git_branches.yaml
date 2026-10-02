@@ -69,4 +69,4 @@ questions:
 
 rewards:
   xp: 360
-  unlocks: gg_history_01
+  unlocks: [gg_history_01, gg_tags_01]
