@@ -140,7 +140,7 @@ rewards:
   64 Mo), `/tmp` (32 Mo, non exécutable) et `/srv` (64 Mo). 256 Mo de
   mémoire (512 en PowerShell), un demi-processeur, 128 processus.
 - Outils présents : bash, coreutils, findutils, grep, sed, gawk, less, file,
-  tree, procps (ps, pgrep, pkill, top), psmisc (killall, pstree), jq, git,
+  tree, procps (ps, pgrep, pkill, top), psmisc (killall, pstree), git,
   tar, gzip, bzip2, xz, nano, vim-tiny, bc, et `pwsh` 7. **Absents** : curl,
   wget, python, nc, ss, ip, ping, serveur web. Si ton niveau en a besoin,
   liste les paquets Debian à ajouter dans une section « Paquets requis ».
