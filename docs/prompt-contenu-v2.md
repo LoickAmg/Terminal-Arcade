@@ -4,14 +4,14 @@ Deuxième vague d'appel à contributions. Différences avec la v1 :
 
 - **un lot différent par IA** (lots disjoints), pour que les réponses ne se
   recouvrent plus et que chaque lot soit comparable à ce qu'il remplace ;
-- des **règles anti-triche, de timer, de sorties simulées et de réseau**
+- des **règles anti-triche, de timer, de sorties simulées, de réseau et de variantes**
   tirées de la première revue (bugs réellement trouvés) ;
 - `ss` et `nc` sont maintenant dans l'image ; `jq` n'y est plus.
 
 Mode d'emploi :
 
-1. Joins `docs/exercices.md` (catalogue à jour : 25 niveaux, 127 questions,
-   44 variantes).
+1. Joins `docs/exercices.md` (catalogue à jour : 34 niveaux, 177 questions,
+   105 variantes).
 2. Copie la partie commune, puis **un seul** lot à la suite.
 3. Répartition suggérée, d'après la première vague :
 
@@ -41,7 +41,9 @@ n'utilise aucun de ces identifiants déjà pris :
 sk_glob_01, sa_perms_01, sa_text_01, sa_pipes_01, gg_git_01, gg_branch_01,
 ps_basics_01, np_local_01, sa_grep_02, sa_find_01, gg_tags_01, rw_proc_01,
 rw_script_01, gg_history_01, gg_bisect_01, ps_pipeline_01,
-rw_shellcraft_01, rw_awk_01, gg_workflow_01`
+rw_shellcraft_01, rw_awk_01, gg_workflow_01, ps_stock_01, ps_scripts_01,
+gg_miroir_01, gg_defaire_01, rw_script_02, rw_text_01, sk_manage_01,
+sk_logic_01, np_fragments_01`
 
 ### Le jeu en bref
 
@@ -190,23 +192,31 @@ dossier de son palier, pas dans un dossier `git_gud`). Ne mets pas de
    réponse ; elle ne doit pas changer de notion. Une variante `task` qui
    dépend de données a **son propre `setup`** : elle peut remplacer la
    question avant que le `setup` d'origine n'ait tourné.
+   **Elle laisse le système dans l'état dont les questions suivantes ont
+   besoin** : pas de nouveau dépôt, pas d'autre branche, pas de fichier
+   renommé ou supprimé que la suite attend. Le banc d'essai la joue à la
+   place de l'originale puis rejoue toute la suite du niveau
+   (`test:sandbox -- --mutation`).
 7. **Réponse vide interdite.** Si la valeur attendue peut être vide (aucune
    ligne trouvée), le `check` réussirait sans que le joueur fasse quoi que
    ce soit. Garantis au moins un résultat dans `setup`, et fais échouer le
    `check` si le fichier du joueur n'existe pas.
-8. **Énoncé complet.** Tout ce que le `check` exige doit être écrit dans
+8. **YAML strict.** Dans une chaîne entre guillemets doubles, `\.` et
+   `\$` sont invalides : utilise des guillemets simples, `[.]`, ou un bloc
+   `|`.
+9. **Énoncé complet.** Tout ce que le `check` exige doit être écrit dans
    l'énoncé : un message de commit précis, un nom de fichier, un format de
    sortie, un dossier.
-9. **Chemins.** Si le joueur peut écrire des chemins relatifs (`audit/a.log`)
+10. **Chemins.** Si le joueur peut écrire des chemins relatifs (`audit/a.log`)
    ou absolus (`/home/agent/audit/a.log`), le `check` accepte les deux
    (normalise avec `sed "s#^$HOME/##"`).
-10. **Processus.** Ne vise jamais un processus avec `pgrep -f`/`pkill -f`
+11. **Processus.** Ne vise jamais un processus avec `pgrep -f`/`pkill -f`
     sur un motif qui figure aussi dans le texte du `check` ou du `solve` :
     ils se trouveraient eux-mêmes. Donne au processus un nom à lui (script
     nommé `watcher`, sans extension, puis `pgrep -x watcher`).
-11. **Une notion par question**, difficulté croissante, indices progressifs
+12. **Une notion par question**, difficulté croissante, indices progressifs
     (le second peut coûter plus : `cost_s: 20`), une explication courte.
-12. **Français**, tutoiement, phrases courtes. Pas de commande dangereuse
+13. **Français**, tutoiement, phrases courtes. Pas de commande dangereuse
     présentée comme une bonne pratique ; un piège apprend à éviter une
     vraie erreur. Pas de contenu sous licence, pas de personnage.
 
@@ -328,7 +338,7 @@ autres.
 
 Format : pour chaque variante, l'identifiant du niveau, le numéro de la
 question (à partir de 1), puis le bloc YAML `variant:` seul, indenté comme
-sous une question. Les règles 1, 4, 6, 7 et 8 s'appliquent à la lettre. La
+sous une question. Les règles 1, 4, 6, 7, 8 et 9 s'appliquent à la lettre. La
 section « Améliorations » reste possible ; « Idées de fun » est facultative.
 
 ## Lot F : PowerShell
