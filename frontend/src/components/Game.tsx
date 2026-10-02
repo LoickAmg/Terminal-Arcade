@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MotionConfig } from "motion/react";
 import type { Level, Progress, Sabotage } from "@terminal-arcade/shared";
 import {
   blockedKey,
@@ -25,7 +24,7 @@ import {
 import { isPetConfig, type PetConfig } from "@/lib/pet";
 import { SandboxClient } from "@/lib/sandbox";
 import { isObject, load, save } from "@/lib/storage";
-import type { LineOutcome, TerminalApi } from "./TerminalView";
+import type { LineOutcome, TerminalApi, XtermTheme } from "./TerminalView";
 import { MissionBanners } from "./MissionBanners";
 import { MobileBar } from "./MobileBar";
 import { Pet } from "./pet/Pet";
@@ -35,7 +34,7 @@ import { StampHeader } from "./StampHeader";
 // xterm.js manipule le DOM : il ne peut être chargé que dans le navigateur.
 const TerminalView = dynamic(() => import("./TerminalView"), {
   ssr: false,
-  loading: () => <p className="p-4 font-mono text-sm text-neutral-400">Démarrage du terminal…</p>,
+  loading: () => <p className="p-4 font-mono text-sm text-muted">Démarrage du terminal…</p>,
 });
 
 const isProgress = (v: unknown): v is Progress =>
@@ -51,7 +50,18 @@ function withoutKey(data: string, key: string | null): string {
     .join("");
 }
 
-export function Game({ levels }: { levels: Level[] }) {
+type GameProps = {
+  levels: Level[];
+  /** Faux quand le menu est affiché par-dessus (le jeu reste monté). */
+  visible: boolean;
+  /** Commande à taper à l'ouverture, envoyée par le menu. */
+  command: { text: string; id: number } | null;
+  terminalTheme: XtermTheme;
+  fontSize: number;
+  onMenu: () => void;
+};
+
+export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu }: GameProps) {
   // L'état dépend du stockage local : il n'existe qu'après le montage, pour
   // que le rendu serveur et le premier rendu client soient identiques.
   const [state, setState] = useState<GameState | null>(null);
@@ -253,6 +263,26 @@ export function Game({ levels }: { levels: Level[] }) {
     [api, touchMode, apply, levels],
   );
 
+  // Commande demandée par le menu (missions, compagnon…), tapée une fois
+  // le terminal prêt.
+  const doneCommand = useRef<number | null>(null);
+  useEffect(() => {
+    if (!command || !api || doneCommand.current === command.id) return;
+    doneCommand.current = command.id;
+    // Pendant la création du compagnon, le terminal attend ses réponses :
+    // la commande du menu n'aurait pas de sens.
+    if (stateRef.current?.wizard) return;
+    run(command.text);
+  }, [command, api, run]);
+
+  // Retour depuis le menu : le terminal reprend le focus, après la fin de
+  // la frappe qui a validé le menu (sinon son Entrée arriverait ici).
+  useEffect(() => {
+    if (!visible || touchMode || !api) return;
+    const id = setTimeout(() => api.focus(), 120);
+    return () => clearTimeout(id);
+  }, [visible, api, touchMode]);
+
   if (!state) {
     return <div className="h-dvh" />;
   }
@@ -277,57 +307,86 @@ export function Game({ levels }: { levels: Level[] }) {
   })();
 
   return (
-    <MotionConfig reducedMotion="user">
-      <div className="flex h-dvh flex-col overflow-hidden">
-        <StampHeader state={state} levels={levels} />
-        <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-3 lg:flex-row lg:gap-8 lg:px-6 lg:pb-6">
+    <div className="flex h-dvh flex-col overflow-hidden sm:p-3 lg:p-5">
+      <div className="frame flex min-h-0 flex-1 flex-col overflow-hidden max-sm:rounded-none max-sm:border-x-0 max-sm:border-t-0">
+        <StampHeader state={state} levels={levels} onMenu={onMenu} />
+        <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <section
             aria-label="Écran"
-            className="max-h-[48%] min-h-0 shrink-0 overflow-x-hidden overflow-y-auto px-1 pt-1 pb-3 lg:max-h-none lg:w-[42%] lg:shrink"
+            className="max-h-[46%] min-h-0 shrink-0 overflow-x-hidden overflow-y-auto border-b border-line px-4 py-4 lg:max-h-none lg:w-[42%] lg:shrink lg:border-r lg:border-b-0 lg:px-7 lg:py-6"
           >
             {screen}
           </section>
-          <section aria-label="Terminal" className="flex min-h-[140px] flex-1 flex-col pt-16 lg:pt-20">
-            <div className="edge-white relative min-h-0 flex-1">
+          <section aria-label="Terminal" className="flex min-h-[140px] flex-1 flex-col px-2 pt-14 pb-2 lg:px-5 lg:pt-16 lg:pb-5">
+            <div className="edge relative min-h-0 flex-1">
               {!state.petHidden && <Pet config={state.pet} reaction={reaction} activity={activity} />}
-              <div className="shape-panel h-full bg-ink" onClick={() => (touchMode ? null : api?.focus())}>
-                <TerminalView
-                  onReady={onReady}
-                  onLine={onLine}
-                  completer={completer}
-                  filterInput={filterInput}
-                  touchMode={touchMode}
-                />
+              <div
+                className="cut-panel flex h-full flex-col overflow-hidden border border-line bg-term"
+                onClick={() => (touchMode ? null : api?.focus())}
+              >
+                <div className="flex shrink-0 items-center gap-3 border-b border-line px-3 py-2" aria-hidden>
+                  <span className="flex gap-1.5">
+                    <span className="size-2.5 rounded-full bg-danger/80" />
+                    <span className="size-2.5 rounded-full bg-warn/80" />
+                    <span className="size-2.5 rounded-full bg-good/80" />
+                  </span>
+                  <span className="type-label truncate text-muted">
+                    {state.active?.sandbox ? "agent@sandbox — bash · vrai linux" : "agent@arcade — terminal du jeu"}
+                  </span>
+                </div>
+                <div className="min-h-0 flex-1">
+                  <TerminalView
+                    onReady={onReady}
+                    onLine={onLine}
+                    completer={completer}
+                    filterInput={filterInput}
+                    touchMode={touchMode}
+                    theme={terminalTheme}
+                    fontSize={fontSize}
+                  />
+                </div>
               </div>
               {terminalClosed && (
                 <div
                   role="alertdialog"
                   aria-label="Terminal fermé"
-                  className="shape-panel absolute inset-0 flex flex-col items-center justify-center gap-4 bg-ink/95 p-6 text-center"
+                  className="cut-panel absolute inset-0 flex flex-col items-center justify-center gap-4 border border-danger/60 bg-surface/95 p-6 text-center"
                 >
-                  <p className="font-display text-3xl tracking-wide text-red outlined">TERMINAL FERMÉ</p>
-                  <p className="max-w-sm text-sm text-neutral-300">
+                  <p className="type-display text-4xl text-danger outlined">Terminal fermé</p>
+                  <p className="max-w-sm text-sm text-muted">
                     {state.pet.name} a fermé ton terminal. Ta saisie et ta progression sont intactes.
                   </p>
-                  <button type="button" onClick={reopen} className="edge-white" autoFocus>
-                    <span className="shape-tag block bg-cyan px-4 py-2 font-display text-lg tracking-wide text-ink">
-                      ROUVRIR{touchMode ? "" : " · CTRL+ALT+T"}
-                    </span>
+                  <button
+                    type="button"
+                    onClick={reopen}
+                    autoFocus
+                    className="cut-tag bg-accent px-5 py-2.5 font-mono text-sm font-bold tracking-[0.18em] text-on-accent"
+                  >
+                    ROUVRIR{touchMode ? "" : " · CTRL+ALT+T"}
                   </button>
                 </div>
               )}
             </div>
           </section>
         </main>
-        {touchMode && (
-          <MobileBar
-            api={api}
-            completer={completer}
-            blockedKey={blockedKey(state)}
-            disabled={terminalClosed}
-          />
+        {!touchMode && (
+          <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-line px-5 py-2.5">
+            <button
+              type="button"
+              onClick={onMenu}
+              className="cut-tag border border-line px-3 py-1 font-mono text-xs font-bold tracking-[0.2em] text-fg hover:border-accent"
+            >
+              ‹ MENU
+            </button>
+            <span className="type-label truncate text-muted">
+              Tab compléter · ↑ ↓ historique · Ctrl+C interrompre · Ctrl+L effacer
+            </span>
+          </footer>
         )}
       </div>
-    </MotionConfig>
+      {touchMode && (
+        <MobileBar api={api} completer={completer} blockedKey={blockedKey(state)} disabled={terminalClosed} />
+      )}
+    </div>
   );
 }

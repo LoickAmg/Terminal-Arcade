@@ -68,7 +68,7 @@ export function MobileBar({
   ];
 
   return (
-    <div className="border-t-4 border-ink bg-ink px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div className="border-t border-line bg-surface px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       <div className="mb-2 flex gap-1.5 overflow-x-auto">
         {keys.map((k) => (
           <button
@@ -81,7 +81,7 @@ export function MobileBar({
               k.action();
               inputRef.current?.focus();
             }}
-            className="min-w-11 shrink-0 bg-paper px-2 py-1.5 font-mono text-sm font-bold text-ink active:bg-cyan"
+            className="min-w-11 shrink-0 border border-line bg-surface-2 px-2 py-1.5 font-mono text-sm font-bold text-fg active:bg-accent active:text-on-accent"
           >
             {k.label}
           </button>
@@ -113,9 +113,9 @@ export function MobileBar({
           spellCheck={false}
           enterKeyHint="send"
           placeholder={disabled ? "terminal fermé…" : blockedKey ? `touche « ${blockedKey} » bloquée…` : "tape une commande…"}
-          className="min-w-0 flex-1 border-2 border-cyan bg-ink px-3 py-2 font-mono text-base text-paper placeholder:text-neutral-500 focus:outline-none"
+          className="min-w-0 flex-1 border border-accent bg-term px-3 py-2 font-mono text-base text-fg placeholder:text-muted focus:outline-none"
         />
-        <button type="submit" className="bg-red px-4 font-display text-lg tracking-wide text-paper">
+        <button type="submit" className="cut-tag bg-accent px-4 font-mono text-sm font-bold tracking-[0.15em] text-on-accent">
           ENTRÉE
         </button>
       </form>

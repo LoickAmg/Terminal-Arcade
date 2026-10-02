@@ -1,84 +1,219 @@
 @import "tailwindcss";
 
-/* Palette inspirée de la messagerie de Persona 5 (valeurs relevées sur les
-   captures de référence, à affiner). Le jeu a une seule ambiance, rouge et
-   noire : pas de thème clair/sombre. */
-@theme inline {
-  --color-red: #e0141e;
-  --color-red-deep: #9b0a0a;
-  --color-ink: #0a0a0a;
-  --color-paper: #ffffff;
-  --color-cyan: #6fd6f2;
-  --color-orange: #f07818;
-  --color-good: #4ade80;
-  --color-warn: #ffd23f;
+/* Les couleurs et les formes viennent du thème choisi (lib/themes.ts), qui
+   fixe ces variables sur <html>. Valeurs par défaut : le thème « Seuil ». */
+:root {
+  --page: #0a0a0a;
+  --surface: #0d0d0d;
+  --surface-2: #161616;
+  --line: #262626;
+  --fg: #e7e5dd;
+  --muted: #8c8b84;
+  --accent: #d4f54a;
+  --on-accent: #0a0a0a;
+  --accent-2: #e7e5dd;
+  --on-accent-2: #0a0a0a;
+  --danger: #ff5a4f;
+  --good: #7ee081;
+  --warn: #ffc94a;
+  --term-bg: #080808;
+  --display-family: var(--ff-sans);
+  --display-weight: 900;
+  --display-stretch: 118%;
+  --display-tracking: -0.02em;
+  --display-style: italic;
+  --edge: none;
+  --outline: none;
+  --radius: 0px;
+  --tilt: 0deg;
+  --pattern-image: repeating-linear-gradient(-58deg, rgb(255 255 255 / 0.028) 0 38px, transparent 38px 76px);
+  --pattern-size: auto;
+  --clip-tag: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  --clip-banner: none;
+  --clip-panel: none;
+  --clip-bubble-left: none;
+  --clip-bubble-right: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  --bubble-pad: 1.25rem;
+  color-scheme: dark;
+}
 
-  --font-display: var(--ff-display), Impact, sans-serif;
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-2: var(--accent-2);
+  --color-on-accent-2: var(--on-accent-2);
+  --color-danger: var(--danger);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-term: var(--term-bg);
+
+  --font-display: var(--display-family);
   --font-sans: var(--ff-sans), system-ui, sans-serif;
   --font-mono: var(--ff-mono), ui-monospace, monospace;
 }
 
-html,
-body {
-  background: var(--color-red);
-  color: var(--color-paper);
+/* Le fond est porté par <html> seul : sur <body>, il recouvrirait le motif. */
+html {
+  background: var(--page);
+  background-attachment: fixed;
+  min-height: 100%;
 }
 
 body {
+  color: var(--fg);
   font-family: var(--font-sans);
-  /* Trame de points discrète, façon bande dessinée. */
-  background-image: radial-gradient(rgb(0 0 0 / 0.14) 1.2px, transparent 1.4px);
-  background-size: 9px 9px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Motif de fond (rayures, trame, grille…), au-dessus du dégradé de page. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--pattern-image);
+  background-size: var(--pattern-size);
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-cyan);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Texte blanc cerné de noir (tampons, titres). */
-.outlined {
-  text-shadow:
-    -2px -2px 0 var(--color-ink),
-    2px -2px 0 var(--color-ink),
-    -2px 2px 0 var(--color-ink),
-    2px 2px 0 var(--color-ink),
-    4px 4px 0 var(--color-ink);
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
-/* Formes anguleuses. Le filtre du parent dessine le liseré décalé, qui suit
-   la découpe (une ombre portée classique serait rognée par clip-path). */
-.edge-white {
-  filter: drop-shadow(3px 3px 0 var(--color-paper));
+/* Titres : police, graisse, largeur et inclinaison propres au thème. */
+@utility type-display {
+  font-family: var(--display-family);
+  font-weight: var(--display-weight);
+  font-stretch: var(--display-stretch);
+  font-style: var(--display-style);
+  letter-spacing: var(--display-tracking);
+  text-transform: uppercase;
+  line-height: 0.92;
 }
-.edge-ink {
-  filter: drop-shadow(3px 3px 0 var(--color-ink));
+
+/* Petites étiquettes en chasse fixe, très espacées. */
+@utility type-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
 }
-.shape-banner {
-  clip-path: polygon(1.5% 4%, 100% 0, 97.5% 100%, 0 92%);
+
+/* Titres penchés des thèmes Persona. */
+@utility tilt {
+  rotate: var(--tilt);
 }
-.shape-panel {
-  clip-path: polygon(0 1.5%, 100% 0, 99% 100%, 1% 98.5%);
+
+@utility outlined {
+  text-shadow: var(--outline);
 }
-.shape-bubble-left {
-  clip-path: polygon(6% 6%, 100% 0, 97% 100%, 4% 90%, 4% 60%, 0 48%, 5% 40%);
+
+/* Texte en creux : seul le contour est dessiné, à la couleur d'accent. */
+@utility hollow {
+  color: transparent;
+  -webkit-text-stroke: 2px var(--accent);
 }
-.shape-bubble-right {
-  clip-path: polygon(0 4%, 94% 0, 95% 38%, 100% 52%, 95% 62%, 96% 100%, 2% 94%);
+
+/* Liseré décalé (Persona) : le filtre suit la découpe du clip-path. */
+@utility edge {
+  filter: var(--edge);
 }
-.shape-tag {
-  clip-path: polygon(6% 0, 100% 8%, 94% 100%, 0 90%);
+
+@utility cut-tag {
+  clip-path: var(--clip-tag);
+  border-radius: calc(var(--radius) / 2);
+}
+@utility cut-banner {
+  clip-path: var(--clip-banner);
+  border-radius: var(--radius);
+}
+@utility cut-panel {
+  clip-path: var(--clip-panel);
+  border-radius: var(--radius);
+}
+@utility cut-bubble-left {
+  clip-path: var(--clip-bubble-left);
+  border-radius: var(--radius);
+  padding-left: var(--bubble-pad);
+}
+@utility cut-bubble-right {
+  clip-path: var(--clip-bubble-right);
+  border-radius: var(--radius);
+}
+
+/* Cadre principal, inspiré du « Seuil » : filet discret, deux équerres à
+   la couleur d'accent (haut droite, bas gauche) et un trait vertical. */
+.frame {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.frame::before,
+.frame::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-color: var(--accent);
+  border-style: solid;
+  border-width: 0;
+}
+.frame::before {
+  top: -1px;
+  right: -1px;
+  width: min(150px, 30%);
+  height: 64px;
+  border-top-width: 2px;
+  border-right-width: 2px;
+  border-top-right-radius: var(--radius);
+}
+.frame::after {
+  bottom: -1px;
+  left: -1px;
+  width: 2px;
+  height: 45%;
+  border-left-width: 2px;
+  border-bottom-left-radius: var(--radius);
+}
+
+/* Lignes de balayage façon écran cathodique (réglage du joueur). */
+.scanlines {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: repeating-linear-gradient(0deg, rgb(0 0 0 / 0.22) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+  animation: flicker 6s infinite steps(1);
+}
+@keyframes flicker {
+  0%, 100% { opacity: 0.9; }
+  47% { opacity: 0.75; }
+  48% { opacity: 0.95; }
 }
 
 /* Bulle du compagnon. */
 .pet-bubble {
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--accent-2);
+  color: var(--on-accent-2);
   font-family: var(--font-sans);
   font-weight: 700;
   font-size: 12px;
   padding: 2px 8px;
-  clip-path: polygon(0 0, 100% 6%, 96% 100%, 4% 92%);
+  clip-path: var(--clip-tag);
+  border-radius: calc(var(--radius) / 2);
 }
 
 @keyframes pet-jump {
@@ -97,17 +232,42 @@ body {
 .pet-jump { animation: pet-jump 0.7s ease-out; }
 .pet-shake { animation: pet-shake 0.45s ease-in-out; }
 
+/* Accueil : curseur clignotant et cercles qui respirent. */
+@keyframes blink {
+  50% { opacity: 0; }
+}
+.caret::after {
+  content: "▌";
+  margin-left: 0.15em;
+  color: var(--accent);
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.35; }
+  50% { transform: translate(-50%, -50%) scale(1.04); opacity: 0.7; }
+}
+.ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  animation: breathe 7s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pet-jump,
-  .pet-shake {
+  .pet-shake,
+  .scanlines,
+  .ring,
+  .caret::after {
     animation: none;
   }
 }
 
-/* Barres de défilement discrètes, assorties au rouge. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-ink) transparent;
+  scrollbar-color: color-mix(in srgb, var(--accent) 45%, transparent) transparent;
 }
 
 /* xterm : le conteneur prend toute la place du cadre. */

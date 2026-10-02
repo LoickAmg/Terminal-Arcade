@@ -4,10 +4,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { TIMER_LABELS, formatTime, remainingRatio, zoneOf, type TimerState } from "@terminal-arcade/shared";
 
 const ZONE_STYLE = {
-  normal: "bg-ink text-paper",
-  alerte: "bg-ink text-warn",
-  critique: "bg-paper text-red",
-  limite: "bg-paper text-red",
+  normal: { box: "border-line text-fg", bar: "bg-accent" },
+  alerte: { box: "border-warn text-warn", bar: "bg-warn" },
+  critique: { box: "border-danger bg-danger/15 text-danger", bar: "bg-danger" },
+  limite: { box: "border-danger bg-danger/25 text-danger", bar: "bg-danger" },
 } as const;
 
 // Le timer dans le bandeau : temps, mode, jauge, et le dernier gain ou la
@@ -35,31 +35,29 @@ export function TimerDisplay({
       ? `+${seconds} s`
       : `${lastDelta.ms > 0 ? "+" : "−"}${seconds} s`;
   const deltaGood = !!lastDelta && lastDelta.ms > 0;
+  const style = ZONE_STYLE[zone];
 
   return (
-    <div className="edge-ink relative" role="timer" aria-label={`${TIMER_LABELS[timer.mode]} : ${main}`}>
-      <div className={`shape-tag px-3 pt-1 pb-1.5 ${ZONE_STYLE[zone]}`}>
-        <p className="font-display text-xs tracking-widest opacity-80">
-          ⏱ {TIMER_LABELS[timer.mode].toUpperCase()}
-          {zone === "alerte" ? " · ALERTE" : zone === "critique" ? " · CRITIQUE" : ""}
-        </p>
-        <p className="font-display text-2xl leading-none tabular-nums sm:text-3xl">{main}</p>
-        <div className="mt-1 h-1.5 w-full -skew-x-12 bg-neutral-700">
-          <div
-            className={`h-full ${zone === "normal" ? "bg-cyan" : zone === "alerte" ? "bg-warn" : "bg-red"}`}
-            style={{ width: `${ratio * 100}%` }}
-          />
-        </div>
+    <div className="relative shrink-0" role="timer" aria-label={`${TIMER_LABELS[timer.mode]} : ${main}`}>
+      <div className={`flex items-center gap-3 border px-3 py-1 ${style.box}`}>
+        <span className="type-label hidden opacity-80 sm:inline">
+          {TIMER_LABELS[timer.mode]}
+          {zone === "alerte" ? " · alerte" : zone === "critique" ? " · critique" : ""}
+        </span>
+        <span className="font-mono text-lg font-bold tabular-nums">{main}</span>
+      </div>
+      <div className="h-0.5 w-full bg-surface-2">
+        <div className={`h-full ${style.bar}`} style={{ width: `${ratio * 100}%` }} />
       </div>
       <AnimatePresence>
         {lastDelta && (
           <motion.span
             key={lastDelta.id}
             initial={{ y: 0, opacity: 1 }}
-            animate={{ y: -26, opacity: 0 }}
+            animate={{ y: 26, opacity: 0 }}
             transition={{ duration: 1.2, ease: "easeOut" }}
-            className={`pointer-events-none absolute -top-1 right-2 font-display text-lg outlined ${
-              deltaGood ? "text-good" : "text-red"
+            className={`pointer-events-none absolute top-full right-2 font-mono text-sm font-bold ${
+              deltaGood ? "text-good" : "text-danger"
             }`}
           >
             {deltaText}

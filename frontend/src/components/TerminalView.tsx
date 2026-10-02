@@ -37,26 +37,18 @@ type Props = {
   // Sur écran tactile, la saisie passe par la barre du bas : le terminal
   // n'ouvre pas le clavier virtuel quand on le touche.
   touchMode: boolean;
+  // Palette et taille de police, réglées par le thème choisi dans le menu.
+  theme: XtermTheme;
+  fontSize: number;
 };
 
-const THEME = {
-  background: "#0A0A0A",
-  foreground: "#EDEDED",
-  cursor: "#6FD6F2",
-  cursorAccent: "#0A0A0A",
-  selectionBackground: "rgba(111, 214, 242, 0.35)",
-  black: "#0A0A0A",
-  red: "#FF4D57",
-  green: "#4ADE80",
-  yellow: "#FFD23F",
-  blue: "#6FA8FF",
-  magenta: "#E879F9",
-  cyan: "#6FD6F2",
-  white: "#D4D4D4",
-  brightWhite: "#FFFFFF",
-};
+export type XtermTheme = NonNullable<ConstructorParameters<typeof Terminal>[0]>["theme"];
 
-export default function TerminalView({ onReady, onLine, completer, filterInput, touchMode }: Props) {
+
+export default function TerminalView({ onReady, onLine, completer, filterInput, touchMode, theme, fontSize }: Props) {
+  const termRef = useRef<Terminal | null>(null);
+  const fitRef = useRef<(() => void) | null>(null);
+  const initial = useRef({ theme, fontSize });
   const hostRef = useRef<HTMLDivElement>(null);
   // Les callbacks changent à chaque rendu du jeu ; le terminal, lui, n'est
   // créé qu'une fois. On lit donc toujours la dernière version via des refs.
@@ -78,13 +70,13 @@ export default function TerminalView({ onReady, onLine, completer, filterInput, 
     const term = new Terminal({
       fontFamily: mono.style.fontFamily,
       // Sur téléphone, une police plus petite laisse ~40 colonnes.
-      fontSize: window.innerWidth < 640 ? 12 : 15,
+      fontSize: window.innerWidth < 640 ? Math.min(initial.current.fontSize, 13) : initial.current.fontSize,
       lineHeight: 1.25,
       cursorBlink: true,
       convertEol: true,
       scrollback: 2000,
       disableStdin: touchMode,
-      theme: THEME,
+      theme: initial.current.theme,
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -204,20 +196,33 @@ export default function TerminalView({ onReady, onLine, completer, filterInput, 
         // Conteneur masqué (largeur nulle) : on réessaiera au prochain resize.
       }
     };
+    termRef.current = term;
+    fitRef.current = resize;
     const observer = new ResizeObserver(resize);
     observer.observe(host);
     document.fonts?.ready.then(resize);
     resize();
 
     onReadyRef.current(api);
-    if (!touchMode) term.focus();
+    // Léger délai : la touche qui a ouvert le jeu ne doit pas arriver ici.
+    const focusTimer = touchMode ? undefined : setTimeout(() => term.focus(), 120);
 
     return () => {
+      clearTimeout(focusTimer);
       dataSub.dispose();
       observer.disconnect();
       term.dispose();
     };
   }, [touchMode]);
+
+  // Changement de thème ou de taille depuis le menu, sans recréer le terminal.
+  useEffect(() => {
+    const term = termRef.current;
+    if (!term) return;
+    term.options.theme = theme;
+    term.options.fontSize = window.innerWidth < 640 ? Math.min(fontSize, 13) : fontSize;
+    fitRef.current?.();
+  }, [theme, fontSize]);
 
   return <div ref={hostRef} className="h-full w-full" />;
 }
