@@ -3,14 +3,14 @@
 Généré automatiquement depuis `shared/levels/` par `npm run export:exercices`.
 Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 
-**31 niveaux, 159 questions, 76 variantes.**
+**33 niveaux, 172 questions, 89 variantes.**
 
 | Type de question | Nombre |
 | --- | --- |
-| Commande | 20 |
-| QCM | 7 |
-| Piège | 7 |
-| Prédire la sortie | 6 |
+| Commande | 25 |
+| QCM | 9 |
+| Piège | 9 |
+| Prédire la sortie | 10 |
 | Compléter | 3 |
 | Défi réel (sandbox) | 116 |
 
@@ -25,6 +25,8 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | [sk_chaos_01](#sk_chaos_01--arcade-déraille) | Arcade déraille | Script Kiddie | Data Surgeon | Navigateur | Chaos | 6 | 220 |
 | [sk_aide_01](#sk_aide_01--le-terminal-sait-aider) | Le terminal sait aider | Script Kiddie | File System Ninja | Navigateur | Classique | 6 | 180 |
 | [sk_glob_01](#sk_glob_01--les-jokers-du-shell) | Les jokers du shell | Script Kiddie | File System Ninja | Navigateur | Classique | 6 | 190 |
+| [sk_manage_01](#sk_manage_01--bâtisseur-de-dossiers) | Bâtisseur de dossiers | Script Kiddie | File System Ninja | Navigateur | Classique | 6 | 170 |
+| [sk_logic_01](#sk_logic_01--logique-et-inspection) | Logique et inspection | Script Kiddie | Data Surgeon | Navigateur | Classique | 7 | 180 |
 | [sa_perms_01](#sa_perms_01--accès-refusé) | Accès refusé | SysAdmin | File System Ninja | Sandbox Docker (bash) | Classique | 5 | 300 |
 | [sa_text_01](#sa_text_01--chirurgie-de-logs) | Chirurgie de logs | SysAdmin | Data Surgeon | Sandbox Docker (bash) | Classique | 5 | 320 |
 | [sa_pipes_01](#sa_pipes_01--tuyauterie) | Tuyauterie | SysAdmin | File System Ninja | Sandbox Docker (bash) | Classique | 5 | 320 |
@@ -792,6 +794,7 @@ Une commande tourne depuis deux minutes sans rien afficher et le curseur ne revi
 | Questions | 6 |
 | XP | 190 |
 | Sabotages signature | false_red, mutation |
+| Débloque | sk_manage_01 |
 
 L'étoile et le point d'interrogation : viser plusieurs fichiers sans les nommer un par un.
 
@@ -901,6 +904,316 @@ rm -r *
 4. Elle supprime tout le disque
 
 - Explication : * devient tous les noms visibles du dossier courant, et -r descend dans les dossiers. Lance d'abord ls * pour voir ce qui serait touché.
+
+### sk_manage_01 — Bâtisseur de dossiers
+
+> Construis, déplace et détruis tes fichiers sans trembler.
+
+| | |
+| --- | --- |
+| Palier | Script Kiddie |
+| Arbre | File System Ninja |
+| Exécution | Navigateur |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 6 |
+| XP | 170 |
+| Sabotages signature | mutation, false_red |
+| Débloque | sk_logic_01 |
+
+Créer des fichiers et des dossiers, renommer, éviter les pièges de copie, et enchaîner des commandes avec && et ||.
+
+#### Q1 · Commande
+
+Crée un fichier vide nommé brouillon.txt dans le dossier courant.
+
+- Réponses acceptées : `touch brouillon.txt`
+- Explication : touch crée le fichier s'il n'existe pas, sinon il met juste à jour sa date.
+- Indice 1 (10 s) : Le mot anglais pour « toucher ».
+
+#### Q1 — variante (sabotage « mutation ») · Commande
+
+Crée un fichier vide nommé secret.md.
+
+- Réponses acceptées : `touch secret.md`
+- Explication : touch crée rapidement des fichiers vides.
+- Indice 1 (10 s) : La même commande que pour brouillon.txt.
+
+#### Q2 · Commande
+
+Crée le dossier projets et, à l'intérieur, le sous-dossier 2026, en une seule commande.
+
+- Réponses acceptées : `mkdir -p projets/2026`, `mkdir --parents projets/2026`
+- Explication : -p crée le dossier final et tous les dossiers intermédiaires qui manquent.
+- Indice 1 (10 s) : mkdir, avec l'option qui crée aussi les parents.
+
+#### Q2 — variante (sabotage « mutation ») · Commande
+
+Crée le dossier archives et son sous-dossier zip, en une seule commande.
+
+- Réponses acceptées : `mkdir -p archives/zip`, `mkdir --parents archives/zip`
+- Explication : Sans -p, mkdir refuserait de créer zip tant qu'archives n'existe pas.
+- Indice 1 (10 s) : mkdir -p.
+
+#### Q3 · Piège
+
+Tu veux copier le dossier images dans sauvegardes. Où est l'erreur ?
+
+```bash
+cp images sauvegardes/
+```
+
+1. Il manque la barre oblique finale après images
+2. **cp ne copie pas un dossier sans l'option -r** ✔
+3. La commande est correcte
+4. Le dossier cible doit être vide
+
+- Explication : cp refuse un dossier (« -r not specified ») : -r copie le dossier et tout son contenu.
+
+#### Q3 — variante (sabotage « mutation ») · Piège
+
+Tu veux supprimer le dossier tmp_cache et son contenu. Où est l'erreur ?
+
+```bash
+rm tmp_cache
+```
+
+1. Il manque sudo
+2. **rm ne supprime pas un dossier sans l'option -r** ✔
+3. Il faut écrire delete
+4. La commande est correcte
+
+- Explication : rm seul ne supprime que des fichiers. Pour un dossier et son contenu : rm -r.
+
+#### Q4 · QCM
+
+Quelle commande renomme ancien.txt en nouveau.txt ?
+
+1. rename ancien.txt nouveau.txt
+2. **mv ancien.txt nouveau.txt** ✔
+3. cp ancien.txt nouveau.txt
+4. rn ancien.txt nouveau.txt
+
+- Explication : mv déplace : renommer, c'est déplacer au même endroit sous un autre nom. cp laisserait l'ancien fichier.
+
+#### Q4 — variante (sabotage « mutation ») · QCM
+
+Tu veux supprimer important.doc, mais que le terminal te demande confirmation avant. Quelle option ajoutes-tu à rm ?
+
+1. -c
+2. -ask
+3. **-i** ✔
+4. -y
+
+- Explication : -i (interactif) fait demander y ou n avant chaque suppression.
+
+#### Q5 · Prédire la sortie
+
+Qu'affiche cette ligne ?
+
+```bash
+echo -n Tic && echo Tac
+```
+
+- Réponses acceptées : `TicTac`
+- Explication : -n empêche echo de passer à la ligne : Tac s'écrit juste après Tic. && lance la seconde commande parce que la première a réussi.
+- Indice 1 (10 s) : Sans retour à la ligne, les deux mots se touchent.
+
+#### Q5 — variante (sabotage « mutation ») · Prédire la sortie
+
+Qu'affiche cette ligne ?
+
+```bash
+echo -n Ping && echo Pong
+```
+
+- Réponses acceptées : `PingPong`
+- Explication : Même mécanique : -n supprime le retour à la ligne de Ping.
+
+#### Q6 · Prédire la sortie
+
+false est une commande qui échoue toujours, sans rien afficher. Qu'affiche cette ligne ?
+
+```bash
+false || echo Echec
+```
+
+- Réponses acceptées : `Echec`
+- Explication : || lance la seconde commande seulement si la première échoue.
+
+#### Q6 — variante (sabotage « mutation ») · Prédire la sortie
+
+false échoue toujours, sans rien afficher. Qu'affiche cette ligne ?
+
+```bash
+false ; echo Suite
+```
+
+- Réponses acceptées : `Suite`
+- Explication : Avec ; la seconde commande tourne quoi qu'il arrive : réussite ou échec, peu importe.
+
+### sk_logic_01 — Logique et inspection
+
+> Le shell a ses propres règles. Apprends à les lire.
+
+| | |
+| --- | --- |
+| Palier | Script Kiddie |
+| Arbre | Data Surgeon |
+| Exécution | Navigateur |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 7 |
+| XP | 180 |
+| Sabotages signature | false_green, block_key |
+
+Trouver un programme, reconnaître le vrai type d'un fichier, comprendre les guillemets, trier sans doublon.
+
+#### Q1 · Commande
+
+Trouve où est installé le programme nano sur la machine.
+
+- Réponses acceptées : `which nano`
+- Sortie simulée : `/usr/bin/nano`
+- Explication : which affiche le chemin du programme qui sera lancé si tu tapes son nom. type nano dit la même chose, en phrase.
+- Indice 1 (10 s) : Le mot anglais pour « lequel ».
+
+#### Q1 — variante (sabotage « mutation ») · Commande
+
+Trouve où est installé le programme bash.
+
+- Réponses acceptées : `which bash`
+- Sortie simulée : `/usr/bin/bash`
+- Explication : Utile quand plusieurs versions d'un programme sont installées.
+- Indice 1 (10 s) : La même commande que pour nano.
+
+#### Q2 · Commande
+
+Une extension peut mentir. Détermine le vrai type du fichier mystere.dat sans l'ouvrir.
+
+- Réponses acceptées : `file mystere.dat`
+- Sortie simulée : `mystere.dat: PNG image data, 800 x 600, 8-bit/color RGB, non-interlaced`
+- Explication : file lit les premiers octets du fichier (sa signature) pour reconnaître son format.
+- Indice 1 (10 s) : Le mot anglais pour « fichier ».
+
+#### Q2 — variante (sabotage « mutation ») · Commande
+
+Vérifie ce que contient vraiment image.jpg, sans te fier à son nom.
+
+- Réponses acceptées : `file image.jpg`
+- Sortie simulée : `image.jpg: Bourne-Again shell script, ASCII text executable`
+- Explication : Une « image » qui est en fait un script : ne te fie jamais à une extension.
+- Indice 1 (10 s) : La même commande que pour mystere.dat.
+
+#### Q3 · Piège
+
+La variable $USER contient ton nom. Qu'affiche cette commande ?
+
+```bash
+echo '$USER'
+```
+
+1. Ton nom
+2. **$USER** ✔
+3. Une erreur
+4. Rien
+
+- Explication : Les guillemets simples bloquent l'interprétation des variables : le texte s'affiche tel quel.
+
+#### Q3 — variante (sabotage « mutation ») · QCM
+
+Tu veux afficher littéralement le texte $HOME, sans que le shell le remplace. Quelle commande ?
+
+1. echo $HOME
+2. echo "$HOME"
+3. **echo '$HOME'** ✔
+4. echo HOME
+
+- Explication : Seuls les guillemets simples empêchent le remplacement ; les doubles le laissent faire.
+
+#### Q4 · QCM
+
+Tu veux retirer les lignes en double de liste.txt avec uniq. Quel est le piège ?
+
+1. uniq supprime le fichier original
+2. **uniq ne repère que les doublons qui se suivent : il faut trier avant** ✔
+3. uniq ne marche que sur des nombres
+4. uniq n'affiche que 10 lignes
+
+- Explication : uniq compare chaque ligne à la précédente seulement. D'où le classique sort | uniq.
+
+#### Q4 — variante (sabotage « mutation ») · QCM
+
+Un fichier contient les nombres 10, 2 et 1, un par ligne. Que donne sort sans option ?
+
+1. 1, 2, 10
+2. 10, 2, 1
+3. **1, 10, 2** ✔
+4. 2, 1, 10
+
+- Explication : Sans option, sort compare comme du texte : « 10 » vient avant « 2 ». sort -n trie les nombres.
+
+#### Q5 · Prédire la sortie
+
+$USER vaut agent. Qu'affiche cette commande ?
+
+```bash
+echo "Je suis $USER"
+```
+
+- Réponses acceptées : `Je suis agent`
+- Explication : Entre guillemets doubles, le shell remplace les variables par leur valeur.
+
+#### Q5 — variante (sabotage « mutation ») · Prédire la sortie
+
+$HOME vaut /home/agent. Qu'affiche cette commande ?
+
+```bash
+echo "Dossier : $HOME"
+```
+
+- Réponses acceptées : `Dossier : /home/agent`
+- Explication : Les guillemets doubles gardent les espaces et laissent passer les variables.
+
+#### Q6 · Prédire la sortie
+
+f.txt contient trois lignes, toutes identiques : A. Qu'affiche ce pipeline ?
+
+```bash
+cat f.txt | uniq | wc -l
+```
+
+- Réponses acceptées : `1`
+- Explication : uniq réduit les trois A consécutifs à un seul ; wc -l compte cette ligne.
+
+#### Q6 — variante (sabotage « mutation ») · Prédire la sortie
+
+n.txt contient deux lignes : B puis C. Qu'affiche ce pipeline ?
+
+```bash
+cat n.txt | uniq | wc -l
+```
+
+- Réponses acceptées : `2`
+- Explication : Aucun doublon : uniq ne change rien, il reste deux lignes.
+
+#### Q7 · Commande
+
+Affiche le contenu de mots.txt trié par ordre alphabétique, sans aucun doublon.
+
+- Réponses acceptées : `sort mots.txt | uniq`, `cat mots.txt | sort | uniq`, `sort -u mots.txt`
+- Sortie simulée : `abricot ⏎ banane ⏎ cerise`
+- Explication : sort | uniq est le grand classique ; sort -u fait les deux d'un coup.
+- Indice 1 (10 s) : sort pour trier, puis un pipe vers uniq.
+
+#### Q7 — variante (sabotage « mutation ») · Commande
+
+Affiche le contenu de id.txt trié numériquement, sans doublon.
+
+- Réponses acceptées : `sort -n id.txt | uniq`, `cat id.txt | sort -n | uniq`, `sort -nu id.txt`
+- Sortie simulée : `1 ⏎ 2 ⏎ 10`
+- Explication : -n trie les nombres : 10 vient après 2.
+- Indice 1 (10 s) : N'oublie pas l'option -n de sort.
 
 ## Palier SysAdmin
 

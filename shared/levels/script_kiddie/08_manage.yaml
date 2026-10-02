@@ -1,0 +1,103 @@
+# Lot D de la vague 2 (Gemini), corrigé : réponses exactes, plus de sortie
+# d'erreur ambiguë, récompense ajoutée.
+id: sk_manage_01
+title: "Bâtisseur de dossiers"
+hook: "Construis, déplace et détruis tes fichiers sans trembler."
+tier: script_kiddie
+tree: file_system_ninja
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [mutation, false_red] }
+intro: "Créer des fichiers et des dossiers, renommer, éviter les pièges de copie, et enchaîner des commandes avec && et ||."
+questions:
+  - kind: command
+    prompt: "Crée un fichier vide nommé brouillon.txt dans le dossier courant."
+    accept: ["touch brouillon.txt"]
+    explain: "touch crée le fichier s'il n'existe pas, sinon il met juste à jour sa date."
+    hints:
+      - text: "Le mot anglais pour « toucher »."
+    variant:
+      kind: command
+      prompt: "Crée un fichier vide nommé secret.md."
+      accept: ["touch secret.md"]
+      explain: "touch crée rapidement des fichiers vides."
+      hints:
+        - text: "La même commande que pour brouillon.txt."
+
+  - kind: command
+    prompt: "Crée le dossier projets et, à l'intérieur, le sous-dossier 2026, en une seule commande."
+    accept: ["mkdir -p projets/2026", "mkdir --parents projets/2026"]
+    explain: "-p crée le dossier final et tous les dossiers intermédiaires qui manquent."
+    hints:
+      - text: "mkdir, avec l'option qui crée aussi les parents."
+    variant:
+      kind: command
+      prompt: "Crée le dossier archives et son sous-dossier zip, en une seule commande."
+      accept: ["mkdir -p archives/zip", "mkdir --parents archives/zip"]
+      explain: "Sans -p, mkdir refuserait de créer zip tant qu'archives n'existe pas."
+      hints:
+        - text: "mkdir -p."
+
+  - kind: trap
+    prompt: "Tu veux copier le dossier images dans sauvegardes. Où est l'erreur ?"
+    code: "cp images sauvegardes/"
+    choices:
+      - "Il manque la barre oblique finale après images"
+      - "cp ne copie pas un dossier sans l'option -r"
+      - "La commande est correcte"
+      - "Le dossier cible doit être vide"
+    answer: 2
+    explain: "cp refuse un dossier (« -r not specified ») : -r copie le dossier et tout son contenu."
+    variant:
+      kind: trap
+      prompt: "Tu veux supprimer le dossier tmp_cache et son contenu. Où est l'erreur ?"
+      code: "rm tmp_cache"
+      choices:
+        - "Il manque sudo"
+        - "rm ne supprime pas un dossier sans l'option -r"
+        - "Il faut écrire delete"
+        - "La commande est correcte"
+      answer: 2
+      explain: "rm seul ne supprime que des fichiers. Pour un dossier et son contenu : rm -r."
+
+  - kind: mcq
+    prompt: "Quelle commande renomme ancien.txt en nouveau.txt ?"
+    choices: ["rename ancien.txt nouveau.txt", "mv ancien.txt nouveau.txt", "cp ancien.txt nouveau.txt", "rn ancien.txt nouveau.txt"]
+    answer: 2
+    explain: "mv déplace : renommer, c'est déplacer au même endroit sous un autre nom. cp laisserait l'ancien fichier."
+    variant:
+      kind: mcq
+      prompt: "Tu veux supprimer important.doc, mais que le terminal te demande confirmation avant. Quelle option ajoutes-tu à rm ?"
+      choices: ["-c", "-ask", "-i", "-y"]
+      answer: 3
+      explain: "-i (interactif) fait demander y ou n avant chaque suppression."
+
+  - kind: predict
+    prompt: "Qu'affiche cette ligne ?"
+    code: "echo -n Tic && echo Tac"
+    accept: ["TicTac"]
+    explain: "-n empêche echo de passer à la ligne : Tac s'écrit juste après Tic. && lance la seconde commande parce que la première a réussi."
+    hints:
+      - text: "Sans retour à la ligne, les deux mots se touchent."
+    variant:
+      kind: predict
+      prompt: "Qu'affiche cette ligne ?"
+      code: "echo -n Ping && echo Pong"
+      accept: ["PingPong"]
+      explain: "Même mécanique : -n supprime le retour à la ligne de Ping."
+
+  - kind: predict
+    prompt: "false est une commande qui échoue toujours, sans rien afficher. Qu'affiche cette ligne ?"
+    code: "false || echo Echec"
+    accept: ["Echec"]
+    explain: "|| lance la seconde commande seulement si la première échoue."
+    variant:
+      kind: predict
+      prompt: "false échoue toujours, sans rien afficher. Qu'affiche cette ligne ?"
+      code: "false ; echo Suite"
+      accept: ["Suite"]
+      explain: "Avec ; la seconde commande tourne quoi qu'il arrive : réussite ou échec, peu importe."
+
+rewards:
+  xp: 170
+  unlocks: sk_logic_01

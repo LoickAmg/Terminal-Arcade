@@ -1,0 +1,121 @@
+# Lot D de la vague 2 (Gemini), corrigé : sorties simulées exactes, une
+# variante qui ne donne plus sa réponse, récompense ajoutée.
+id: sk_logic_01
+title: "Logique et inspection"
+hook: "Le shell a ses propres règles. Apprends à les lire."
+tier: script_kiddie
+tree: data_surgeon
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [false_green, block_key] }
+intro: "Trouver un programme, reconnaître le vrai type d'un fichier, comprendre les guillemets, trier sans doublon."
+questions:
+  - kind: command
+    prompt: "Trouve où est installé le programme nano sur la machine."
+    accept: ["which nano"]
+    output: "/usr/bin/nano"
+    explain: "which affiche le chemin du programme qui sera lancé si tu tapes son nom. type nano dit la même chose, en phrase."
+    hints:
+      - text: "Le mot anglais pour « lequel »."
+    variant:
+      kind: command
+      prompt: "Trouve où est installé le programme bash."
+      accept: ["which bash"]
+      output: "/usr/bin/bash"
+      explain: "Utile quand plusieurs versions d'un programme sont installées."
+      hints:
+        - text: "La même commande que pour nano."
+
+  - kind: command
+    prompt: "Une extension peut mentir. Détermine le vrai type du fichier mystere.dat sans l'ouvrir."
+    accept: ["file mystere.dat"]
+    output: "mystere.dat: PNG image data, 800 x 600, 8-bit/color RGB, non-interlaced"
+    explain: "file lit les premiers octets du fichier (sa signature) pour reconnaître son format."
+    hints:
+      - text: "Le mot anglais pour « fichier »."
+    variant:
+      kind: command
+      prompt: "Vérifie ce que contient vraiment image.jpg, sans te fier à son nom."
+      accept: ["file image.jpg"]
+      output: "image.jpg: Bourne-Again shell script, ASCII text executable"
+      explain: "Une « image » qui est en fait un script : ne te fie jamais à une extension."
+      hints:
+        - text: "La même commande que pour mystere.dat."
+
+  - kind: trap
+    prompt: "La variable $USER contient ton nom. Qu'affiche cette commande ?"
+    code: "echo '$USER'"
+    choices: ["Ton nom", "$USER", "Une erreur", "Rien"]
+    answer: 2
+    explain: "Les guillemets simples bloquent l'interprétation des variables : le texte s'affiche tel quel."
+    variant:
+      kind: mcq
+      prompt: "Tu veux afficher littéralement le texte $HOME, sans que le shell le remplace. Quelle commande ?"
+      choices: ["echo $HOME", "echo \"$HOME\"", "echo '$HOME'", "echo HOME"]
+      answer: 3
+      explain: "Seuls les guillemets simples empêchent le remplacement ; les doubles le laissent faire."
+
+  - kind: mcq
+    prompt: "Tu veux retirer les lignes en double de liste.txt avec uniq. Quel est le piège ?"
+    choices:
+      - "uniq supprime le fichier original"
+      - "uniq ne repère que les doublons qui se suivent : il faut trier avant"
+      - "uniq ne marche que sur des nombres"
+      - "uniq n'affiche que 10 lignes"
+    answer: 2
+    explain: "uniq compare chaque ligne à la précédente seulement. D'où le classique sort | uniq."
+    variant:
+      kind: mcq
+      prompt: "Un fichier contient les nombres 10, 2 et 1, un par ligne. Que donne sort sans option ?"
+      choices: ["1, 2, 10", "10, 2, 1", "1, 10, 2", "2, 1, 10"]
+      answer: 3
+      explain: "Sans option, sort compare comme du texte : « 10 » vient avant « 2 ». sort -n trie les nombres."
+
+  - kind: predict
+    prompt: "$USER vaut agent. Qu'affiche cette commande ?"
+    code: "echo \"Je suis $USER\""
+    accept: ["Je suis agent"]
+    explain: "Entre guillemets doubles, le shell remplace les variables par leur valeur."
+    variant:
+      kind: predict
+      prompt: "$HOME vaut /home/agent. Qu'affiche cette commande ?"
+      code: "echo \"Dossier : $HOME\""
+      accept: ["Dossier : /home/agent"]
+      explain: "Les guillemets doubles gardent les espaces et laissent passer les variables."
+
+  - kind: predict
+    prompt: "f.txt contient trois lignes, toutes identiques : A. Qu'affiche ce pipeline ?"
+    code: "cat f.txt | uniq | wc -l"
+    accept: ["1"]
+    explain: "uniq réduit les trois A consécutifs à un seul ; wc -l compte cette ligne."
+    variant:
+      kind: predict
+      prompt: "n.txt contient deux lignes : B puis C. Qu'affiche ce pipeline ?"
+      code: "cat n.txt | uniq | wc -l"
+      accept: ["2"]
+      explain: "Aucun doublon : uniq ne change rien, il reste deux lignes."
+
+  - kind: command
+    prompt: "Affiche le contenu de mots.txt trié par ordre alphabétique, sans aucun doublon."
+    accept: ["sort mots.txt | uniq", "cat mots.txt | sort | uniq", "sort -u mots.txt"]
+    output: |
+      abricot
+      banane
+      cerise
+    explain: "sort | uniq est le grand classique ; sort -u fait les deux d'un coup."
+    hints:
+      - text: "sort pour trier, puis un pipe vers uniq."
+    variant:
+      kind: command
+      prompt: "Affiche le contenu de id.txt trié numériquement, sans doublon."
+      accept: ["sort -n id.txt | uniq", "cat id.txt | sort -n | uniq", "sort -nu id.txt"]
+      output: |
+        1
+        2
+        10
+      explain: "-n trie les nombres : 10 vient après 2."
+      hints:
+        - text: "N'oublie pas l'option -n de sort."
+
+rewards:
+  xp: 180
