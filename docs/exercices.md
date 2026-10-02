@@ -916,6 +916,18 @@ rm -r *
 
 Premier défi réel : tes commandes s'exécutent dans une sandbox Linux isolée. L'arbitre vérifie l'état du système après chaque commande.
 
+<details><summary>Préparation du niveau</summary>
+
+```bash
+cat > ~/deploy.sh <<'EOF'
+#!/bin/bash
+echo "Déploiement OK. Code : $(cat ~/.deploy_code 2>/dev/null || echo '(aucun)')"
+EOF
+chmod 644 ~/deploy.sh
+```
+
+</details>
+
 #### Q1 · Défi réel (sandbox)
 
 Le script deploy.sh refuse de se lancer (Permission denied). Rends-le exécutable.
@@ -928,10 +940,6 @@ Le script deploy.sh refuse de se lancer (Permission denied). Rends-le exécutabl
 Préparation :
 
 ```bash
-cat > ~/deploy.sh <<'EOF'
-#!/bin/bash
-echo "Déploiement OK. Code : $(cat ~/.deploy_code 2>/dev/null || echo '(aucun)')"
-EOF
 chmod 644 ~/deploy.sh
 ```
 

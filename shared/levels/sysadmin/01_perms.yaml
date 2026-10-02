@@ -8,15 +8,18 @@ type: classic
 replay: { chaos: true, timer: true }
 timer: { mode: random, duration_s: 300, par_s: 150 }
 intro: "Premier défi réel : tes commandes s'exécutent dans une sandbox Linux isolée. L'arbitre vérifie l'état du système après chaque commande."
+# deploy.sh est créé au niveau, pas à la question 1 : la question 2 en a
+# besoin même quand la variante (report.sh) a remplacé la première.
+setup: |
+  cat > ~/deploy.sh <<'EOF'
+  #!/bin/bash
+  echo "Déploiement OK. Code : $(cat ~/.deploy_code 2>/dev/null || echo '(aucun)')"
+  EOF
+  chmod 644 ~/deploy.sh
 questions:
   - kind: task
     prompt: "Le script deploy.sh refuse de se lancer (Permission denied). Rends-le exécutable."
-    setup: |
-      cat > ~/deploy.sh <<'EOF'
-      #!/bin/bash
-      echo "Déploiement OK. Code : $(cat ~/.deploy_code 2>/dev/null || echo '(aucun)')"
-      EOF
-      chmod 644 ~/deploy.sh
+    setup: 'chmod 644 ~/deploy.sh'
     check: '[ -x ~/deploy.sh ]'
     solution: "chmod +x deploy.sh"
     solve: |
