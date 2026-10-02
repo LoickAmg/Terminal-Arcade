@@ -1,0 +1,195 @@
+# Réécriture du lot A de la vague 2 (ChatGPT) : on garde l'idée des
+# fragments, avec des fragments étiquetés, des leurres, un guichet qui
+# attend une commande, et un script de sonde à écrire.
+id: np_fragments_01
+title: "Les fragments du réseau"
+hook: "Des services partout. Certains parlent, d'autres mentent, un seul attend qu'on lui adresse la parole."
+tier: root_wizard
+tree: network_phantom
+runtime: docker
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_decoy, false_red] }
+intro: "Cartographier des services locaux, assembler un code dispersé, dialoguer avec un service qui attend une commande, puis faire le ménage. Tout reste sur 127.0.0.1."
+setup: |
+  mkdir -p ~/net ~/.bin
+  # Un service qui renvoie un fichier à chaque connexion. Copié sous deux
+  # noms : fragment et leurre, pour qu'on puisse les distinguer avec ps.
+  cat > ~/.bin/fragment <<'EOF'
+  #!/bin/bash
+  while true; do
+    nc -l 127.0.0.1 "$1" -q 0 < "$2" >/dev/null 2>&1
+    sleep 0.05
+  done
+  EOF
+  chmod +x ~/.bin/fragment
+  cp ~/.bin/fragment ~/.bin/leurre
+  # Le guichet lit une ligne et répond : PING, CODE <code>, sinon REFUSE.
+  cat > ~/.bin/guichet <<'EOF'
+  #!/bin/bash
+  F=$(mktemp -u /tmp/.guichet.XXXXXX)
+  repondre() {
+    IFS= read -r -t 5 ligne || true
+    ligne=${ligne%$'\r'}
+    case "$ligne" in
+      PING) echo PONG ;;
+      "CODE $(cat /tmp/.np-code 2>/dev/null)") echo "ACCES: $(cat /tmp/.np-flag 2>/dev/null)" ;;
+      *) echo REFUSE ;;
+    esac
+  }
+  while true; do
+    rm -f "$F"; mkfifo "$F"
+    nc -l -N 127.0.0.1 "$1" < "$F" 2>/dev/null | repondre > "$F"
+  done
+  EOF
+  chmod +x ~/.bin/guichet
+  rm -f /tmp/.np-*
+  leurres=$((RANDOM % 2 + 1))
+  mapfile -t ports < <(shuf -i 20000-40000 -n $((4 + leurres)))
+  code=""
+  for k in 1 2 3; do
+    morceau=$(head -c 3 /dev/urandom | od -An -tx1 | tr -d ' \n')
+    code="$code$morceau"
+    printf 'FRAGMENT %d/3 : %s\n' "$k" "$morceau" > "/tmp/.np-frag-${ports[$k]}"
+    setsid nohup ~/.bin/fragment "${ports[$k]}" "/tmp/.np-frag-${ports[$k]}" >/dev/null 2>&1 &
+  done
+  printf '%s\n' "$code" > /tmp/.np-code
+  printf '%s\n' "${ports[0]}" > /tmp/.np-guichet
+  setsid nohup ~/.bin/guichet "${ports[0]}" >/dev/null 2>&1 &
+  printf 'RIEN ICI\n' > /tmp/.np-leurre
+  for i in $(seq 1 "$leurres"); do
+    p=${ports[$((3 + i))]}
+    echo "$p" >> /tmp/.np-leurres
+    setsid nohup ~/.bin/leurre "$p" /tmp/.np-leurre >/dev/null 2>&1 &
+  done
+  sleep 0.6
+questions:
+  - kind: task
+    prompt: "Combien de services TCP écoutent sur 127.0.0.1 ? Envoie le nombre avec submit."
+    check: 'answer-is "$(ss -Htln | grep -c "127\.0\.0\.1:")"'
+    solution: "ss -tln, compte les lignes en 127.0.0.1, puis submit <nombre>"
+    solve: |
+      submit "$(ss -Htln | grep -c '127\.0\.0\.1:')"
+    hints:
+      - text: "ss -tln liste les ports TCP en écoute ; -H retire l'en-tête."
+      - text: "grep -c compte les lignes qui correspondent."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Quel est le plus grand port TCP en écoute sur 127.0.0.1 ? Envoie-le avec submit."
+      check: 'answer-is "$(ss -Htln | awk "{print \$4}" | sed "s/.*://" | sort -n | tail -n 1)"'
+      solution: "ss -Htln | awk '{print $4}' | sed 's/.*://' | sort -n | tail -n 1"
+      solve: |
+        submit "$(ss -Htln | awk '{print $4}' | sed 's/.*://' | sort -n | tail -n 1)"
+      hints:
+        - text: "Garde ce qui suit les deux-points, puis sort -n."
+
+  - kind: task
+    prompt: "Trois services renvoient chacun une ligne « FRAGMENT k/3 : … » ; les autres ne disent rien d'utile. Assemble le code : les trois morceaux dans l'ordre 1, 2, 3, collés sans espace, dans ~/net/code.txt."
+    check: |
+      [ -f ~/net/code.txt ] || exit 1
+      [ "$(tr -d ' \r\n' < ~/net/code.txt)" = "$(cat /tmp/.np-code)" ]
+    solution: "for p in <ports>; do nc 127.0.0.1 $p; done, puis colle les morceaux dans l'ordre des numéros"
+    solve: |
+      for p in $(ss -Htln | awk '{print $4}' | sed 's/.*://'); do
+        timeout 1 nc 127.0.0.1 "$p" </dev/null 2>/dev/null
+      done | grep '^FRAGMENT' | sort | sed 's/.*: //' | tr -d '\n' > ~/net/code.txt
+    hints:
+      - text: "Interroge chaque port avec nc 127.0.0.1 PORT. L'ordre des ports n'est pas celui des fragments : lis leur numéro."
+      - text: "Une boucle for sur les ports, puis grep FRAGMENT | sort, fait tout le tri."
+        cost_s: 20
+      - text: "Un service ne répond pas tout de suite : il attend que tu lui écrives. Ctrl+C pour passer au suivant."
+    variant:
+      kind: task
+      prompt: "Trois services renvoient chacun une ligne « FRAGMENT k/3 : … ». Écris ces trois lignes, telles quelles et dans l'ordre 1/3, 2/3, 3/3, dans ~/net/fragments.txt."
+      check: |
+        [ -f ~/net/fragments.txt ] || exit 1
+        diff -q <(cat /tmp/.np-frag-* | sort) <(grep -v '^[[:space:]]*$' ~/net/fragments.txt | tr -d '\r') >/dev/null 2>&1
+      solution: "nc sur chaque port, puis grep FRAGMENT | sort > ~/net/fragments.txt"
+      solve: |
+        for p in $(ss -Htln | awk '{print $4}' | sed 's/.*://'); do
+          timeout 1 nc 127.0.0.1 "$p" </dev/null 2>/dev/null
+        done | grep '^FRAGMENT' | sort > ~/net/fragments.txt
+      hints:
+        - text: "Récupère tout, puis grep FRAGMENT et sort."
+
+  - kind: task
+    prompt: "Un des services attend qu'on lui écrive une ligne : il répond PONG à PING. Trouve-le, puis envoie-lui la ligne « CODE <le code assemblé> ». Il te donnera un flag : envoie-le avec submit."
+    flag: true
+    setup: |
+      printf '%s\n' "$FLAG" > /tmp/.np-flag
+    check: 'answer-is "$FLAG"'
+    solution: "echo PING | nc 127.0.0.1 <port> pour trouver le guichet, puis echo \"CODE <code>\" | nc 127.0.0.1 <port>"
+    solve: |
+      submit "$(echo "CODE $(cat /tmp/.np-code)" | timeout 3 nc 127.0.0.1 "$(cat /tmp/.np-guichet)" | sed 's/^ACCES: //')"
+    hints:
+      - text: "echo PING | nc 127.0.0.1 PORT envoie une ligne et affiche la réponse."
+      - text: "Le code est celui de la question précédente, sans espace : echo \"CODE abc123…\" | nc …"
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Un des services attend qu'on lui écrive une ligne : il répond PONG quand on lui envoie PING. Trouve son port et envoie-le avec submit."
+      check: 'answer-is "$(cat /tmp/.np-guichet)"'
+      solution: "for p in <ports>; do echo PING | nc 127.0.0.1 $p; done : celui qui répond PONG"
+      solve: |
+        for p in $(ss -Htln | awk '{print $4}' | sed 's/.*://'); do
+          [ "$(echo PING | timeout 2 nc 127.0.0.1 "$p" 2>/dev/null | head -n 1)" = PONG ] && { submit "$p"; break; }
+        done
+      hints:
+        - text: "Envoie PING à chaque port : seul le guichet répond PONG."
+
+  - kind: task
+    prompt: "Les services qui répondent « RIEN ICI » sont des leurres. Arrête-les tous, pour de bon, sans toucher aux fragments ni au guichet."
+    check: |
+      ! pgrep -x leurre >/dev/null || exit 1
+      while read -r p; do ss -Htln | grep -q "127\.0\.0\.1:$p " && exit 1; done < /tmp/.np-leurres
+      [ "$(pgrep -cx fragment)" = 3 ] && pgrep -x guichet >/dev/null
+    solution: "ps -ef montre les boucles leurre ; pkill leurre arrête les boucles, puis kill le nc qui écoute encore (ss -tlnp donne son PID), ou kill -- -<PGID> pour tout le groupe"
+    solve: |
+      while read -r p; do
+        pid=$(ss -Htlnp | grep "127\.0\.0\.1:$p " | grep -o 'pid=[0-9]*' | head -n 1 | cut -d= -f2)
+        [ -n "$pid" ] && kill -- "-$(ps -o pgid= -p "$pid" | tr -d ' ')"
+      done < /tmp/.np-leurres
+      sleep 0.3
+    hints:
+      - text: "ps -eo pid,pgid,comm,args montre les boucles : leur nom trahit les leurres."
+      - text: "Tuer la boucle ne suffit pas : son nc écoute encore. ss -tlnp donne le PID de ce nc."
+        cost_s: 20
+      - text: "Chaque service tourne dans son propre groupe : kill -- -PGID arrête la boucle et son nc d'un coup."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Arrête uniquement le service du fragment 1/3 : plus rien ne doit écouter sur son port, et les autres services doivent continuer de tourner."
+      check: |
+        p=$(grep -l 'FRAGMENT 1/3' /tmp/.np-frag-* | sed 's/.*-//')
+        ss -Htln | grep -q "127\.0\.0\.1:$p " && exit 1
+        [ "$(pgrep -cx fragment)" = 2 ] && pgrep -x guichet >/dev/null
+      solution: "trouve son port avec nc, son PID avec ss -tlnp, son groupe avec ps -o pgid=, puis kill -- -<PGID>"
+      solve: |
+        p=$(grep -l 'FRAGMENT 1/3' /tmp/.np-frag-* | sed 's/.*-//')
+        pid=$(ss -Htlnp | grep "127\.0\.0\.1:$p " | grep -o 'pid=[0-9]*' | head -n 1 | cut -d= -f2)
+        kill -- "-$(ps -o pgid= -p "$pid" | tr -d ' ')"
+        sleep 0.3
+      hints:
+        - text: "ss -tlnp montre le PID de chaque nc ; ps -o pgid= -p PID donne son groupe."
+
+  - kind: task
+    prompt: "Écris ~/net/sonde.sh : il prend un port en argument et affiche la première ligne que renvoie le service sur 127.0.0.1 (avec nc ou /dev/tcp), sans rester bloqué plus de 2 secondes ; si rien n'écoute, il n'affiche rien. Rends-le exécutable."
+    check: |
+      [ -x ~/net/sonde.sh ] || exit 1
+      grep -Eq 'nc|/dev/tcp' ~/net/sonde.sh || exit 1
+      p=$(for f in /tmp/.np-frag-*; do q=${f##*-}; ss -Htln | grep -q "127\.0\.0\.1:$q " && echo "$q"; done | shuf -n 1)
+      [ -n "$p" ] || exit 1
+      [ "$(timeout 3 ~/net/sonde.sh "$p" 2>/dev/null | head -n 1)" = "$(cat "/tmp/.np-frag-$p")" ] || exit 1
+      [ -z "$(timeout 3 ~/net/sonde.sh $((RANDOM % 900 + 1000)) 2>/dev/null)" ]
+    solution: "#!/bin/bash puis timeout 2 nc 127.0.0.1 \"$1\" </dev/null 2>/dev/null | head -n 1"
+    solve: |
+      printf '#!/bin/bash\ntimeout 2 nc 127.0.0.1 "$1" </dev/null 2>/dev/null | head -n 1\n' > ~/net/sonde.sh
+      chmod +x ~/net/sonde.sh
+    hints:
+      - text: "$1 est le port reçu ; timeout 2 coupe une commande trop longue."
+      - text: "nc 127.0.0.1 \"$1\" </dev/null : rien à envoyer, on écoute juste la réponse."
+        cost_s: 20
+
+rewards:
+  xp: 480

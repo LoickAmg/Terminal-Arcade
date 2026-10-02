@@ -3,7 +3,7 @@
 Généré automatiquement depuis `shared/levels/` par `npm run export:exercices`.
 Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 
-**33 niveaux, 172 questions, 101 variantes.**
+**34 niveaux, 177 questions, 105 variantes.**
 
 | Type de question | Nombre |
 | --- | --- |
@@ -12,7 +12,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | Piège | 9 |
 | Prédire la sortie | 10 |
 | Compléter | 3 |
-| Défi réel (sandbox) | 116 |
+| Défi réel (sandbox) | 121 |
 
 ## Vue d'ensemble
 
@@ -51,6 +51,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | [gg_defaire_01](#gg_defaire_01--défaire-sans-casser) | Défaire sans casser | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 6 | 460 |
 | [rw_script_02](#rw_script_02--scripts-solides) | Scripts solides | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 5 | 460 |
 | [rw_text_01](#rw_text_01--la-boîte-à-outils-texte) | La boîte à outils texte | Root Wizard | Data Surgeon | Sandbox Docker (bash) | Classique | 5 | 420 |
+| [np_fragments_01](#np_fragments_01--les-fragments-du-réseau) | Les fragments du réseau | Root Wizard | Network Phantom | Sandbox Docker (bash) | Classique | 5 | 480 |
 
 ## Palier Script Kiddie
 
@@ -2524,6 +2525,7 @@ pwsh -NoProfile -NonInteractive -Command '$c = Get-Content ~/config.json | Conve
 | Questions | 5 |
 | XP | 340 |
 | Sabotages signature | hostile_path, false_green |
+| Débloque | np_fragments_01 |
 
 Network Phantom : ss pour voir qui écoute, nc ou /dev/tcp pour parler. Tout reste sur 127.0.0.1, la machine n'a aucun accès à l'extérieur.
 
@@ -7069,6 +7071,327 @@ Résolution automatique (tests) :
 
 ```bash
 comm -23 ~/data/liste_a.txt ~/data/liste_b.txt > ~/data/uniques_a.txt
+```
+
+</details>
+
+### np_fragments_01 — Les fragments du réseau
+
+> Des services partout. Certains parlent, d'autres mentent, un seul attend qu'on lui adresse la parole.
+
+| | |
+| --- | --- |
+| Palier | Root Wizard |
+| Arbre | Network Phantom |
+| Exécution | Sandbox Docker (bash) |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 5 |
+| XP | 480 |
+| Sabotages signature | hostile_decoy, false_red |
+
+Cartographier des services locaux, assembler un code dispersé, dialoguer avec un service qui attend une commande, puis faire le ménage. Tout reste sur 127.0.0.1.
+
+<details><summary>Préparation du niveau</summary>
+
+```bash
+mkdir -p ~/net ~/.bin
+# Un service qui renvoie un fichier à chaque connexion. Copié sous deux
+# noms : fragment et leurre, pour qu'on puisse les distinguer avec ps.
+cat > ~/.bin/fragment <<'EOF'
+#!/bin/bash
+while true; do
+  nc -l 127.0.0.1 "$1" -q 0 < "$2" >/dev/null 2>&1
+  sleep 0.05
+done
+EOF
+chmod +x ~/.bin/fragment
+cp ~/.bin/fragment ~/.bin/leurre
+# Le guichet lit une ligne et répond : PING, CODE <code>, sinon REFUSE.
+cat > ~/.bin/guichet <<'EOF'
+#!/bin/bash
+F=$(mktemp -u /tmp/.guichet.XXXXXX)
+repondre() {
+  IFS= read -r -t 5 ligne || true
+  ligne=${ligne%$'\r'}
+  case "$ligne" in
+    PING) echo PONG ;;
+    "CODE $(cat /tmp/.np-code 2>/dev/null)") echo "ACCES: $(cat /tmp/.np-flag 2>/dev/null)" ;;
+    *) echo REFUSE ;;
+  esac
+}
+while true; do
+  rm -f "$F"; mkfifo "$F"
+  nc -l -N 127.0.0.1 "$1" < "$F" 2>/dev/null | repondre > "$F"
+done
+EOF
+chmod +x ~/.bin/guichet
+rm -f /tmp/.np-*
+leurres=$((RANDOM % 2 + 1))
+mapfile -t ports < <(shuf -i 20000-40000 -n $((4 + leurres)))
+code=""
+for k in 1 2 3; do
+  morceau=$(head -c 3 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  code="$code$morceau"
+  printf 'FRAGMENT %d/3 : %s\n' "$k" "$morceau" > "/tmp/.np-frag-${ports[$k]}"
+  setsid nohup ~/.bin/fragment "${ports[$k]}" "/tmp/.np-frag-${ports[$k]}" >/dev/null 2>&1 &
+done
+printf '%s\n' "$code" > /tmp/.np-code
+printf '%s\n' "${ports[0]}" > /tmp/.np-guichet
+setsid nohup ~/.bin/guichet "${ports[0]}" >/dev/null 2>&1 &
+printf 'RIEN ICI\n' > /tmp/.np-leurre
+for i in $(seq 1 "$leurres"); do
+  p=${ports[$((3 + i))]}
+  echo "$p" >> /tmp/.np-leurres
+  setsid nohup ~/.bin/leurre "$p" /tmp/.np-leurre >/dev/null 2>&1 &
+done
+sleep 0.6
+```
+
+</details>
+
+#### Q1 · Défi réel (sandbox)
+
+Combien de services TCP écoutent sur 127.0.0.1 ? Envoie le nombre avec submit.
+
+- Solution : `ss -tln, compte les lignes en 127.0.0.1, puis submit <nombre>`
+- Indice 1 (10 s) : ss -tln liste les ports TCP en écoute ; -H retire l'en-tête.
+- Indice 2 (20 s) : grep -c compte les lignes qui correspondent.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(ss -Htln | grep -c "127\.0\.0\.1:")"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(ss -Htln | grep -c '127\.0\.0\.1:')"
+```
+
+</details>
+
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Quel est le plus grand port TCP en écoute sur 127.0.0.1 ? Envoie-le avec submit.
+
+- Solution : `ss -Htln | awk '{print $4}' | sed 's/.*://' | sort -n | tail -n 1`
+- Indice 1 (10 s) : Garde ce qui suit les deux-points, puis sort -n.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(ss -Htln | awk "{print \$4}" | sed "s/.*://" | sort -n | tail -n 1)"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(ss -Htln | awk '{print $4}' | sed 's/.*://' | sort -n | tail -n 1)"
+```
+
+</details>
+
+#### Q2 · Défi réel (sandbox)
+
+Trois services renvoient chacun une ligne « FRAGMENT k/3 : … » ; les autres ne disent rien d'utile. Assemble le code : les trois morceaux dans l'ordre 1, 2, 3, collés sans espace, dans ~/net/code.txt.
+
+- Solution : `for p in <ports>; do nc 127.0.0.1 $p; done, puis colle les morceaux dans l'ordre des numéros`
+- Indice 1 (10 s) : Interroge chaque port avec nc 127.0.0.1 PORT. L'ordre des ports n'est pas celui des fragments : lis leur numéro.
+- Indice 2 (20 s) : Une boucle for sur les ports, puis grep FRAGMENT | sort, fait tout le tri.
+- Indice 3 (10 s) : Un service ne répond pas tout de suite : il attend que tu lui écrives. Ctrl+C pour passer au suivant.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/net/code.txt ] || exit 1
+[ "$(tr -d ' \r\n' < ~/net/code.txt)" = "$(cat /tmp/.np-code)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+for p in $(ss -Htln | awk '{print $4}' | sed 's/.*://'); do
+  timeout 1 nc 127.0.0.1 "$p" </dev/null 2>/dev/null
+done | grep '^FRAGMENT' | sort | sed 's/.*: //' | tr -d '\n' > ~/net/code.txt
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Trois services renvoient chacun une ligne « FRAGMENT k/3 : … ». Écris ces trois lignes, telles quelles et dans l'ordre 1/3, 2/3, 3/3, dans ~/net/fragments.txt.
+
+- Solution : `nc sur chaque port, puis grep FRAGMENT | sort > ~/net/fragments.txt`
+- Indice 1 (10 s) : Récupère tout, puis grep FRAGMENT et sort.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/net/fragments.txt ] || exit 1
+diff -q <(cat /tmp/.np-frag-* | sort) <(grep -v '^[[:space:]]*$' ~/net/fragments.txt | tr -d '\r') >/dev/null 2>&1
+```
+
+Résolution automatique (tests) :
+
+```bash
+for p in $(ss -Htln | awk '{print $4}' | sed 's/.*://'); do
+  timeout 1 nc 127.0.0.1 "$p" </dev/null 2>/dev/null
+done | grep '^FRAGMENT' | sort > ~/net/fragments.txt
+```
+
+</details>
+
+#### Q3 · Défi réel (sandbox)
+
+Un des services attend qu'on lui écrive une ligne : il répond PONG à PING. Trouve-le, puis envoie-lui la ligne « CODE <le code assemblé> ». Il te donnera un flag : envoie-le avec submit.
+
+- Solution : `echo PING | nc 127.0.0.1 <port> pour trouver le guichet, puis echo "CODE <code>" | nc 127.0.0.1 <port>`
+- Flag aléatoire à chaque partie ($FLAG)
+- Indice 1 (10 s) : echo PING | nc 127.0.0.1 PORT envoie une ligne et affiche la réponse.
+- Indice 2 (20 s) : Le code est celui de la question précédente, sans espace : echo "CODE abc123…" | nc …
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+printf '%s\n' "$FLAG" > /tmp/.np-flag
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$FLAG"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(echo "CODE $(cat /tmp/.np-code)" | timeout 3 nc 127.0.0.1 "$(cat /tmp/.np-guichet)" | sed 's/^ACCES: //')"
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Un des services attend qu'on lui écrive une ligne : il répond PONG quand on lui envoie PING. Trouve son port et envoie-le avec submit.
+
+- Solution : `for p in <ports>; do echo PING | nc 127.0.0.1 $p; done : celui qui répond PONG`
+- Indice 1 (10 s) : Envoie PING à chaque port : seul le guichet répond PONG.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(cat /tmp/.np-guichet)"
+```
+
+Résolution automatique (tests) :
+
+```bash
+for p in $(ss -Htln | awk '{print $4}' | sed 's/.*://'); do
+  [ "$(echo PING | timeout 2 nc 127.0.0.1 "$p" 2>/dev/null | head -n 1)" = PONG ] && { submit "$p"; break; }
+done
+```
+
+</details>
+
+#### Q4 · Défi réel (sandbox)
+
+Les services qui répondent « RIEN ICI » sont des leurres. Arrête-les tous, pour de bon, sans toucher aux fragments ni au guichet.
+
+- Solution : `ps -ef montre les boucles leurre ; pkill leurre arrête les boucles, puis kill le nc qui écoute encore (ss -tlnp donne son PID), ou kill -- -<PGID> pour tout le groupe`
+- Indice 1 (10 s) : ps -eo pid,pgid,comm,args montre les boucles : leur nom trahit les leurres.
+- Indice 2 (20 s) : Tuer la boucle ne suffit pas : son nc écoute encore. ss -tlnp donne le PID de ce nc.
+- Indice 3 (20 s) : Chaque service tourne dans son propre groupe : kill -- -PGID arrête la boucle et son nc d'un coup.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+! pgrep -x leurre >/dev/null || exit 1
+while read -r p; do ss -Htln | grep -q "127\.0\.0\.1:$p " && exit 1; done < /tmp/.np-leurres
+[ "$(pgrep -cx fragment)" = 3 ] && pgrep -x guichet >/dev/null
+```
+
+Résolution automatique (tests) :
+
+```bash
+while read -r p; do
+  pid=$(ss -Htlnp | grep "127\.0\.0\.1:$p " | grep -o 'pid=[0-9]*' | head -n 1 | cut -d= -f2)
+  [ -n "$pid" ] && kill -- "-$(ps -o pgid= -p "$pid" | tr -d ' ')"
+done < /tmp/.np-leurres
+sleep 0.3
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Arrête uniquement le service du fragment 1/3 : plus rien ne doit écouter sur son port, et les autres services doivent continuer de tourner.
+
+- Solution : `trouve son port avec nc, son PID avec ss -tlnp, son groupe avec ps -o pgid=, puis kill -- -<PGID>`
+- Indice 1 (10 s) : ss -tlnp montre le PID de chaque nc ; ps -o pgid= -p PID donne son groupe.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+p=$(grep -l 'FRAGMENT 1/3' /tmp/.np-frag-* | sed 's/.*-//')
+ss -Htln | grep -q "127\.0\.0\.1:$p " && exit 1
+[ "$(pgrep -cx fragment)" = 2 ] && pgrep -x guichet >/dev/null
+```
+
+Résolution automatique (tests) :
+
+```bash
+p=$(grep -l 'FRAGMENT 1/3' /tmp/.np-frag-* | sed 's/.*-//')
+pid=$(ss -Htlnp | grep "127\.0\.0\.1:$p " | grep -o 'pid=[0-9]*' | head -n 1 | cut -d= -f2)
+kill -- "-$(ps -o pgid= -p "$pid" | tr -d ' ')"
+sleep 0.3
+```
+
+</details>
+
+#### Q5 · Défi réel (sandbox)
+
+Écris ~/net/sonde.sh : il prend un port en argument et affiche la première ligne que renvoie le service sur 127.0.0.1 (avec nc ou /dev/tcp), sans rester bloqué plus de 2 secondes ; si rien n'écoute, il n'affiche rien. Rends-le exécutable.
+
+- Solution : `#!/bin/bash puis timeout 2 nc 127.0.0.1 "$1" </dev/null 2>/dev/null | head -n 1`
+- Indice 1 (10 s) : $1 est le port reçu ; timeout 2 coupe une commande trop longue.
+- Indice 2 (20 s) : nc 127.0.0.1 "$1" </dev/null : rien à envoyer, on écoute juste la réponse.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -x ~/net/sonde.sh ] || exit 1
+grep -Eq 'nc|/dev/tcp' ~/net/sonde.sh || exit 1
+p=$(for f in /tmp/.np-frag-*; do q=${f##*-}; ss -Htln | grep -q "127\.0\.0\.1:$q " && echo "$q"; done | shuf -n 1)
+[ -n "$p" ] || exit 1
+[ "$(timeout 3 ~/net/sonde.sh "$p" 2>/dev/null | head -n 1)" = "$(cat "/tmp/.np-frag-$p")" ] || exit 1
+[ -z "$(timeout 3 ~/net/sonde.sh $((RANDOM % 900 + 1000)) 2>/dev/null)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+printf '#!/bin/bash\ntimeout 2 nc 127.0.0.1 "$1" </dev/null 2>/dev/null | head -n 1\n' > ~/net/sonde.sh
+chmod +x ~/net/sonde.sh
 ```
 
 </details>
