@@ -3,7 +3,7 @@
 Généré automatiquement depuis `shared/levels/` par `npm run export:exercices`.
 Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 
-**27 niveaux, 137 questions, 54 variantes.**
+**29 niveaux, 149 questions, 66 variantes.**
 
 | Type de question | Nombre |
 | --- | --- |
@@ -12,7 +12,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | Piège | 7 |
 | Prédire la sortie | 6 |
 | Compléter | 3 |
-| Défi réel (sandbox) | 94 |
+| Défi réel (sandbox) | 106 |
 
 ## Vue d'ensemble
 
@@ -36,6 +36,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | [sa_find_01](#sa_find_01--chasse-aux-fichiers) | Chasse aux fichiers | SysAdmin | File System Ninja | Sandbox Docker (bash) | Classique | 5 | 350 |
 | [gg_tags_01](#gg_tags_01--étiquettes-et-versions) | Étiquettes et versions | SysAdmin | Git-Gud | Sandbox Docker (bash) | Classique | 5 | 360 |
 | [ps_stock_01](#ps_stock_01--des-objets-en-rayon) | Des objets en rayon | SysAdmin | PowerShell | Sandbox Docker (PowerShell) | Classique | 5 | 350 |
+| [gg_miroir_01](#gg_miroir_01--le-dépôt-miroir) | Le dépôt miroir | SysAdmin | Git-Gud | Sandbox Docker (bash) | Classique | 6 | 360 |
 | [rw_proc_01](#rw_proc_01--processus-fantôme) | Processus fantôme | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 4 | 380 |
 | [rw_script_01](#rw_script_01--automatise-tout) | Automatise tout | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 4 | 400 |
 | [gg_history_01](#gg_history_01--machine-à-remonter-le-temps) | Machine à remonter le temps | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 4 | 420 |
@@ -45,6 +46,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | [rw_awk_01](#rw_awk_01--awk-sans-filet) | awk sans filet | Root Wizard | Data Surgeon | Sandbox Docker (bash) | Classique | 5 | 420 |
 | [gg_workflow_01](#gg_workflow_01--historique-propre) | Historique propre | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 4 | 480 |
 | [ps_scripts_01](#ps_scripts_01--scripts-sous-tension) | Scripts sous tension | Root Wizard | PowerShell | Sandbox Docker (PowerShell) | Classique | 5 | 460 |
+| [gg_defaire_01](#gg_defaire_01--défaire-sans-casser) | Défaire sans casser | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 6 | 460 |
 
 ## Palier Script Kiddie
 
@@ -1752,7 +1754,7 @@ echo "couleur = vert" > app.txt && git commit -qam "Passe en vert"
 
 Dans appli, fusionne la branche rouge dans main. Il y aura un conflit sur app.txt : garde la version rouge, puis termine la fusion.
 
-- Solution : `git merge rouge, corrige app.txt (ou git checkout --theirs app.txt), git add app.txt, git commit`
+- Solution : `git merge rouge, corrige app.txt (ou git checkout --theirs app.txt), git add app.txt, git commit -m "Fusion de rouge"`
 - Indice 1 (10 s) : Après le conflit, édite le fichier (ou git checkout --theirs), puis git add et git commit.
 - Indice 2 (10 s) : Les marqueurs <<<<<<<, ======= et >>>>>>> doivent disparaître du fichier.
 
@@ -1785,7 +1787,9 @@ Tu as des modifications en cours dans notes.txt mais tu dois changer de sujet : 
 Préparation :
 
 ```bash
-cd ~/appli && echo "brouillon à finir" >> notes.txt
+cd ~/appli
+printf 'brouillon à finir %d\n' "$RANDOM" > /tmp/gg_branch_01_marque
+cat /tmp/gg_branch_01_marque >> notes.txt
 ```
 
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
@@ -1811,10 +1815,22 @@ C'est réglé : récupère tes modifications mises de côté.
 
 <details><summary>Préparation et arbitre</summary>
 
+Préparation :
+
+```bash
+cd ~/appli
+if [ -z "$(git stash list)" ] && [ ! -f /tmp/gg_branch_01_marque ]; then
+  printf 'brouillon à finir %d\n' "$RANDOM" > /tmp/gg_branch_01_marque
+  cat /tmp/gg_branch_01_marque >> notes.txt
+  git stash -q
+fi
+```
+
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-cd ~/appli && [ -z "$(git stash list)" ] && grep -q "brouillon à finir" notes.txt
+cd ~/appli && [ -z "$(git stash list)" ] \
+  && [ "$(tail -n 1 notes.txt)" = "$(cat /tmp/gg_branch_01_marque 2>/dev/null)" ]
 ```
 
 Résolution automatique (tests) :
@@ -2641,6 +2657,7 @@ cd ~ && find audit -type f -name '*.log' -exec sha256sum {} + > hashes.txt
 | Questions | 5 |
 | XP | 360 |
 | Sabotages signature | hostile_chmod, mutation |
+| Débloque | gg_miroir_01 |
 
 Tags annotés, .gitignore et git worktree.
 
@@ -2674,7 +2691,7 @@ Dans le dépôt site, pose un tag annoté v1.0.0 sur le dernier commit, avec le 
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-[ "$(git -C ~/site cat-file -t v1.0.0 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v1.0.0)" = "Première version" ]
+[ "$(git -C ~/site cat-file -t v1.0.0 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v1.0.0)" = "Première version" ] && [ "$(git -C ~/site rev-parse "v1.0.0^{commit}")" = "$(git -C ~/site rev-parse main)" ]
 ```
 
 Résolution automatique (tests) :
@@ -2697,7 +2714,7 @@ Dans le dépôt site, pose un tag annoté v0.9.0-beta sur le dernier commit, ave
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-[ "$(git -C ~/site cat-file -t v0.9.0-beta 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v0.9.0-beta)" = "Bêta" ]
+[ "$(git -C ~/site cat-file -t v0.9.0-beta 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v0.9.0-beta)" = "Bêta" ] && [ "$(git -C ~/site rev-parse "v0.9.0-beta^{commit}")" = "$(git -C ~/site rev-parse main)" ]
 ```
 
 Résolution automatique (tests) :
@@ -3080,6 +3097,437 @@ Résolution automatique (tests) :
 
 ```bash
 pwsh -NoProfile -NonInteractive -Command 'Get-Content "$HOME/journal.log" -Tail 3 | Set-Content "$HOME/extrait.txt"'
+```
+
+</details>
+
+### gg_miroir_01 — Le dépôt miroir
+
+> Ton code n'existe vraiment qu'une fois qu'il a quitté ta machine.
+
+| | |
+| --- | --- |
+| Palier | SysAdmin |
+| Arbre | Git-Gud |
+| Exécution | Sandbox Docker (bash) |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 6 |
+| XP | 360 |
+| Sabotages signature | mutation, false_red |
+
+Un distant sans réseau : dépôt nu, remote, push avec suivi, clone, puis la vraie différence entre pull et fetch.
+
+<details><summary>Préparation du niveau</summary>
+
+```bash
+git config --global user.name agent
+git config --global user.email agent@sandbox
+git config --global init.defaultBranch main
+rm -rf ~/musee ~/miroir.git ~/copie ~/vitrine
+mkdir -p ~/musee && cd ~/musee && git init -q
+printf 'inventaire %d\n' "$RANDOM" > inventaire.txt
+git add inventaire.txt && git commit -qm "Inventaire initial"
+```
+
+</details>
+
+#### Q1 · Défi réel (sandbox)
+
+Dans ton dossier personnel, crée un dépôt Git nu nommé miroir.git : un dépôt sans copie de travail, fait pour servir de distant.
+
+- Solution : `git init --bare ~/miroir.git`
+- Indice 1 (10 s) : git init, avec l'option qui fabrique un dépôt sans copie de travail : --bare.
+- Indice 2 (10 s) : Le dossier personnel s'écrit ~/miroir.git : le tilde se développe tout seul.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ "$(git -C ~/miroir.git rev-parse --is-bare-repository 2>/dev/null)" = true ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git init -q --bare ~/miroir.git
+```
+
+</details>
+
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Dans ton dossier personnel, crée un dépôt Git nu nommé sauvegarde.git, sans copie de travail.
+
+- Solution : `git init --bare ~/sauvegarde.git`
+- Indice 1 (10 s) : La même option --bare ; seul le nom du dossier change.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ "$(git -C ~/sauvegarde.git rev-parse --is-bare-repository 2>/dev/null)" = true ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git init -q --bare ~/sauvegarde.git
+```
+
+</details>
+
+#### Q2 · Défi réel (sandbox)
+
+Dans le dépôt musee, déclare le dépôt nu ~/miroir.git comme distant, sous le nom origin.
+
+- Solution : `git -C ~/musee remote add origin ~/miroir.git`
+- Indice 1 (10 s) : git remote add NOM ADRESSE associe un nom à un chemin de dépôt.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+url=$(git -C ~/musee remote get-url origin 2>/dev/null) || exit 1
+case "$url" in /*) ;; *) url="$HOME/musee/$url";; esac
+[ "$(realpath -m "$url")" = "$HOME/miroir.git" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git -C ~/musee remote remove origin 2>/dev/null || true
+git -C ~/musee remote add origin "$HOME/miroir.git"
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Dans le dépôt musee, déclare le dépôt nu ~/miroir.git comme distant, sous le nom backup.
+
+- Solution : `git -C ~/musee remote add backup ~/miroir.git`
+- Indice 1 (10 s) : Seul le nom du distant change : backup au lieu d'origin.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+url=$(git -C ~/musee remote get-url backup 2>/dev/null) || exit 1
+case "$url" in /*) ;; *) url="$HOME/musee/$url";; esac
+[ "$(realpath -m "$url")" = "$HOME/miroir.git" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git -C ~/musee remote remove backup 2>/dev/null || true
+git -C ~/musee remote add backup "$HOME/miroir.git"
+```
+
+</details>
+
+#### Q3 · Défi réel (sandbox)
+
+Envoie la branche main de musee sur le distant origin, et mémorise le lien : main doit suivre origin/main.
+
+- Solution : `git -C ~/musee push -u origin main`
+- Indice 1 (10 s) : git push NOMDISTANT BRANCHE envoie la branche ; l'option -u mémorise le suivi.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -n "$(git -C ~/musee rev-parse -q --verify origin/main 2>/dev/null)" ] \
+  && [ "$(git -C ~/musee rev-parse main)" = "$(git -C ~/musee rev-parse origin/main)" ] \
+  && [ "$(git -C ~/musee rev-parse -q --verify main@{upstream} 2>/dev/null)" = "$(git -C ~/musee rev-parse main)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git -C ~/musee push -q -u origin main >/dev/null 2>&1
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Le dépôt nu est aussi déclaré sous le nom backup. Envoie main sur backup, avec suivi : main doit suivre backup/main.
+
+- Solution : `git -C ~/musee push -u backup main`
+- Indice 1 (10 s) : Le même geste, un autre nom de distant : git push -u backup main.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+git -C ~/musee remote add backup "$HOME/miroir.git" 2>/dev/null || true
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -n "$(git -C ~/musee rev-parse -q --verify backup/main 2>/dev/null)" ] \
+  && [ "$(git -C ~/musee rev-parse main)" = "$(git -C ~/musee rev-parse backup/main)" ] \
+  && [ "$(git -C ~/musee rev-parse -q --verify main@{upstream} 2>/dev/null)" = "$(git -C ~/musee rev-parse main)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git -C ~/musee push -q -u backup main >/dev/null 2>&1
+```
+
+</details>
+
+#### Q4 · Défi réel (sandbox)
+
+Fais un clone du distant ~/miroir.git dans un dossier nommé copie, dans ton dossier personnel. Le clone doit contenir inventaire.txt et pointer son origin vers le dépôt nu.
+
+- Solution : `git clone ~/miroir.git ~/copie`
+- Indice 1 (10 s) : git clone ADRESSE DOSSIER copie un distant et branche origin dessus tout seul.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+u=$(git -C ~/copie remote get-url origin 2>/dev/null) || exit 1
+case "$u" in /*) ;; *) u="$HOME/copie/$u";; esac
+[ "$(realpath -m "$u")" = "$HOME/miroir.git" ] \
+  && [ "$(cat ~/copie/inventaire.txt 2>/dev/null)" = "$(git -C ~/miroir.git show main:inventaire.txt 2>/dev/null)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+rm -rf ~/copie
+git clone -q "$HOME/miroir.git" "$HOME/copie"
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Fais un clone du distant ~/miroir.git dans un dossier nommé vitrine. Il doit contenir inventaire.txt et pointer son origin vers le dépôt nu.
+
+- Solution : `git clone ~/miroir.git ~/vitrine`
+- Indice 1 (10 s) : La même commande de clone, un autre dossier de destination.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+u=$(git -C ~/vitrine remote get-url origin 2>/dev/null) || exit 1
+case "$u" in /*) ;; *) u="$HOME/vitrine/$u";; esac
+[ "$(realpath -m "$u")" = "$HOME/miroir.git" ] \
+  && [ "$(cat ~/vitrine/inventaire.txt 2>/dev/null)" = "$(git -C ~/miroir.git show main:inventaire.txt 2>/dev/null)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+rm -rf ~/vitrine
+git clone -q "$HOME/miroir.git" "$HOME/vitrine"
+```
+
+</details>
+
+#### Q5 · Défi réel (sandbox)
+
+Un collègue a poussé un commit sur le distant : le fichier nouveaute.txt y est maintenant. Récupère-le et intègre-le dans musee : après ton git pull, ta branche main doit être à jour avec le distant.
+
+- Solution : `cd ~/musee && git pull`
+- Indice 1 (10 s) : git pull, c'est git fetch puis une intégration : il ramène le commit du collègue et avance main.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+rm -rf /tmp/gg_miroir_collegue
+git clone -q "$HOME/miroir.git" /tmp/gg_miroir_collegue
+cd /tmp/gg_miroir_collegue
+printf 'nouveaute %d\n' "$RANDOM" > nouveaute.txt
+git add nouveaute.txt && git commit -qm "Ajout du collègue"
+git push -q origin main >/dev/null 2>&1
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/musee/nouveaute.txt ] \
+  && [ "$(git -C ~/musee rev-parse main 2>/dev/null)" = "$(git -C ~/miroir.git rev-parse refs/heads/main 2>/dev/null)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git -C ~/musee pull -q origin main >/dev/null 2>&1
+```
+
+</details>
+
+#### Q5 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Le collègue a encore poussé : surprise.txt est arrivé sur le distant. Récupère-le et intègre-le dans musee, main à jour.
+
+- Solution : `cd ~/musee && git pull`
+- Indice 1 (10 s) : Le même réflexe : rapatrier puis intégrer.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+rm -rf /tmp/gg_miroir_collegue
+git clone -q "$HOME/miroir.git" /tmp/gg_miroir_collegue
+cd /tmp/gg_miroir_collegue
+printf 'surprise %d\n' "$RANDOM" > surprise.txt
+git add surprise.txt && git commit -qm "Surprise du collègue"
+git push -q origin main >/dev/null 2>&1
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/musee/surprise.txt ] \
+  && [ "$(git -C ~/musee rev-parse main 2>/dev/null)" = "$(git -C ~/miroir.git rev-parse refs/heads/main 2>/dev/null)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git -C ~/musee pull -q origin main >/dev/null 2>&1
+```
+
+</details>
+
+#### Q6 · Défi réel (sandbox)
+
+Le collègue a poussé reliquat.txt. Récupère ce commit dans les références de musee, mais SANS l'intégrer : ta branche main ne doit pas bouger, reliquat.txt ne doit pas exister dans ta copie de travail, et le commit doit apparaître dans origin/main.
+
+- Solution : `cd ~/musee && git fetch origin`
+- Indice 1 (10 s) : git fetch met à jour origin/main sans toucher à ta branche : c'est la moitié silencieuse de git pull.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+rm -rf /tmp/gg_miroir_collegue
+git clone -q "$HOME/miroir.git" /tmp/gg_miroir_collegue
+cd /tmp/gg_miroir_collegue
+printf 'reliquat %d\n' "$RANDOM" > reliquat.txt
+git add reliquat.txt && git commit -qm "Reliquat"
+git push -q origin main >/dev/null 2>&1
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ "$(git -C ~/musee rev-parse main 2>/dev/null)" != "$(git -C ~/musee rev-parse refs/remotes/origin/main 2>/dev/null)" ] \
+  && git -C ~/musee cat-file -e "refs/remotes/origin/main:reliquat.txt" 2>/dev/null \
+  && [ ! -f ~/musee/reliquat.txt ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git -C ~/musee fetch -q origin
+```
+
+</details>
+
+#### Q6 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Le collègue a poussé vestige.txt. Rapatrie-le dans les références de musee sans l'intégrer : main ne bouge pas, vestige.txt est absent de ta copie de travail, mais présent dans origin/main.
+
+- Solution : `cd ~/musee && git fetch origin`
+- Indice 1 (10 s) : Le fetch ne touche ni main ni les fichiers : seul origin/main avance.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+git init -q --bare ~/miroir.git 2>/dev/null || true
+git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+rm -rf /tmp/gg_miroir_collegue
+git clone -q "$HOME/miroir.git" /tmp/gg_miroir_collegue
+cd /tmp/gg_miroir_collegue
+printf 'vestige %d\n' "$RANDOM" > vestige.txt
+git add vestige.txt && git commit -qm "Vestige"
+git push -q origin main >/dev/null 2>&1
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ "$(git -C ~/musee rev-parse main 2>/dev/null)" != "$(git -C ~/musee rev-parse refs/remotes/origin/main 2>/dev/null)" ] \
+  && git -C ~/musee cat-file -e "refs/remotes/origin/main:vestige.txt" 2>/dev/null \
+  && [ ! -f ~/musee/vestige.txt ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+git -C ~/musee fetch -q origin
 ```
 
 </details>
@@ -3467,7 +3915,9 @@ git reset -q --hard HEAD~2
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-[ "$(git -C ~/journal log -1 --format=%s)" = "jour 8" ] && [ "$(git -C ~/journal branch --show-current)" = main ]
+orig=$(git -C ~/journal reflog --format='%H %s' | awk '/ jour 8$/ {h = $1} END {print h}')
+[ -n "$orig" ] && [ "$(git -C ~/journal rev-parse main)" = "$orig" ] \
+  && [ "$(git -C ~/journal branch --show-current)" = main ]
 ```
 
 Résolution automatique (tests) :
@@ -4152,6 +4602,7 @@ cd ~/atelier && awk -F';' '$3 > 15 {print $1, $2, $3}' ventes_*.csv > gros.txt
 | Questions | 4 |
 | XP | 480 |
 | Sabotages signature | false_red, mutation |
+| Débloque | gg_defaire_01 |
 
 git stash, cherry-pick, rebase --autosquash et les hooks.
 
@@ -4216,7 +4667,8 @@ Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
 cd ~/atelier-git && [ "$(git branch --show-current)" = main ] && git cat-file -e main:correctif.sh 2>/dev/null \
-  && ! git cat-file -e main:brouillon.txt 2>/dev/null && ! git cat-file -e main:essai.txt 2>/dev/null
+  && ! git cat-file -e main:brouillon.txt 2>/dev/null && ! git cat-file -e main:essai.txt 2>/dev/null \
+  && git log main --format=%s | grep -qx "fix: le correctif important"
 ```
 
 Résolution automatique (tests) :
@@ -4669,6 +5121,480 @@ Résolution automatique (tests) :
 ```bash
 pwsh -NoProfile -NonInteractive -Command 'Stop-Process -Name goulot, espion -Force'
 sleep 0.2
+```
+
+</details>
+
+### gg_defaire_01 — Défaire sans casser
+
+> Chaque bêtise a son antidote : encore faut-il choisir le bon flacon.
+
+| | |
+| --- | --- |
+| Palier | Root Wizard |
+| Arbre | Git-Gud |
+| Exécution | Sandbox Docker (bash) |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 6 |
+| XP | 460 |
+| Sabotages signature | mutation, hostile_alias |
+
+reset --soft, restore --staged, restore, commit --amend, rm --cached, clean : six façons de défaire, chacune à sa place exacte.
+
+<details><summary>Préparation du niveau</summary>
+
+```bash
+git config --global user.name agent
+git config --global user.email agent@sandbox
+git config --global init.defaultBranch main
+rm -rf ~/chantier-git
+mkdir ~/chantier-git && cd ~/chantier-git && git init -q
+printf '# Chantier\n' > LISEZMOI.md
+git add LISEZMOI.md && git commit -qm "Départ"
+```
+
+</details>
+
+#### Q1 · Défi réel (sandbox)
+
+Dans chantier-git, le dernier commit (« Réglage raté ») est raté, mais ses modifications restent utiles. Ramène main sur le commit précédent sans rien perdre : la modification de config.txt doit se retrouver en zone de préparation, et ta copie de travail ne doit pas différer de l'index.
+
+- Solution : `git reset --soft HEAD~1`
+- Indice 1 (10 s) : git reset a trois dosages : --soft garde tout, --mixed déstage, --hard efface. Il te faut celui qui garde la zone de préparation.
+- Indice 2 (10 s) : HEAD~1 désigne le commit juste avant le dernier.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+printf 'timeout = %d\n' "$RANDOM" > config.txt
+git add config.txt && git commit -qm "Config"
+printf 'mode = verbose\n' >> config.txt
+git commit -qam "Réglage raté"
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+[ "$(git log -1 --format=%s)" = "Config" ] || exit 1
+git diff --cached --quiet && exit 1
+git diff --quiet || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git reset -q --soft HEAD~1
+```
+
+</details>
+
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Le dernier commit (« Grosse bavure ») est raté, mais ses modifications restent utiles. Ramène main sur le commit précédent : la modification de seuil.txt doit rester en zone de préparation, la copie de travail identique à l'index.
+
+- Solution : `git reset --soft HEAD~1`
+- Indice 1 (10 s) : Exactement le même geste : seul le nom du commit change.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+printf 'seuil = %d\n' "$RANDOM" > seuil.txt
+git add seuil.txt && git commit -qm "Base"
+printf 'seuil bis = %d\n' "$RANDOM" >> seuil.txt
+git commit -qam "Grosse bavure"
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+[ "$(git log -1 --format=%s)" = "Base" ] || exit 1
+git diff --cached --quiet && exit 1
+git diff --quiet || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git reset -q --soft HEAD~1
+```
+
+</details>
+
+#### Q2 · Défi réel (sandbox)
+
+budget.txt a été modifié puis ajouté à la zone de préparation. Retire-le de la zone sans perdre la modification et sans commiter : le fichier doit rester modifié sur le disque, et le dernier commit ne doit pas bouger.
+
+- Solution : `git restore --staged budget.txt`
+- Indice 1 (10 s) : git restore, avec l'option qui ne touche qu'à la zone de préparation : --staged.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git reset -q
+printf 'budget = %d\n' "$RANDOM" > budget.txt
+git add budget.txt && git commit -qm "Budget"
+printf 'budget bis = %d\n' "$RANDOM" >> budget.txt
+git add budget.txt
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+git diff --cached --quiet -- budget.txt || exit 1
+[ "$(cat budget.txt)" != "$(git show HEAD:budget.txt)" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git restore --staged budget.txt
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+planning.txt a été modifié puis ajouté à la zone de préparation. Retire-le de la zone sans perdre la modification et sans commiter.
+
+- Solution : `git restore --staged planning.txt`
+- Indice 1 (10 s) : La même option --staged, sur l'autre fichier.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git reset -q
+printf 'planning = %d\n' "$RANDOM" > planning.txt
+git add planning.txt && git commit -qm "Planning"
+printf 'planning bis = %d\n' "$RANDOM" >> planning.txt
+git add planning.txt
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+git diff --cached --quiet -- planning.txt || exit 1
+[ "$(cat planning.txt)" != "$(git show HEAD:planning.txt)" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git restore --staged planning.txt
+```
+
+</details>
+
+#### Q3 · Défi réel (sandbox)
+
+Une ligne parasite (elle contient le mot « parasite ») s'est glissée à la fin de LISEZMOI.md, sans être commitée. Défais-la : le fichier doit revenir exactement à l'état du dernier commit.
+
+- Solution : `git restore LISEZMOI.md`
+- Indice 1 (10 s) : git restore FICHIER ramène la copie de travail à l'état du dernier commit.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git reset -q
+printf 'ligne parasite %d\n' "$RANDOM" >> LISEZMOI.md
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+git diff HEAD --quiet -- LISEZMOI.md || exit 1
+git show HEAD:LISEZMOI.md | grep -q parasite && exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git restore LISEZMOI.md
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Une ligne de sabotage (elle contient le mot « sabotage ») a été ajoutée à la fin de regles.txt, sans être commitée. Le fichier doit revenir à l'état du dernier commit.
+
+- Solution : `git restore regles.txt`
+- Indice 1 (10 s) : restore sans option s'occupe de la copie de travail, pas de l'index.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git reset -q
+printf 'regle %d\n' "$RANDOM" > regles.txt
+git add regles.txt && git commit -qm "Règles"
+printf 'sabotage %d\n' "$RANDOM" >> regles.txt
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+git diff HEAD --quiet -- regles.txt || exit 1
+git show HEAD:regles.txt | grep -q sabotage && exit 1
+[ -s regles.txt ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git restore regles.txt
+```
+
+</details>
+
+#### Q4 · Défi réel (sandbox)
+
+Le dernier commit (« fix ») porte un message trop vague. Renomme-le en « Correctif du compteur » : modifie ce commit, sans en créer de nouveau et sans ouvrir d'éditeur.
+
+- Solution : `git commit --amend -m "Correctif du compteur"`
+- Indice 1 (10 s) : git commit --amend remplace le dernier commit au lieu d'en empiler un autre.
+- Indice 2 (10 s) : Avec -m, aucun éditeur ne s'ouvre.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git reset -q
+printf 'avance = %d\n' "$RANDOM" > avance.txt
+git add avance.txt && git commit -qm "fix"
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+[ "$(git log -1 --format=%s)" = "Correctif du compteur" ] || exit 1
+git diff --quiet main~1 main && exit 1
+git cat-file -e HEAD:avance.txt 2>/dev/null || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git commit -q --amend -m "Correctif du compteur"
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Le dernier commit (« corr ») porte un message trop vague. Renomme-le en « Rapport du soir » : modifie ce commit, sans en créer de nouveau, sans éditeur.
+
+- Solution : `git commit --amend -m "Rapport du soir"`
+- Indice 1 (10 s) : Le même --amend : seul le message change.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git reset -q
+printf 'compte = %d\n' "$RANDOM" > compte-rendu.txt
+git add compte-rendu.txt && git commit -qm "corr"
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+[ "$(git log -1 --format=%s)" = "Rapport du soir" ] || exit 1
+git diff --quiet main~1 main && exit 1
+git cat-file -e HEAD:compte-rendu.txt 2>/dev/null || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git commit -q --amend -m "Rapport du soir"
+```
+
+</details>
+
+#### Q5 · Défi réel (sandbox)
+
+jeton.txt contient un token : le fichier ne doit plus être suivi par Git, mais il doit rester sur ton disque. Retire-le de l'index : le retrait doit être en zone de préparation, pas encore commité.
+
+- Solution : `git rm --cached jeton.txt`
+- Indice 1 (10 s) : git rm, avec l'option qui retire du dépôt mais garde le fichier sur le disque : --cached.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git reset -q
+printf 'token = tok-%d\n' "$RANDOM" > jeton.txt
+git add jeton.txt && git commit -qm "Ajoute jeton.txt"
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+[ -f jeton.txt ] || exit 1
+git ls-files --error-unmatch jeton.txt >/dev/null 2>&1 && exit 1
+git diff --cached --quiet && exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git rm -q --cached jeton.txt
+```
+
+</details>
+
+#### Q5 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+cle.txt contient une clé : elle ne doit plus être suivie, mais rester sur ton disque. Retire-la de l'index, le retrait en zone de préparation, pas encore commité.
+
+- Solution : `git rm --cached cle.txt`
+- Indice 1 (10 s) : La même option --cached, pour garder le fichier.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git reset -q
+printf 'cle = cle-%d\n' "$RANDOM" > cle.txt
+git add cle.txt && git commit -qm "Ajoute cle.txt"
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+[ -f cle.txt ] || exit 1
+git ls-files --error-unmatch cle.txt >/dev/null 2>&1 && exit 1
+git diff --cached --quiet && exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git rm -q --cached cle.txt
+```
+
+</details>
+
+#### Q6 · Défi réel (sandbox)
+
+Des fichiers temporaires nommés tmp-*.log (leur nombre est inconnu) traînent dans chantier-git, non suivis. Supprime-les tous, mais ne touche pas au fichier garde-moi.txt : il doit rester intact et non suivi.
+
+- Solution : `git clean -f tmp-*.log`
+- Indice 1 (10 s) : git clean supprime les fichiers non suivis ; donne-lui le motif tmp-*.log pour ne viser qu'eux.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git commit -qm "Retrait de jeton.txt" 2>/dev/null || true
+git reset -q
+printf 'donnees precieuses %d\n' "$RANDOM" > garde-moi.txt
+n=$((RANDOM % 3 + 3))
+i=1
+while [ "$i" -le "$n" ]; do touch "tmp-$i.log"; i=$((i+1)); done
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+ls tmp-*.log >/dev/null 2>&1 && exit 1
+[ -n "$(cat garde-moi.txt 2>/dev/null)" ] || exit 1
+git ls-files --error-unmatch garde-moi.txt >/dev/null 2>&1 && exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git clean -qf tmp-*.log
+```
+
+</details>
+
+#### Q6 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Des fichiers temporaires nommés old-*.bak (nombre inconnu) traînent, non suivis. Supprime-les tous, sans toucher à precieux.txt, qui doit rester intact et non suivi.
+
+- Solution : `git clean -f old-*.bak`
+- Indice 1 (10 s) : La même commande de ménage, un autre motif : old-*.bak.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/chantier-git
+git commit -qm "Menage" 2>/dev/null || true
+git reset -q
+printf 'tresor %d\n' "$RANDOM" > precieux.txt
+n=$((RANDOM % 3 + 3))
+i=1
+while [ "$i" -le "$n" ]; do touch "old-$i.bak"; i=$((i+1)); done
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~/chantier-git || exit 1
+ls old-*.bak >/dev/null 2>&1 && exit 1
+[ -n "$(cat precieux.txt 2>/dev/null)" ] || exit 1
+git ls-files --error-unmatch precieux.txt >/dev/null 2>&1 && exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/chantier-git && git clean -qf old-*.bak
 ```
 
 </details>

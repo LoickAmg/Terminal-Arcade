@@ -1,0 +1,267 @@
+# Lot C de la vague 2 (Mistral), testé au banc d'essai.
+id: gg_defaire_01
+title: "Défaire sans casser"
+hook: "Chaque bêtise a son antidote : encore faut-il choisir le bon flacon."
+tier: root_wizard
+tree: git_gud
+runtime: docker
+shell: bash
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [mutation, hostile_alias] }
+intro: "reset --soft, restore --staged, restore, commit --amend, rm --cached, clean : six façons de défaire, chacune à sa place exacte."
+setup: |
+  git config --global user.name agent
+  git config --global user.email agent@sandbox
+  git config --global init.defaultBranch main
+  rm -rf ~/chantier-git
+  mkdir ~/chantier-git && cd ~/chantier-git && git init -q
+  printf '# Chantier\n' > LISEZMOI.md
+  git add LISEZMOI.md && git commit -qm "Départ"
+questions:
+  - kind: task
+    prompt: "Dans chantier-git, le dernier commit (« Réglage raté ») est raté, mais ses modifications restent utiles. Ramène main sur le commit précédent sans rien perdre : la modification de config.txt doit se retrouver en zone de préparation, et ta copie de travail ne doit pas différer de l'index."
+    setup: |
+      cd ~/chantier-git
+      printf 'timeout = %d\n' "$RANDOM" > config.txt
+      git add config.txt && git commit -qm "Config"
+      printf 'mode = verbose\n' >> config.txt
+      git commit -qam "Réglage raté"
+    check: |
+      cd ~/chantier-git || exit 1
+      [ "$(git log -1 --format=%s)" = "Config" ] || exit 1
+      git diff --cached --quiet && exit 1
+      git diff --quiet || exit 1
+      exit 0
+    solution: "git reset --soft HEAD~1"
+    solve: |
+      cd ~/chantier-git && git reset -q --soft HEAD~1
+    flag: false
+    hints:
+      - { text: "git reset a trois dosages : --soft garde tout, --mixed déstage, --hard efface. Il te faut celui qui garde la zone de préparation." }
+      - { text: "HEAD~1 désigne le commit juste avant le dernier." }
+    variant:
+      kind: task
+      prompt: "Le dernier commit (« Grosse bavure ») est raté, mais ses modifications restent utiles. Ramène main sur le commit précédent : la modification de seuil.txt doit rester en zone de préparation, la copie de travail identique à l'index."
+      setup: |
+        cd ~/chantier-git
+        printf 'seuil = %d\n' "$RANDOM" > seuil.txt
+        git add seuil.txt && git commit -qm "Base"
+        printf 'seuil bis = %d\n' "$RANDOM" >> seuil.txt
+        git commit -qam "Grosse bavure"
+      check: |
+        cd ~/chantier-git || exit 1
+        [ "$(git log -1 --format=%s)" = "Base" ] || exit 1
+        git diff --cached --quiet && exit 1
+        git diff --quiet || exit 1
+        exit 0
+      solution: "git reset --soft HEAD~1"
+      solve: |
+        cd ~/chantier-git && git reset -q --soft HEAD~1
+      hints:
+        - { text: "Exactement le même geste : seul le nom du commit change." }
+
+  - kind: task
+    prompt: "budget.txt a été modifié puis ajouté à la zone de préparation. Retire-le de la zone sans perdre la modification et sans commiter : le fichier doit rester modifié sur le disque, et le dernier commit ne doit pas bouger."
+    setup: |
+      cd ~/chantier-git
+      git reset -q
+      printf 'budget = %d\n' "$RANDOM" > budget.txt
+      git add budget.txt && git commit -qm "Budget"
+      printf 'budget bis = %d\n' "$RANDOM" >> budget.txt
+      git add budget.txt
+    check: |
+      cd ~/chantier-git || exit 1
+      git diff --cached --quiet -- budget.txt || exit 1
+      [ "$(cat budget.txt)" != "$(git show HEAD:budget.txt)" ] || exit 1
+      exit 0
+    solution: "git restore --staged budget.txt"
+    solve: |
+      cd ~/chantier-git && git restore --staged budget.txt
+    flag: false
+    hints:
+      - { text: "git restore, avec l'option qui ne touche qu'à la zone de préparation : --staged." }
+    variant:
+      kind: task
+      prompt: "planning.txt a été modifié puis ajouté à la zone de préparation. Retire-le de la zone sans perdre la modification et sans commiter."
+      setup: |
+        cd ~/chantier-git
+        git reset -q
+        printf 'planning = %d\n' "$RANDOM" > planning.txt
+        git add planning.txt && git commit -qm "Planning"
+        printf 'planning bis = %d\n' "$RANDOM" >> planning.txt
+        git add planning.txt
+      check: |
+        cd ~/chantier-git || exit 1
+        git diff --cached --quiet -- planning.txt || exit 1
+        [ "$(cat planning.txt)" != "$(git show HEAD:planning.txt)" ] || exit 1
+        exit 0
+      solution: "git restore --staged planning.txt"
+      solve: |
+        cd ~/chantier-git && git restore --staged planning.txt
+      hints:
+        - { text: "La même option --staged, sur l'autre fichier." }
+
+  - kind: task
+    prompt: "Une ligne parasite (elle contient le mot « parasite ») s'est glissée à la fin de LISEZMOI.md, sans être commitée. Défais-la : le fichier doit revenir exactement à l'état du dernier commit."
+    setup: |
+      cd ~/chantier-git
+      git reset -q
+      printf 'ligne parasite %d\n' "$RANDOM" >> LISEZMOI.md
+    check: |
+      cd ~/chantier-git || exit 1
+      git diff HEAD --quiet -- LISEZMOI.md || exit 1
+      git show HEAD:LISEZMOI.md | grep -q parasite && exit 1
+      exit 0
+    solution: "git restore LISEZMOI.md"
+    solve: |
+      cd ~/chantier-git && git restore LISEZMOI.md
+    flag: false
+    hints:
+      - { text: "git restore FICHIER ramène la copie de travail à l'état du dernier commit." }
+    variant:
+      kind: task
+      prompt: "Une ligne de sabotage (elle contient le mot « sabotage ») a été ajoutée à la fin de regles.txt, sans être commitée. Le fichier doit revenir à l'état du dernier commit."
+      setup: |
+        cd ~/chantier-git
+        git reset -q
+        printf 'regle %d\n' "$RANDOM" > regles.txt
+        git add regles.txt && git commit -qm "Règles"
+        printf 'sabotage %d\n' "$RANDOM" >> regles.txt
+      check: |
+        cd ~/chantier-git || exit 1
+        git diff HEAD --quiet -- regles.txt || exit 1
+        git show HEAD:regles.txt | grep -q sabotage && exit 1
+        [ -s regles.txt ] || exit 1
+        exit 0
+      solution: "git restore regles.txt"
+      solve: |
+        cd ~/chantier-git && git restore regles.txt
+      hints:
+        - { text: "restore sans option s'occupe de la copie de travail, pas de l'index." }
+
+  - kind: task
+    prompt: "Le dernier commit (« fix ») porte un message trop vague. Renomme-le en « Correctif du compteur » : modifie ce commit, sans en créer de nouveau et sans ouvrir d'éditeur."
+    setup: |
+      cd ~/chantier-git
+      git reset -q
+      printf 'avance = %d\n' "$RANDOM" > avance.txt
+      git add avance.txt && git commit -qm "fix"
+    check: |
+      cd ~/chantier-git || exit 1
+      [ "$(git log -1 --format=%s)" = "Correctif du compteur" ] || exit 1
+      git diff --quiet main~1 main && exit 1
+      git cat-file -e HEAD:avance.txt 2>/dev/null || exit 1
+      exit 0
+    solution: 'git commit --amend -m "Correctif du compteur"'
+    solve: |
+      cd ~/chantier-git && git commit -q --amend -m "Correctif du compteur"
+    flag: false
+    hints:
+      - { text: "git commit --amend remplace le dernier commit au lieu d'en empiler un autre." }
+      - { text: "Avec -m, aucun éditeur ne s'ouvre." }
+    variant:
+      kind: task
+      prompt: "Le dernier commit (« corr ») porte un message trop vague. Renomme-le en « Rapport du soir » : modifie ce commit, sans en créer de nouveau, sans éditeur."
+      setup: |
+        cd ~/chantier-git
+        git reset -q
+        printf 'compte = %d\n' "$RANDOM" > compte-rendu.txt
+        git add compte-rendu.txt && git commit -qm "corr"
+      check: |
+        cd ~/chantier-git || exit 1
+        [ "$(git log -1 --format=%s)" = "Rapport du soir" ] || exit 1
+        git diff --quiet main~1 main && exit 1
+        git cat-file -e HEAD:compte-rendu.txt 2>/dev/null || exit 1
+        exit 0
+      solution: 'git commit --amend -m "Rapport du soir"'
+      solve: |
+        cd ~/chantier-git && git commit -q --amend -m "Rapport du soir"
+      hints:
+        - { text: "Le même --amend : seul le message change." }
+
+  - kind: task
+    prompt: "jeton.txt contient un token : le fichier ne doit plus être suivi par Git, mais il doit rester sur ton disque. Retire-le de l'index : le retrait doit être en zone de préparation, pas encore commité."
+    setup: |
+      cd ~/chantier-git
+      git reset -q
+      printf 'token = tok-%d\n' "$RANDOM" > jeton.txt
+      git add jeton.txt && git commit -qm "Ajoute jeton.txt"
+    check: |
+      cd ~/chantier-git || exit 1
+      [ -f jeton.txt ] || exit 1
+      git ls-files --error-unmatch jeton.txt >/dev/null 2>&1 && exit 1
+      git diff --cached --quiet && exit 1
+      exit 0
+    solution: "git rm --cached jeton.txt"
+    solve: |
+      cd ~/chantier-git && git rm -q --cached jeton.txt
+    flag: false
+    hints:
+      - { text: "git rm, avec l'option qui retire du dépôt mais garde le fichier sur le disque : --cached." }
+    variant:
+      kind: task
+      prompt: "cle.txt contient une clé : elle ne doit plus être suivie, mais rester sur ton disque. Retire-la de l'index, le retrait en zone de préparation, pas encore commité."
+      setup: |
+        cd ~/chantier-git
+        git reset -q
+        printf 'cle = cle-%d\n' "$RANDOM" > cle.txt
+        git add cle.txt && git commit -qm "Ajoute cle.txt"
+      check: |
+        cd ~/chantier-git || exit 1
+        [ -f cle.txt ] || exit 1
+        git ls-files --error-unmatch cle.txt >/dev/null 2>&1 && exit 1
+        git diff --cached --quiet && exit 1
+        exit 0
+      solution: "git rm --cached cle.txt"
+      solve: |
+        cd ~/chantier-git && git rm -q --cached cle.txt
+      hints:
+        - { text: "La même option --cached, pour garder le fichier." }
+
+  - kind: task
+    prompt: "Des fichiers temporaires nommés tmp-*.log (leur nombre est inconnu) traînent dans chantier-git, non suivis. Supprime-les tous, mais ne touche pas au fichier garde-moi.txt : il doit rester intact et non suivi."
+    setup: |
+      cd ~/chantier-git
+      git commit -qm "Retrait de jeton.txt" 2>/dev/null || true
+      git reset -q
+      printf 'donnees precieuses %d\n' "$RANDOM" > garde-moi.txt
+      n=$((RANDOM % 3 + 3))
+      i=1
+      while [ "$i" -le "$n" ]; do touch "tmp-$i.log"; i=$((i+1)); done
+    check: |
+      cd ~/chantier-git || exit 1
+      ls tmp-*.log >/dev/null 2>&1 && exit 1
+      [ -n "$(cat garde-moi.txt 2>/dev/null)" ] || exit 1
+      git ls-files --error-unmatch garde-moi.txt >/dev/null 2>&1 && exit 1
+      exit 0
+    solution: "git clean -f tmp-*.log"
+    solve: |
+      cd ~/chantier-git && git clean -qf tmp-*.log
+    flag: false
+    hints:
+      - { text: "git clean supprime les fichiers non suivis ; donne-lui le motif tmp-*.log pour ne viser qu'eux." }
+    variant:
+      kind: task
+      prompt: "Des fichiers temporaires nommés old-*.bak (nombre inconnu) traînent, non suivis. Supprime-les tous, sans toucher à precieux.txt, qui doit rester intact et non suivi."
+      setup: |
+        cd ~/chantier-git
+        git commit -qm "Menage" 2>/dev/null || true
+        git reset -q
+        printf 'tresor %d\n' "$RANDOM" > precieux.txt
+        n=$((RANDOM % 3 + 3))
+        i=1
+        while [ "$i" -le "$n" ]; do touch "old-$i.bak"; i=$((i+1)); done
+      check: |
+        cd ~/chantier-git || exit 1
+        ls old-*.bak >/dev/null 2>&1 && exit 1
+        [ -n "$(cat precieux.txt 2>/dev/null)" ] || exit 1
+        git ls-files --error-unmatch precieux.txt >/dev/null 2>&1 && exit 1
+        exit 0
+      solution: "git clean -f old-*.bak"
+      solve: |
+        cd ~/chantier-git && git clean -qf old-*.bak
+      hints:
+        - { text: "La même commande de ménage, un autre motif : old-*.bak." }
+rewards:
+  xp: 460

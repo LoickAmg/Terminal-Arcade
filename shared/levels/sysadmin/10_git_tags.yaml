@@ -23,7 +23,7 @@ setup: |
 questions:
   - kind: task
     prompt: "Dans le dépôt site, pose un tag annoté v1.0.0 sur le dernier commit, avec le message « Première version »."
-    check: '[ "$(git -C ~/site cat-file -t v1.0.0 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v1.0.0)" = "Première version" ]'
+    check: '[ "$(git -C ~/site cat-file -t v1.0.0 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v1.0.0)" = "Première version" ] && [ "$(git -C ~/site rev-parse "v1.0.0^{commit}")" = "$(git -C ~/site rev-parse main)" ]'
     solution: "git tag -a v1.0.0 -m \"Première version\""
     solve: |
       git -C ~/site tag -a v1.0.0 -m "Première version"
@@ -32,7 +32,7 @@ questions:
     variant:
       kind: task
       prompt: "Dans le dépôt site, pose un tag annoté v0.9.0-beta sur le dernier commit, avec le message « Bêta »."
-      check: '[ "$(git -C ~/site cat-file -t v0.9.0-beta 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v0.9.0-beta)" = "Bêta" ]'
+      check: '[ "$(git -C ~/site cat-file -t v0.9.0-beta 2>/dev/null)" = tag ] && [ "$(git -C ~/site tag -l --format="%(contents:subject)" v0.9.0-beta)" = "Bêta" ] && [ "$(git -C ~/site rev-parse "v0.9.0-beta^{commit}")" = "$(git -C ~/site rev-parse main)" ]'
       solution: "git tag -a v0.9.0-beta -m \"Bêta\""
       solve: |
         git -C ~/site tag -a v0.9.0-beta -m "Bêta"
@@ -84,3 +84,4 @@ questions:
 
 rewards:
   xp: 360
+  unlocks: gg_miroir_01

@@ -1,0 +1,232 @@
+# Lot C de la vague 2 (Mistral), testé au banc d'essai.
+id: gg_miroir_01
+title: "Le dépôt miroir"
+hook: "Ton code n'existe vraiment qu'une fois qu'il a quitté ta machine."
+tier: sysadmin
+tree: git_gud
+runtime: docker
+shell: bash
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [mutation, false_red] }
+intro: "Un distant sans réseau : dépôt nu, remote, push avec suivi, clone, puis la vraie différence entre pull et fetch."
+setup: |
+  git config --global user.name agent
+  git config --global user.email agent@sandbox
+  git config --global init.defaultBranch main
+  rm -rf ~/musee ~/miroir.git ~/copie ~/vitrine
+  mkdir -p ~/musee && cd ~/musee && git init -q
+  printf 'inventaire %d\n' "$RANDOM" > inventaire.txt
+  git add inventaire.txt && git commit -qm "Inventaire initial"
+questions:
+  - kind: task
+    prompt: "Dans ton dossier personnel, crée un dépôt Git nu nommé miroir.git : un dépôt sans copie de travail, fait pour servir de distant."
+    check: |
+      [ "$(git -C ~/miroir.git rev-parse --is-bare-repository 2>/dev/null)" = true ]
+    solution: "git init --bare ~/miroir.git"
+    solve: |
+      git init -q --bare ~/miroir.git
+    flag: false
+    hints:
+      - { text: "git init, avec l'option qui fabrique un dépôt sans copie de travail : --bare." }
+      - { text: "Le dossier personnel s'écrit ~/miroir.git : le tilde se développe tout seul." }
+    variant:
+      kind: task
+      prompt: "Dans ton dossier personnel, crée un dépôt Git nu nommé sauvegarde.git, sans copie de travail."
+      check: |
+        [ "$(git -C ~/sauvegarde.git rev-parse --is-bare-repository 2>/dev/null)" = true ]
+      solution: "git init --bare ~/sauvegarde.git"
+      solve: |
+        git init -q --bare ~/sauvegarde.git
+      hints:
+        - { text: "La même option --bare ; seul le nom du dossier change." }
+
+  - kind: task
+    prompt: "Dans le dépôt musee, déclare le dépôt nu ~/miroir.git comme distant, sous le nom origin."
+    setup: |
+      git init -q --bare ~/miroir.git 2>/dev/null || true
+    check: |
+      url=$(git -C ~/musee remote get-url origin 2>/dev/null) || exit 1
+      case "$url" in /*) ;; *) url="$HOME/musee/$url";; esac
+      [ "$(realpath -m "$url")" = "$HOME/miroir.git" ]
+    solution: "git -C ~/musee remote add origin ~/miroir.git"
+    solve: |
+      git -C ~/musee remote remove origin 2>/dev/null || true
+      git -C ~/musee remote add origin "$HOME/miroir.git"
+    flag: false
+    hints:
+      - { text: "git remote add NOM ADRESSE associe un nom à un chemin de dépôt." }
+    variant:
+      kind: task
+      prompt: "Dans le dépôt musee, déclare le dépôt nu ~/miroir.git comme distant, sous le nom backup."
+      setup: |
+        git init -q --bare ~/miroir.git 2>/dev/null || true
+      check: |
+        url=$(git -C ~/musee remote get-url backup 2>/dev/null) || exit 1
+        case "$url" in /*) ;; *) url="$HOME/musee/$url";; esac
+        [ "$(realpath -m "$url")" = "$HOME/miroir.git" ]
+      solution: "git -C ~/musee remote add backup ~/miroir.git"
+      solve: |
+        git -C ~/musee remote remove backup 2>/dev/null || true
+        git -C ~/musee remote add backup "$HOME/miroir.git"
+      hints:
+        - { text: "Seul le nom du distant change : backup au lieu d'origin." }
+
+  - kind: task
+    prompt: "Envoie la branche main de musee sur le distant origin, et mémorise le lien : main doit suivre origin/main."
+    setup: |
+      git init -q --bare ~/miroir.git 2>/dev/null || true
+      git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+    check: |
+      [ -n "$(git -C ~/musee rev-parse -q --verify origin/main 2>/dev/null)" ] \
+        && [ "$(git -C ~/musee rev-parse main)" = "$(git -C ~/musee rev-parse origin/main)" ] \
+        && [ "$(git -C ~/musee rev-parse -q --verify main@{upstream} 2>/dev/null)" = "$(git -C ~/musee rev-parse main)" ]
+    solution: "git -C ~/musee push -u origin main"
+    solve: |
+      git -C ~/musee push -q -u origin main >/dev/null 2>&1
+    flag: false
+    hints:
+      - { text: "git push NOMDISTANT BRANCHE envoie la branche ; l'option -u mémorise le suivi." }
+    variant:
+      kind: task
+      prompt: "Le dépôt nu est aussi déclaré sous le nom backup. Envoie main sur backup, avec suivi : main doit suivre backup/main."
+      setup: |
+        git init -q --bare ~/miroir.git 2>/dev/null || true
+        git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+        git -C ~/musee remote add backup "$HOME/miroir.git" 2>/dev/null || true
+      check: |
+        [ -n "$(git -C ~/musee rev-parse -q --verify backup/main 2>/dev/null)" ] \
+          && [ "$(git -C ~/musee rev-parse main)" = "$(git -C ~/musee rev-parse backup/main)" ] \
+          && [ "$(git -C ~/musee rev-parse -q --verify main@{upstream} 2>/dev/null)" = "$(git -C ~/musee rev-parse main)" ]
+      solution: "git -C ~/musee push -u backup main"
+      solve: |
+        git -C ~/musee push -q -u backup main >/dev/null 2>&1
+      hints:
+        - { text: "Le même geste, un autre nom de distant : git push -u backup main." }
+
+  - kind: task
+    prompt: "Fais un clone du distant ~/miroir.git dans un dossier nommé copie, dans ton dossier personnel. Le clone doit contenir inventaire.txt et pointer son origin vers le dépôt nu."
+    setup: |
+      git init -q --bare ~/miroir.git 2>/dev/null || true
+      git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+      git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+    check: |
+      u=$(git -C ~/copie remote get-url origin 2>/dev/null) || exit 1
+      case "$u" in /*) ;; *) u="$HOME/copie/$u";; esac
+      [ "$(realpath -m "$u")" = "$HOME/miroir.git" ] \
+        && [ "$(cat ~/copie/inventaire.txt 2>/dev/null)" = "$(git -C ~/miroir.git show main:inventaire.txt 2>/dev/null)" ]
+    solution: "git clone ~/miroir.git ~/copie"
+    solve: |
+      rm -rf ~/copie
+      git clone -q "$HOME/miroir.git" "$HOME/copie"
+    flag: false
+    hints:
+      - { text: "git clone ADRESSE DOSSIER copie un distant et branche origin dessus tout seul." }
+    variant:
+      kind: task
+      prompt: "Fais un clone du distant ~/miroir.git dans un dossier nommé vitrine. Il doit contenir inventaire.txt et pointer son origin vers le dépôt nu."
+      setup: |
+        git init -q --bare ~/miroir.git 2>/dev/null || true
+        git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+        git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+      check: |
+        u=$(git -C ~/vitrine remote get-url origin 2>/dev/null) || exit 1
+        case "$u" in /*) ;; *) u="$HOME/vitrine/$u";; esac
+        [ "$(realpath -m "$u")" = "$HOME/miroir.git" ] \
+          && [ "$(cat ~/vitrine/inventaire.txt 2>/dev/null)" = "$(git -C ~/miroir.git show main:inventaire.txt 2>/dev/null)" ]
+      solution: "git clone ~/miroir.git ~/vitrine"
+      solve: |
+        rm -rf ~/vitrine
+        git clone -q "$HOME/miroir.git" "$HOME/vitrine"
+      hints:
+        - { text: "La même commande de clone, un autre dossier de destination." }
+
+  - kind: task
+    prompt: "Un collègue a poussé un commit sur le distant : le fichier nouveaute.txt y est maintenant. Récupère-le et intègre-le dans musee : après ton git pull, ta branche main doit être à jour avec le distant."
+    setup: |
+      git init -q --bare ~/miroir.git 2>/dev/null || true
+      git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+      git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+      rm -rf /tmp/gg_miroir_collegue
+      git clone -q "$HOME/miroir.git" /tmp/gg_miroir_collegue
+      cd /tmp/gg_miroir_collegue
+      printf 'nouveaute %d\n' "$RANDOM" > nouveaute.txt
+      git add nouveaute.txt && git commit -qm "Ajout du collègue"
+      git push -q origin main >/dev/null 2>&1
+    check: |
+      [ -f ~/musee/nouveaute.txt ] \
+        && [ "$(git -C ~/musee rev-parse main 2>/dev/null)" = "$(git -C ~/miroir.git rev-parse refs/heads/main 2>/dev/null)" ]
+    solution: "cd ~/musee && git pull"
+    solve: |
+      git -C ~/musee pull -q origin main >/dev/null 2>&1
+    flag: false
+    hints:
+      - { text: "git pull, c'est git fetch puis une intégration : il ramène le commit du collègue et avance main." }
+    variant:
+      kind: task
+      prompt: "Le collègue a encore poussé : surprise.txt est arrivé sur le distant. Récupère-le et intègre-le dans musee, main à jour."
+      setup: |
+        git init -q --bare ~/miroir.git 2>/dev/null || true
+        git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+        git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+        rm -rf /tmp/gg_miroir_collegue
+        git clone -q "$HOME/miroir.git" /tmp/gg_miroir_collegue
+        cd /tmp/gg_miroir_collegue
+        printf 'surprise %d\n' "$RANDOM" > surprise.txt
+        git add surprise.txt && git commit -qm "Surprise du collègue"
+        git push -q origin main >/dev/null 2>&1
+      check: |
+        [ -f ~/musee/surprise.txt ] \
+          && [ "$(git -C ~/musee rev-parse main 2>/dev/null)" = "$(git -C ~/miroir.git rev-parse refs/heads/main 2>/dev/null)" ]
+      solution: "cd ~/musee && git pull"
+      solve: |
+        git -C ~/musee pull -q origin main >/dev/null 2>&1
+      hints:
+        - { text: "Le même réflexe : rapatrier puis intégrer." }
+
+  - kind: task
+    prompt: "Le collègue a poussé reliquat.txt. Récupère ce commit dans les références de musee, mais SANS l'intégrer : ta branche main ne doit pas bouger, reliquat.txt ne doit pas exister dans ta copie de travail, et le commit doit apparaître dans origin/main."
+    setup: |
+      git init -q --bare ~/miroir.git 2>/dev/null || true
+      git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+      git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+      rm -rf /tmp/gg_miroir_collegue
+      git clone -q "$HOME/miroir.git" /tmp/gg_miroir_collegue
+      cd /tmp/gg_miroir_collegue
+      printf 'reliquat %d\n' "$RANDOM" > reliquat.txt
+      git add reliquat.txt && git commit -qm "Reliquat"
+      git push -q origin main >/dev/null 2>&1
+    check: |
+      [ "$(git -C ~/musee rev-parse main 2>/dev/null)" != "$(git -C ~/musee rev-parse refs/remotes/origin/main 2>/dev/null)" ] \
+        && git -C ~/musee cat-file -e "refs/remotes/origin/main:reliquat.txt" 2>/dev/null \
+        && [ ! -f ~/musee/reliquat.txt ]
+    solution: "cd ~/musee && git fetch origin"
+    solve: |
+      git -C ~/musee fetch -q origin
+    flag: false
+    hints:
+      - { text: "git fetch met à jour origin/main sans toucher à ta branche : c'est la moitié silencieuse de git pull." }
+    variant:
+      kind: task
+      prompt: "Le collègue a poussé vestige.txt. Rapatrie-le dans les références de musee sans l'intégrer : main ne bouge pas, vestige.txt est absent de ta copie de travail, mais présent dans origin/main."
+      setup: |
+        git init -q --bare ~/miroir.git 2>/dev/null || true
+        git -C ~/musee remote add origin "$HOME/miroir.git" 2>/dev/null || true
+        git -C ~/musee push -q origin main >/dev/null 2>&1 || true
+        rm -rf /tmp/gg_miroir_collegue
+        git clone -q "$HOME/miroir.git" /tmp/gg_miroir_collegue
+        cd /tmp/gg_miroir_collegue
+        printf 'vestige %d\n' "$RANDOM" > vestige.txt
+        git add vestige.txt && git commit -qm "Vestige"
+        git push -q origin main >/dev/null 2>&1
+      check: |
+        [ "$(git -C ~/musee rev-parse main 2>/dev/null)" != "$(git -C ~/musee rev-parse refs/remotes/origin/main 2>/dev/null)" ] \
+          && git -C ~/musee cat-file -e "refs/remotes/origin/main:vestige.txt" 2>/dev/null \
+          && [ ! -f ~/musee/vestige.txt ]
+      solution: "cd ~/musee && git fetch origin"
+      solve: |
+        git -C ~/musee fetch -q origin
+      hints:
+        - { text: "Le fetch ne touche ni main ni les fichiers : seul origin/main avance." }
+rewards:
+  xp: 360

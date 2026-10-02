@@ -35,7 +35,11 @@ questions:
       echo "jour 7" >> journal.txt && git commit -qam "jour 7"
       echo "jour 8" >> journal.txt && git commit -qam "jour 8"
       git reset -q --hard HEAD~2
-    check: '[ "$(git -C ~/journal log -1 --format=%s)" = "jour 8" ] && [ "$(git -C ~/journal branch --show-current)" = main ]'
+    # Le plus ancien « jour 8 » du reflog : un « jour 8 » recréé à la main ne compte pas.
+    check: |
+      orig=$(git -C ~/journal reflog --format='%H %s' | awk '/ jour 8$/ {h = $1} END {print h}')
+      [ -n "$orig" ] && [ "$(git -C ~/journal rev-parse main)" = "$orig" ] \
+        && [ "$(git -C ~/journal branch --show-current)" = main ]
     solution: "git reflog, repère le commit « jour 8 », puis git reset --hard <id>"
     solve: |
       cd ~/journal && git reset -q --hard "$(git reflog --format='%H %s' | grep ' jour 8$' | head -n 1 | cut -d' ' -f1)"

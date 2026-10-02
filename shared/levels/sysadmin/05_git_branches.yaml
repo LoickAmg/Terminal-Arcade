@@ -25,7 +25,7 @@ questions:
     check: |
       cd ~/appli && [ "$(git branch --show-current)" = main ] && [ ! -f .git/MERGE_HEAD ] \
         && [ "$(cat app.txt)" = "couleur = rouge" ] && git merge-base --is-ancestor rouge main
-    solution: "git merge rouge, corrige app.txt (ou git checkout --theirs app.txt), git add app.txt, git commit"
+    solution: "git merge rouge, corrige app.txt (ou git checkout --theirs app.txt), git add app.txt, git commit -m \"Fusion de rouge\""
     solve: |
       cd ~/appli && git merge rouge >/dev/null 2>&1; git checkout --theirs app.txt && git add app.txt && git commit -qm "Fusion de rouge"
     hints:
@@ -34,7 +34,10 @@ questions:
 
   - kind: task
     prompt: "Tu as des modifications en cours dans notes.txt mais tu dois changer de sujet : mets-les de côté avec git stash."
-    setup: 'cd ~/appli && echo "brouillon à finir" >> notes.txt'
+    setup: |
+      cd ~/appli
+      printf 'brouillon à finir %d\n' "$RANDOM" > /tmp/gg_branch_01_marque
+      cat /tmp/gg_branch_01_marque >> notes.txt
     check: 'cd ~/appli && git stash list | grep -q . && [ -z "$(git status --porcelain --untracked-files=no)" ]'
     solution: "git stash"
     solve: |
@@ -44,7 +47,17 @@ questions:
 
   - kind: task
     prompt: "C'est réglé : récupère tes modifications mises de côté."
-    check: 'cd ~/appli && [ -z "$(git stash list)" ] && grep -q "brouillon à finir" notes.txt'
+    # La marque est tirée au hasard : on ne peut pas la recopier sans la remise.
+    setup: |
+      cd ~/appli
+      if [ -z "$(git stash list)" ] && [ ! -f /tmp/gg_branch_01_marque ]; then
+        printf 'brouillon à finir %d\n' "$RANDOM" > /tmp/gg_branch_01_marque
+        cat /tmp/gg_branch_01_marque >> notes.txt
+        git stash -q
+      fi
+    check: |
+      cd ~/appli && [ -z "$(git stash list)" ] \
+        && [ "$(tail -n 1 notes.txt)" = "$(cat /tmp/gg_branch_01_marque 2>/dev/null)" ]
     solution: "git stash pop"
     solve: |
       cd ~/appli && git stash pop -q

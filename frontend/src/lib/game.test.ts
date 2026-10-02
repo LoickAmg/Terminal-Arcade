@@ -209,7 +209,7 @@ describe("parcours Git-Gud", () => {
 
     const track = play(start, "ls missions/git-gud");
     expect(track.state.screen).toEqual({ kind: "missions", track: "git-gud" });
-    expect(track.out.filter((l) => l.includes("gg_")).length).toBe(6);
+    expect(track.out.filter((l) => l.includes("gg_")).length).toBe(levels.filter((l) => l.tree === "git_gud").length);
     expect(play(start, "cd missions/git-gud/").state.screen).toEqual({ kind: "missions", track: "git-gud" });
   });
 });
