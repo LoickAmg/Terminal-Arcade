@@ -3,7 +3,7 @@
 Généré automatiquement depuis `shared/levels/` par `npm run export:exercices`.
 Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 
-**29 niveaux, 149 questions, 66 variantes.**
+**31 niveaux, 159 questions, 76 variantes.**
 
 | Type de question | Nombre |
 | --- | --- |
@@ -12,7 +12,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | Piège | 7 |
 | Prédire la sortie | 6 |
 | Compléter | 3 |
-| Défi réel (sandbox) | 106 |
+| Défi réel (sandbox) | 116 |
 
 ## Vue d'ensemble
 
@@ -47,6 +47,8 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | [gg_workflow_01](#gg_workflow_01--historique-propre) | Historique propre | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 4 | 480 |
 | [ps_scripts_01](#ps_scripts_01--scripts-sous-tension) | Scripts sous tension | Root Wizard | PowerShell | Sandbox Docker (PowerShell) | Classique | 5 | 460 |
 | [gg_defaire_01](#gg_defaire_01--défaire-sans-casser) | Défaire sans casser | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 6 | 460 |
+| [rw_script_02](#rw_script_02--scripts-solides) | Scripts solides | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 5 | 460 |
+| [rw_text_01](#rw_text_01--la-boîte-à-outils-texte) | La boîte à outils texte | Root Wizard | Data Surgeon | Sandbox Docker (bash) | Classique | 5 | 420 |
 
 ## Palier Script Kiddie
 
@@ -3639,7 +3641,9 @@ setsid nohup ~/.bin/gardien -c 'while true; do pgrep -x virus >/dev/null || sets
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-! pgrep -x gardien >/dev/null && ! pgrep -x virus >/dev/null
+! pgrep -x gardien >/dev/null && ! pgrep -x virus >/dev/null || exit 1
+sleep 1.2
+! pgrep -x virus >/dev/null
 ```
 
 Résolution automatique (tests) :
@@ -3693,6 +3697,7 @@ pkill -x miner
 | Questions | 4 |
 | XP | 400 |
 | Timer | random, 420 s (référence 220 s) |
+| Débloque | rw_script_02 |
 
 Boucles bash, find, scripts exécutables et calculs.
 
@@ -3769,7 +3774,9 @@ find ~/chantier -name '*.tmp' -delete
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-cd ~ && [ -x compte.sh ] && printf 'a\nb\nc\n' > /tmp/trois && out=$(./compte.sh /tmp/trois) && [ "${out%% *}" = 3 ]
+cd ~ && [ -x compte.sh ] || exit 1
+n=$((RANDOM % 7 + 2)); seq 1 "$n" > /tmp/lignes
+out=$(timeout 3 ./compte.sh /tmp/lignes) && [ "${out%% *}" = "$n" ]
 ```
 
 Résolution automatique (tests) :
@@ -4424,6 +4431,7 @@ sed -i 's/^https_port=.*/https_port=8443/' ~/settings.conf
 | Questions | 5 |
 | XP | 420 |
 | Sabotages signature | hostile_alias, time_accel |
+| Débloque | rw_text_01 |
 
 awk comme un tableur : séparateur, filtres, sommes, tableaux associatifs. Les quantités changent à chaque partie.
 
@@ -5595,6 +5603,821 @@ Résolution automatique (tests) :
 
 ```bash
 cd ~/chantier-git && git clean -qf old-*.bak
+```
+
+</details>
+
+### rw_script_02 — Scripts solides
+
+> Un script qui marche une fois, c'est bien. Un script qui tient, c'est mieux.
+
+| | |
+| --- | --- |
+| Palier | Root Wizard |
+| Arbre | System Overlord |
+| Exécution | Sandbox Docker (bash) |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 5 |
+| XP | 460 |
+| Sabotages signature | hostile_path, mutation |
+
+Des scripts qui s'arrêtent au bon moment, isolent leurs variables, choisissent leur branche et lisent leurs options.
+
+#### Q1 · Défi réel (sandbox)
+
+Écris ~/premier.sh qui commence par `set -e`, puis exécute `false`, puis `echo fini`. Lance-le : tu ne dois voir aucun affichage et le script doit sortir en erreur (code de retour non nul). C'est set -e qui arrête tout dès la première commande en échec.
+
+- Solution : `printf '#!/bin/bash\nset -e\nfalse\necho fini\n' > ~/premier.sh && chmod +x ~/premier.sh`
+- Indice 1 (10 s) : set -e en première ligne après le shebang : toute commande qui échoue arrête le script.
+- Indice 2 (10 s) : Vérifie avec `./premier.sh; echo $?` : le code ne doit pas être 0.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x premier.sh ] || exit 1
+grep -q 'set -e' premier.sh || exit 1
+out=$(timeout 3 ./premier.sh 2>/dev/null) || true
+[ -z "$out" ] || exit 1
+timeout 3 ./premier.sh >/dev/null 2>&1
+rc=$?
+[ "$rc" -ge 1 ] && [ "$rc" -lt 124 ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+printf '#!/bin/bash\nset -e\nfalse\necho fini\n' > ~/premier.sh
+chmod +x ~/premier.sh
+```
+
+</details>
+
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris ~/strict.sh qui commence par `set -u`, puis affiche `Bonjour $nom` sans avoir défini la variable `nom`. Lance-le : le script doit sortir en erreur (code non nul) sans rien afficher.
+
+- Solution : `printf '#!/bin/bash\nset -u\necho "Bonjour $nom"\n' > ~/strict.sh && chmod +x ~/strict.sh`
+- Indice 1 (10 s) : set -u fait échouer le script dès qu'il lit une variable non définie.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x strict.sh ] || exit 1
+grep -q 'set -u' strict.sh || exit 1
+out=$(timeout 3 ./strict.sh 2>/dev/null) || true
+[ -z "$out" ] || exit 1
+timeout 3 ./strict.sh >/dev/null 2>&1
+rc=$?
+[ "$rc" -ge 1 ] && [ "$rc" -lt 124 ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+printf '#!/bin/bash\nset -u\necho "Bonjour $nom"\n' > ~/strict.sh
+chmod +x ~/strict.sh
+```
+
+</details>
+
+#### Q2 · Défi réel (sandbox)
+
+Écris ~/local.sh. Il définit une variable globale `compteur=global`, puis une fonction `affiche` qui déclare `local compteur=local` et affiche `$compteur`. Le script appelle ensuite `affiche`, puis affiche `$compteur`. La sortie doit être exactement deux lignes : `local` puis `global`.
+
+- Solution : `cat > ~/local.sh <<'EOF'
+#!/bin/bash
+compteur=global
+affiche() {
+  local compteur=local
+  echo "$compteur"
+}
+affiche
+echo "$compteur"
+EOF
+chmod +x ~/local.sh
+`
+- Indice 1 (10 s) : `local VAR=valeur`, à l'intérieur de la fonction, crée une variable qui n'existe que pour cette fonction.
+- Indice 2 (10 s) : Sans local, la variable globale serait écrasée et la sortie serait `local` puis `local`.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x local.sh ] || exit 1
+grep -q 'local ' local.sh || exit 1
+out=$(timeout 3 ./local.sh 2>/dev/null)
+expected=$'local\nglobal'
+[ "$out" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/local.sh <<'EOF'
+#!/bin/bash
+compteur=global
+affiche() {
+  local compteur=local
+  echo "$compteur"
+}
+affiche
+echo "$compteur"
+EOF
+chmod +x ~/local.sh
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris ~/double.sh. Il définit `n=0`, puis une fonction `calcule` qui fait `local n=5` et `n=$((n * 2))`, puis affiche `$n`. Le script appelle `calcule`, puis affiche `n=$n`. La sortie doit être exactement : `10` puis `n=0`.
+
+- Solution : `cat > ~/double.sh <<'EOF'
+#!/bin/bash
+n=0
+calcule() {
+  local n=5
+  n=$((n * 2))
+  echo "$n"
+}
+calcule
+echo "n=$n"
+EOF
+chmod +x ~/double.sh
+`
+- Indice 1 (10 s) : La variable globale doit rester à 0 après l'appel : c'est tout l'intérêt de local.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x double.sh ] || exit 1
+grep -q 'local ' double.sh || exit 1
+out=$(timeout 3 ./double.sh 2>/dev/null)
+expected=$'10\nn=0'
+[ "$out" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/double.sh <<'EOF'
+#!/bin/bash
+n=0
+calcule() {
+  local n=5
+  n=$((n * 2))
+  echo "$n"
+}
+calcule
+echo "n=$n"
+EOF
+chmod +x ~/double.sh
+```
+
+</details>
+
+#### Q3 · Défi réel (sandbox)
+
+Écris ~/menu.sh qui prend un mot en argument (`start`, `stop`, `status`), utilise `case`, et affiche respectivement `Démarrage`, `Arrêt`, `Statut`. Tout autre mot affiche `Inconnu`. Sans argument, affiche aussi `Inconnu`.
+
+- Solution : `cat > ~/menu.sh <<'EOF'
+#!/bin/bash
+case "${1:-}" in
+  start)  echo "Démarrage" ;;
+  stop)   echo "Arrêt" ;;
+  status) echo "Statut" ;;
+  *)      echo "Inconnu" ;;
+esac
+EOF
+chmod +x ~/menu.sh
+`
+- Indice 1 (10 s) : case VAR in motif) … ;; esac. Le motif * sert de branche par défaut.
+- Indice 2 (10 s) : Pour gérer l'absence d'argument sans erreur, écris `${1:-}`.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x menu.sh ] || exit 1
+grep -q 'case' menu.sh || exit 1
+[ "$(timeout 3 ./menu.sh start)" = "Démarrage" ] || exit 1
+[ "$(timeout 3 ./menu.sh stop)" = "Arrêt" ] || exit 1
+[ "$(timeout 3 ./menu.sh status)" = "Statut" ] || exit 1
+[ "$(timeout 3 ./menu.sh autre)" = "Inconnu" ] || exit 1
+[ "$(timeout 3 ./menu.sh)" = "Inconnu" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/menu.sh <<'EOF'
+#!/bin/bash
+case "${1:-}" in
+  start)  echo "Démarrage" ;;
+  stop)   echo "Arrêt" ;;
+  status) echo "Statut" ;;
+  *)      echo "Inconnu" ;;
+esac
+EOF
+chmod +x ~/menu.sh
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris ~/verdict.sh qui prend un code de sortie en argument (`0`, `1`, `2`) et affiche `succes` pour 0, `erreur-legere` pour 1, `erreur-grave` pour 2, et `inconnu` pour tout autre code.
+
+- Solution : `cat > ~/verdict.sh <<'EOF'
+#!/bin/bash
+case "${1:-}" in
+  0) echo "succes" ;;
+  1) echo "erreur-legere" ;;
+  2) echo "erreur-grave" ;;
+  *) echo "inconnu" ;;
+esac
+EOF
+chmod +x ~/verdict.sh
+`
+- Indice 1 (10 s) : Les motifs de case peuvent être des nombres, pas seulement des mots.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x verdict.sh ] || exit 1
+grep -q 'case' verdict.sh || exit 1
+[ "$(timeout 3 ./verdict.sh 0)" = "succes" ] || exit 1
+[ "$(timeout 3 ./verdict.sh 1)" = "erreur-legere" ] || exit 1
+[ "$(timeout 3 ./verdict.sh 2)" = "erreur-grave" ] || exit 1
+[ "$(timeout 3 ./verdict.sh 42)" = "inconnu" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/verdict.sh <<'EOF'
+#!/bin/bash
+case "${1:-}" in
+  0) echo "succes" ;;
+  1) echo "erreur-legere" ;;
+  2) echo "erreur-grave" ;;
+  *) echo "inconnu" ;;
+esac
+EOF
+chmod +x ~/verdict.sh
+```
+
+</details>
+
+#### Q4 · Défi réel (sandbox)
+
+Écris ~/opts.sh qui utilise `getopts` avec `-n NOM` et `-v`. La variable `nom` vaut `inconnu` par défaut, ou la valeur passée à `-n`. Le script affiche d'abord `verbeux` si `-v` a été donné, puis `nom=<valeur>`. Sans -v, il n'affiche que la ligne `nom=…`.
+
+- Solution : `cat > ~/opts.sh <<'EOF'
+#!/bin/bash
+nom=inconnu
+verbeux=non
+while getopts "n:v" opt; do
+  case "$opt" in
+    n) nom="$OPTARG" ;;
+    v) verbeux=oui ;;
+  esac
+done
+[ "$verbeux" = oui ] && echo "verbeux"
+echo "nom=$nom"
+EOF
+chmod +x ~/opts.sh
+`
+- Indice 1 (10 s) : La chaîne d'options de getopts utilise deux-points après une lettre quand elle attend une valeur : `n:`.
+- Indice 2 (10 s) : L'argument associé se lit dans `$OPTARG` à l'intérieur du case.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x opts.sh ] || exit 1
+grep -q getopts opts.sh || exit 1
+# Des noms tirés au hasard : impossible de les prévoir dans le script.
+a=agent$RANDOM; b=joueur$RANDOM
+out1=$(timeout 3 ./opts.sh 2>/dev/null)
+[ "$out1" = "nom=inconnu" ] || exit 1
+out2=$(timeout 3 ./opts.sh -n "$a" 2>/dev/null)
+[ "$out2" = "nom=$a" ] || exit 1
+out3=$(timeout 3 ./opts.sh -v -n "$b" 2>/dev/null)
+expected3=$'verbeux\n'"nom=$b"
+[ "$out3" = "$expected3" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/opts.sh <<'EOF'
+#!/bin/bash
+nom=inconnu
+verbeux=non
+while getopts "n:v" opt; do
+  case "$opt" in
+    n) nom="$OPTARG" ;;
+    v) verbeux=oui ;;
+  esac
+done
+[ "$verbeux" = oui ] && echo "verbeux"
+echo "nom=$nom"
+EOF
+chmod +x ~/opts.sh
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris ~/args.sh qui utilise `getopts` avec `-f FICHIER` et `-d` (mode debug). Par défaut, `fichier` vaut `defaut.txt` et `debug` vaut `non`. Le script affiche `debug` si -d a été donné, puis `fichier=<valeur>`.
+
+- Solution : `cat > ~/args.sh <<'EOF'
+#!/bin/bash
+fichier=defaut.txt
+debug=non
+while getopts "f:d" opt; do
+  case "$opt" in
+    f) fichier="$OPTARG" ;;
+    d) debug=oui ;;
+  esac
+done
+[ "$debug" = oui ] && echo "debug"
+echo "fichier=$fichier"
+EOF
+chmod +x ~/args.sh
+`
+- Indice 1 (10 s) : Les options dans la chaîne suivent l'ordre habituel : lettres seules, deux-points pour celles qui attendent une valeur.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x args.sh ] || exit 1
+grep -q getopts args.sh || exit 1
+f=notes$RANDOM.txt
+[ "$(timeout 3 ./args.sh 2>/dev/null)" = "fichier=defaut.txt" ] || exit 1
+[ "$(timeout 3 ./args.sh -f "$f" 2>/dev/null)" = "fichier=$f" ] || exit 1
+[ "$(timeout 3 ./args.sh -d 2>/dev/null)" = $'debug\nfichier=defaut.txt' ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/args.sh <<'EOF'
+#!/bin/bash
+fichier=defaut.txt
+debug=non
+while getopts "f:d" opt; do
+  case "$opt" in
+    f) fichier="$OPTARG" ;;
+    d) debug=oui ;;
+  esac
+done
+[ "$debug" = oui ] && echo "debug"
+echo "fichier=$fichier"
+EOF
+chmod +x ~/args.sh
+```
+
+</details>
+
+#### Q5 · Défi réel (sandbox)
+
+Écris ~/confgen.sh qui utilise un here-doc pour créer ~/serveur.conf contenant exactement deux lignes : `port=8080` puis `nom=mon-serveur`. Le script affiche aussi `ok` à la fin.
+
+- Solution : `cat > ~/confgen.sh <<'SCRIPT'
+#!/bin/bash
+cat > "$HOME/serveur.conf" <<CONF
+port=8080
+nom=mon-serveur
+CONF
+echo ok
+SCRIPT
+chmod +x ~/confgen.sh
+`
+- Indice 1 (10 s) : Un here-doc commence par `COMMANDE <<MARQUEUR` et se termine par une ligne qui contient seulement `MARQUEUR`.
+- Indice 2 (10 s) : Mets des guillemets autour du marqueur (`<<'CONF'`) si le contenu ne doit pas subir d'expansion de variables.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x confgen.sh ] || exit 1
+grep -q '<<' confgen.sh || exit 1
+rm -f serveur.conf
+out=$(timeout 3 ./confgen.sh 2>/dev/null)
+[ "$out" = "ok" ] || exit 1
+expected=$'port=8080\nnom=mon-serveur'
+actual=$(cat serveur.conf 2>/dev/null)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/confgen.sh <<'SCRIPT'
+#!/bin/bash
+cat > "$HOME/serveur.conf" <<CONF
+port=8080
+nom=mon-serveur
+CONF
+echo ok
+SCRIPT
+chmod +x ~/confgen.sh
+```
+
+</details>
+
+#### Q5 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris ~/gen_conf.sh qui utilise un here-doc pour créer ~/reseau.conf contenant exactement deux lignes : `host=localhost` puis `port=9000`. Le script affiche aussi `reseau pret` à la fin.
+
+- Solution : `cat > ~/gen_conf.sh <<'SCRIPT'
+#!/bin/bash
+cat > "$HOME/reseau.conf" <<CONF
+host=localhost
+port=9000
+CONF
+echo "reseau pret"
+SCRIPT
+chmod +x ~/gen_conf.sh
+`
+- Indice 1 (10 s) : Même structure que pour serveur.conf, avec un autre contenu.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+cd ~ || exit 1
+[ -x gen_conf.sh ] || exit 1
+grep -q '<<' gen_conf.sh || exit 1
+rm -f reseau.conf
+out=$(timeout 3 ./gen_conf.sh 2>/dev/null)
+[ "$out" = "reseau pret" ] || exit 1
+expected=$'host=localhost\nport=9000'
+actual=$(cat reseau.conf 2>/dev/null)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/gen_conf.sh <<'SCRIPT'
+#!/bin/bash
+cat > "$HOME/reseau.conf" <<CONF
+host=localhost
+port=9000
+CONF
+echo "reseau pret"
+SCRIPT
+chmod +x ~/gen_conf.sh
+```
+
+</details>
+
+### rw_text_01 — La boîte à outils texte
+
+> Découper, transformer, recoller : les petits outils font les grands pipelines.
+
+| | |
+| --- | --- |
+| Palier | Root Wizard |
+| Arbre | Data Surgeon |
+| Exécution | Sandbox Docker (bash) |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 5 |
+| XP | 420 |
+| Sabotages signature | hostile_decoy, mutation |
+
+cut, tr, paste, join et comm : la quincaillerie du traitement de texte, à combiner dans un pipeline.
+
+<details><summary>Préparation du niveau</summary>
+
+```bash
+mkdir -p ~/data
+# Les salaires changent à chaque partie : les réponses se recalculent.
+for e in Dupont:Alice:info Martin:Bob:rh Bernard:Claire:info Petit:David:rh \
+         Durand:Eve:compta Roux:Frank:compta Moreau:Grace:info Simon:Hugo:rh; do
+  echo "$e:$((RANDOM % 2500 + 2500))"
+done > ~/data/employes.csv
+cut -d: -f1,4 ~/data/employes.csv | LC_ALL=C sort > ~/data/salaires.csv
+cut -d: -f1,3 ~/data/employes.csv | LC_ALL=C sort > ~/data/services.csv
+printf 'alice\nbob\nclaire\ndavid\neve\nfrank\ngrace\nhugo\n' > ~/data/liste_a.txt
+printf 'bob\nclaire\nfrank\ngrace\nhenri\niris\n' > ~/data/liste_b.txt
+LC_ALL=C sort -o ~/data/liste_a.txt ~/data/liste_a.txt
+LC_ALL=C sort -o ~/data/liste_b.txt ~/data/liste_b.txt
+```
+
+</details>
+
+#### Q1 · Défi réel (sandbox)
+
+Écris dans ~/data/tries.txt les lignes de ~/data/employes.csv triées par service (colonne 3), puis par salaire décroissant (colonne 4). Le séparateur est `:`. Garde les lignes telles quelles.
+
+- Solution : `sort -t: -k3,3 -k4,4nr ~/data/employes.csv > ~/data/tries.txt`
+- Indice 1 (10 s) : -t: choisit le séparateur. -k3,3 trie sur la 3e colonne seule.
+- Indice 2 (10 s) : Pour un tri numérique descendant sur la 4e colonne : `-k4,4nr`.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/tries.txt ] || exit 1
+expected=$(sort -t: -k3,3 -k4,4nr ~/data/employes.csv)
+actual=$(cat ~/data/tries.txt)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+sort -t: -k3,3 -k4,4nr ~/data/employes.csv > ~/data/tries.txt
+```
+
+</details>
+
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris dans ~/data/tries_nom.txt les lignes de ~/data/employes.csv triées par salaire décroissant (colonne 4), puis par nom croissant (colonne 1) en cas d'égalité. Le séparateur est `:`.
+
+- Solution : `sort -t: -k4,4nr -k1,1 ~/data/employes.csv > ~/data/tries_nom.txt`
+- Indice 1 (10 s) : L'ordre des options -k compte : la première est la clé principale.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/tries_nom.txt ] || exit 1
+expected=$(sort -t: -k4,4nr -k1,1 ~/data/employes.csv)
+actual=$(cat ~/data/tries_nom.txt)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+sort -t: -k4,4nr -k1,1 ~/data/employes.csv > ~/data/tries_nom.txt
+```
+
+</details>
+
+#### Q2 · Défi réel (sandbox)
+
+Écris dans ~/data/noms.txt les noms (1re colonne) de ~/data/employes.csv, un par ligne, en majuscules.
+
+- Solution : `cut -d: -f1 ~/data/employes.csv | tr a-z A-Z > ~/data/noms.txt`
+- Indice 1 (10 s) : cut -d: -f1 extrait la première colonne. tr a-z A-Z la met en majuscules.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/noms.txt ] || exit 1
+expected=$(cut -d: -f1 ~/data/employes.csv | tr a-z A-Z)
+actual=$(cat ~/data/noms.txt)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cut -d: -f1 ~/data/employes.csv | tr a-z A-Z > ~/data/noms.txt
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris dans ~/data/services_uniques.txt la liste des services (3e colonne) de ~/data/employes.csv, sans doublon, triée, un par ligne.
+
+- Solution : `cut -d: -f3 ~/data/employes.csv | sort -u > ~/data/services_uniques.txt`
+- Indice 1 (10 s) : cut extrait la colonne ; sort -u trie et retire les doublons.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/services_uniques.txt ] || exit 1
+expected=$(cut -d: -f3 ~/data/employes.csv | sort -u)
+actual=$(cat ~/data/services_uniques.txt)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+cut -d: -f3 ~/data/employes.csv | sort -u > ~/data/services_uniques.txt
+```
+
+</details>
+
+#### Q3 · Défi réel (sandbox)
+
+Écris dans ~/data/paires.txt, une ligne par employé, le nom (1re colonne) puis le service (3e colonne) séparés par une tabulation, dans l'ordre du fichier.
+
+- Solution : `paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) > ~/data/paires.txt`
+- Indice 1 (10 s) : paste colle côte à côte les lignes de deux flux, séparées par une tabulation.
+- Indice 2 (10 s) : `<(commande)` fait passer la sortie d'une commande là où un nom de fichier est attendu.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/paires.txt ] || exit 1
+expected=$(paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv))
+actual=$(cat ~/data/paires.txt)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) > ~/data/paires.txt
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris dans ~/data/triple.txt, une ligne par employé, le nom (1re colonne), le service (3e colonne) et le salaire (4e colonne) séparés par une tabulation, dans l'ordre du fichier.
+
+- Solution : `paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) <(cut -d: -f4 ~/data/employes.csv) > ~/data/triple.txt`
+- Indice 1 (10 s) : paste accepte autant de fichiers (ou de flux) qu'on veut.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/triple.txt ] || exit 1
+expected=$(paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) <(cut -d: -f4 ~/data/employes.csv))
+actual=$(cat ~/data/triple.txt)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) <(cut -d: -f4 ~/data/employes.csv) > ~/data/triple.txt
+```
+
+</details>
+
+#### Q4 · Défi réel (sandbox)
+
+Les fichiers ~/data/services.csv (nom:service) et ~/data/salaires.csv (nom:salaire) sont triés par nom. Écris dans ~/data/fiche.csv, pour chaque nom présent dans les deux fichiers, une ligne `nom:service:salaire`.
+
+- Solution : `join -t: ~/data/services.csv ~/data/salaires.csv > ~/data/fiche.csv`
+- Indice 1 (10 s) : join fusionne deux fichiers triés sur leur clé commune : par défaut, la première colonne.
+- Indice 2 (10 s) : -t: choisit le séparateur, comme pour cut et sort.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/fiche.csv ] || exit 1
+expected=$(join -t: ~/data/services.csv ~/data/salaires.csv)
+actual=$(cat ~/data/fiche.csv)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+join -t: ~/data/services.csv ~/data/salaires.csv > ~/data/fiche.csv
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Les fichiers ~/data/services.csv (nom:service) et ~/data/salaires.csv (nom:salaire) sont triés par nom. Écris dans ~/data/fiche2.csv, pour chaque nom, une ligne `nom service salaire`, séparée par des espaces.
+
+- Solution : `join -t: ~/data/services.csv ~/data/salaires.csv | tr ':' ' ' > ~/data/fiche2.csv`
+- Indice 1 (10 s) : join garde le séparateur d'entrée : un pipe vers tr le remplace.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/fiche2.csv ] || exit 1
+expected=$(join -t: ~/data/services.csv ~/data/salaires.csv | tr ':' ' ')
+actual=$(cat ~/data/fiche2.csv)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+join -t: ~/data/services.csv ~/data/salaires.csv | tr ':' ' ' > ~/data/fiche2.csv
+```
+
+</details>
+
+#### Q5 · Défi réel (sandbox)
+
+Les fichiers ~/data/liste_a.txt et ~/data/liste_b.txt sont triés. Écris dans ~/data/communs.txt les noms présents dans les deux listes, un par ligne, triés.
+
+- Solution : `comm -12 ~/data/liste_a.txt ~/data/liste_b.txt > ~/data/communs.txt`
+- Indice 1 (10 s) : comm compare deux fichiers triés : -1 masque la colonne propre au premier, -2 celle du second.
+- Indice 2 (10 s) : En combinant -12, seules les lignes présentes dans les deux restent.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/communs.txt ] || exit 1
+expected=$(comm -12 ~/data/liste_a.txt ~/data/liste_b.txt)
+actual=$(cat ~/data/communs.txt)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+comm -12 ~/data/liste_a.txt ~/data/liste_b.txt > ~/data/communs.txt
+```
+
+</details>
+
+#### Q5 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Les fichiers ~/data/liste_a.txt et ~/data/liste_b.txt sont triés. Écris dans ~/data/uniques_a.txt les noms présents uniquement dans liste_a, un par ligne, triés.
+
+- Solution : `comm -23 ~/data/liste_a.txt ~/data/liste_b.txt > ~/data/uniques_a.txt`
+- Indice 1 (10 s) : -2 masque la colonne propre au second fichier : il reste les lignes du premier + les communes.
+- Indice 2 (10 s) : En combinant -23, seules les lignes du premier fichier qui ne sont pas dans le second restent.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/data/uniques_a.txt ] || exit 1
+expected=$(comm -23 ~/data/liste_a.txt ~/data/liste_b.txt)
+actual=$(cat ~/data/uniques_a.txt)
+[ "$actual" = "$expected" ] || exit 1
+exit 0
+```
+
+Résolution automatique (tests) :
+
+```bash
+comm -23 ~/data/liste_a.txt ~/data/liste_b.txt > ~/data/uniques_a.txt
 ```
 
 </details>

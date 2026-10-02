@@ -37,7 +37,9 @@ questions:
   - kind: task
     prompt: "Écris un script compte.sh qui affiche le nombre de lignes du fichier passé en argument, et rends-le exécutable."
     check: |
-      cd ~ && [ -x compte.sh ] && printf 'a\nb\nc\n' > /tmp/trois && out=$(./compte.sh /tmp/trois) && [ "${out%% *}" = 3 ]
+      cd ~ && [ -x compte.sh ] || exit 1
+      n=$((RANDOM % 7 + 2)); seq 1 "$n" > /tmp/lignes
+      out=$(timeout 3 ./compte.sh /tmp/lignes) && [ "${out%% *}" = "$n" ]
     solution: "printf '#!/bin/bash\\nwc -l < \"$1\"\\n' > compte.sh && chmod +x compte.sh"
     solve: |
       printf '#!/bin/bash\nwc -l < "$1"\n' > ~/compte.sh && chmod +x ~/compte.sh
@@ -66,3 +68,4 @@ questions:
 
 rewards:
   xp: 400
+  unlocks: rw_script_02

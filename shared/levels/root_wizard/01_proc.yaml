@@ -38,7 +38,10 @@ questions:
     prompt: "Le virus revient : un processus gardien le relance chaque seconde. Arrête-les pour de bon."
     setup: |
       setsid nohup ~/.bin/gardien -c 'while true; do pgrep -x virus >/dev/null || setsid ~/.bin/virus 100000 >/dev/null 2>&1 & sleep 1; done' >/dev/null 2>&1 &
-    check: '! pgrep -x gardien >/dev/null && ! pgrep -x virus >/dev/null'
+    check: |
+      ! pgrep -x gardien >/dev/null && ! pgrep -x virus >/dev/null || exit 1
+      sleep 1.2
+      ! pgrep -x virus >/dev/null
     solution: "pkill gardien, puis pkill virus"
     solve: |
       pkill -x gardien; sleep 0.3; pkill -x virus

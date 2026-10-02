@@ -1,0 +1,168 @@
+# Lot B de la vague 2 (DeepSeek), testé au banc d'essai ; arbitres renforcés.
+id: rw_text_01
+title: "La boîte à outils texte"
+hook: "Découper, transformer, recoller : les petits outils font les grands pipelines."
+tier: root_wizard
+tree: data_surgeon
+runtime: docker
+shell: bash
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_decoy, mutation] }
+intro: "cut, tr, paste, join et comm : la quincaillerie du traitement de texte, à combiner dans un pipeline."
+setup: |
+  mkdir -p ~/data
+  # Les salaires changent à chaque partie : les réponses se recalculent.
+  for e in Dupont:Alice:info Martin:Bob:rh Bernard:Claire:info Petit:David:rh \
+           Durand:Eve:compta Roux:Frank:compta Moreau:Grace:info Simon:Hugo:rh; do
+    echo "$e:$((RANDOM % 2500 + 2500))"
+  done > ~/data/employes.csv
+  cut -d: -f1,4 ~/data/employes.csv | LC_ALL=C sort > ~/data/salaires.csv
+  cut -d: -f1,3 ~/data/employes.csv | LC_ALL=C sort > ~/data/services.csv
+  printf 'alice\nbob\nclaire\ndavid\neve\nfrank\ngrace\nhugo\n' > ~/data/liste_a.txt
+  printf 'bob\nclaire\nfrank\ngrace\nhenri\niris\n' > ~/data/liste_b.txt
+  LC_ALL=C sort -o ~/data/liste_a.txt ~/data/liste_a.txt
+  LC_ALL=C sort -o ~/data/liste_b.txt ~/data/liste_b.txt
+questions:
+  - kind: task
+    prompt: "Écris dans ~/data/tries.txt les lignes de ~/data/employes.csv triées par service (colonne 3), puis par salaire décroissant (colonne 4). Le séparateur est `:`. Garde les lignes telles quelles."
+    solution: "sort -t: -k3,3 -k4,4nr ~/data/employes.csv > ~/data/tries.txt"
+    check: |
+      [ -f ~/data/tries.txt ] || exit 1
+      expected=$(sort -t: -k3,3 -k4,4nr ~/data/employes.csv)
+      actual=$(cat ~/data/tries.txt)
+      [ "$actual" = "$expected" ] || exit 1
+      exit 0
+    solve: |
+      sort -t: -k3,3 -k4,4nr ~/data/employes.csv > ~/data/tries.txt
+    hints:
+      - text: "-t: choisit le séparateur. -k3,3 trie sur la 3e colonne seule."
+      - text: "Pour un tri numérique descendant sur la 4e colonne : `-k4,4nr`."
+    variant:
+      kind: task
+      prompt: "Écris dans ~/data/tries_nom.txt les lignes de ~/data/employes.csv triées par salaire décroissant (colonne 4), puis par nom croissant (colonne 1) en cas d'égalité. Le séparateur est `:`."
+      solution: "sort -t: -k4,4nr -k1,1 ~/data/employes.csv > ~/data/tries_nom.txt"
+      check: |
+        [ -f ~/data/tries_nom.txt ] || exit 1
+        expected=$(sort -t: -k4,4nr -k1,1 ~/data/employes.csv)
+        actual=$(cat ~/data/tries_nom.txt)
+        [ "$actual" = "$expected" ] || exit 1
+        exit 0
+      solve: |
+        sort -t: -k4,4nr -k1,1 ~/data/employes.csv > ~/data/tries_nom.txt
+      hints:
+        - text: "L'ordre des options -k compte : la première est la clé principale."
+  - kind: task
+    prompt: "Écris dans ~/data/noms.txt les noms (1re colonne) de ~/data/employes.csv, un par ligne, en majuscules."
+    solution: "cut -d: -f1 ~/data/employes.csv | tr a-z A-Z > ~/data/noms.txt"
+    check: |
+      [ -f ~/data/noms.txt ] || exit 1
+      expected=$(cut -d: -f1 ~/data/employes.csv | tr a-z A-Z)
+      actual=$(cat ~/data/noms.txt)
+      [ "$actual" = "$expected" ] || exit 1
+      exit 0
+    solve: |
+      cut -d: -f1 ~/data/employes.csv | tr a-z A-Z > ~/data/noms.txt
+    hints:
+      - text: "cut -d: -f1 extrait la première colonne. tr a-z A-Z la met en majuscules."
+    variant:
+      kind: task
+      prompt: "Écris dans ~/data/services_uniques.txt la liste des services (3e colonne) de ~/data/employes.csv, sans doublon, triée, un par ligne."
+      solution: "cut -d: -f3 ~/data/employes.csv | sort -u > ~/data/services_uniques.txt"
+      check: |
+        [ -f ~/data/services_uniques.txt ] || exit 1
+        expected=$(cut -d: -f3 ~/data/employes.csv | sort -u)
+        actual=$(cat ~/data/services_uniques.txt)
+        [ "$actual" = "$expected" ] || exit 1
+        exit 0
+      solve: |
+        cut -d: -f3 ~/data/employes.csv | sort -u > ~/data/services_uniques.txt
+      hints:
+        - text: "cut extrait la colonne ; sort -u trie et retire les doublons."
+  - kind: task
+    prompt: "Écris dans ~/data/paires.txt, une ligne par employé, le nom (1re colonne) puis le service (3e colonne) séparés par une tabulation, dans l'ordre du fichier."
+    solution: "paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) > ~/data/paires.txt"
+    check: |
+      [ -f ~/data/paires.txt ] || exit 1
+      expected=$(paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv))
+      actual=$(cat ~/data/paires.txt)
+      [ "$actual" = "$expected" ] || exit 1
+      exit 0
+    solve: |
+      paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) > ~/data/paires.txt
+    hints:
+      - text: "paste colle côte à côte les lignes de deux flux, séparées par une tabulation."
+      - text: "`<(commande)` fait passer la sortie d'une commande là où un nom de fichier est attendu."
+    variant:
+      kind: task
+      prompt: "Écris dans ~/data/triple.txt, une ligne par employé, le nom (1re colonne), le service (3e colonne) et le salaire (4e colonne) séparés par une tabulation, dans l'ordre du fichier."
+      solution: "paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) <(cut -d: -f4 ~/data/employes.csv) > ~/data/triple.txt"
+      check: |
+        [ -f ~/data/triple.txt ] || exit 1
+        expected=$(paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) <(cut -d: -f4 ~/data/employes.csv))
+        actual=$(cat ~/data/triple.txt)
+        [ "$actual" = "$expected" ] || exit 1
+        exit 0
+      solve: |
+        paste <(cut -d: -f1 ~/data/employes.csv) <(cut -d: -f3 ~/data/employes.csv) <(cut -d: -f4 ~/data/employes.csv) > ~/data/triple.txt
+      hints:
+        - text: "paste accepte autant de fichiers (ou de flux) qu'on veut."
+  - kind: task
+    prompt: "Les fichiers ~/data/services.csv (nom:service) et ~/data/salaires.csv (nom:salaire) sont triés par nom. Écris dans ~/data/fiche.csv, pour chaque nom présent dans les deux fichiers, une ligne `nom:service:salaire`."
+    solution: "join -t: ~/data/services.csv ~/data/salaires.csv > ~/data/fiche.csv"
+    check: |
+      [ -f ~/data/fiche.csv ] || exit 1
+      expected=$(join -t: ~/data/services.csv ~/data/salaires.csv)
+      actual=$(cat ~/data/fiche.csv)
+      [ "$actual" = "$expected" ] || exit 1
+      exit 0
+    solve: |
+      join -t: ~/data/services.csv ~/data/salaires.csv > ~/data/fiche.csv
+    hints:
+      - text: "join fusionne deux fichiers triés sur leur clé commune : par défaut, la première colonne."
+      - text: "-t: choisit le séparateur, comme pour cut et sort."
+    variant:
+      kind: task
+      prompt: "Les fichiers ~/data/services.csv (nom:service) et ~/data/salaires.csv (nom:salaire) sont triés par nom. Écris dans ~/data/fiche2.csv, pour chaque nom, une ligne `nom service salaire`, séparée par des espaces."
+      solution: "join -t: ~/data/services.csv ~/data/salaires.csv | tr ':' ' ' > ~/data/fiche2.csv"
+      check: |
+        [ -f ~/data/fiche2.csv ] || exit 1
+        expected=$(join -t: ~/data/services.csv ~/data/salaires.csv | tr ':' ' ')
+        actual=$(cat ~/data/fiche2.csv)
+        [ "$actual" = "$expected" ] || exit 1
+        exit 0
+      solve: |
+        join -t: ~/data/services.csv ~/data/salaires.csv | tr ':' ' ' > ~/data/fiche2.csv
+      hints:
+        - text: "join garde le séparateur d'entrée : un pipe vers tr le remplace."
+  - kind: task
+    prompt: "Les fichiers ~/data/liste_a.txt et ~/data/liste_b.txt sont triés. Écris dans ~/data/communs.txt les noms présents dans les deux listes, un par ligne, triés."
+    solution: "comm -12 ~/data/liste_a.txt ~/data/liste_b.txt > ~/data/communs.txt"
+    check: |
+      [ -f ~/data/communs.txt ] || exit 1
+      expected=$(comm -12 ~/data/liste_a.txt ~/data/liste_b.txt)
+      actual=$(cat ~/data/communs.txt)
+      [ "$actual" = "$expected" ] || exit 1
+      exit 0
+    solve: |
+      comm -12 ~/data/liste_a.txt ~/data/liste_b.txt > ~/data/communs.txt
+    hints:
+      - text: "comm compare deux fichiers triés : -1 masque la colonne propre au premier, -2 celle du second."
+      - text: "En combinant -12, seules les lignes présentes dans les deux restent."
+    variant:
+      kind: task
+      prompt: "Les fichiers ~/data/liste_a.txt et ~/data/liste_b.txt sont triés. Écris dans ~/data/uniques_a.txt les noms présents uniquement dans liste_a, un par ligne, triés."
+      solution: "comm -23 ~/data/liste_a.txt ~/data/liste_b.txt > ~/data/uniques_a.txt"
+      check: |
+        [ -f ~/data/uniques_a.txt ] || exit 1
+        expected=$(comm -23 ~/data/liste_a.txt ~/data/liste_b.txt)
+        actual=$(cat ~/data/uniques_a.txt)
+        [ "$actual" = "$expected" ] || exit 1
+        exit 0
+      solve: |
+        comm -23 ~/data/liste_a.txt ~/data/liste_b.txt > ~/data/uniques_a.txt
+      hints:
+        - text: "-2 masque la colonne propre au second fichier : il reste les lignes du premier + les communes."
+        - text: "En combinant -23, seules les lignes du premier fichier qui ne sont pas dans le second restent."
+rewards:
+  xp: 420

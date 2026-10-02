@@ -1,0 +1,367 @@
+# Lot B de la vague 2 (DeepSeek), testé au banc d'essai ; arbitres renforcés.
+id: rw_script_02
+title: "Scripts solides"
+hook: "Un script qui marche une fois, c'est bien. Un script qui tient, c'est mieux."
+tier: root_wizard
+tree: system_overlord
+runtime: docker
+shell: bash
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_path, mutation] }
+intro: "Des scripts qui s'arrêtent au bon moment, isolent leurs variables, choisissent leur branche et lisent leurs options."
+questions:
+  - kind: task
+    prompt: "Écris ~/premier.sh qui commence par `set -e`, puis exécute `false`, puis `echo fini`. Lance-le : tu ne dois voir aucun affichage et le script doit sortir en erreur (code de retour non nul). C'est set -e qui arrête tout dès la première commande en échec."
+    solution: "printf '#!/bin/bash\\nset -e\\nfalse\\necho fini\\n' > ~/premier.sh && chmod +x ~/premier.sh"
+    check: |
+      cd ~ || exit 1
+      [ -x premier.sh ] || exit 1
+      grep -q 'set -e' premier.sh || exit 1
+      out=$(timeout 3 ./premier.sh 2>/dev/null) || true
+      [ -z "$out" ] || exit 1
+      timeout 3 ./premier.sh >/dev/null 2>&1
+      rc=$?
+      [ "$rc" -ge 1 ] && [ "$rc" -lt 124 ] || exit 1
+      exit 0
+    solve: |
+      printf '#!/bin/bash\nset -e\nfalse\necho fini\n' > ~/premier.sh
+      chmod +x ~/premier.sh
+    hints:
+      - text: "set -e en première ligne après le shebang : toute commande qui échoue arrête le script."
+      - text: "Vérifie avec `./premier.sh; echo $?` : le code ne doit pas être 0."
+    variant:
+      kind: task
+      prompt: "Écris ~/strict.sh qui commence par `set -u`, puis affiche `Bonjour $nom` sans avoir défini la variable `nom`. Lance-le : le script doit sortir en erreur (code non nul) sans rien afficher."
+      solution: "printf '#!/bin/bash\\nset -u\\necho \"Bonjour $nom\"\\n' > ~/strict.sh && chmod +x ~/strict.sh"
+      check: |
+        cd ~ || exit 1
+        [ -x strict.sh ] || exit 1
+        grep -q 'set -u' strict.sh || exit 1
+        out=$(timeout 3 ./strict.sh 2>/dev/null) || true
+        [ -z "$out" ] || exit 1
+        timeout 3 ./strict.sh >/dev/null 2>&1
+        rc=$?
+        [ "$rc" -ge 1 ] && [ "$rc" -lt 124 ] || exit 1
+        exit 0
+      solve: |
+        printf '#!/bin/bash\nset -u\necho "Bonjour $nom"\n' > ~/strict.sh
+        chmod +x ~/strict.sh
+      hints:
+        - text: "set -u fait échouer le script dès qu'il lit une variable non définie."
+  - kind: task
+    prompt: "Écris ~/local.sh. Il définit une variable globale `compteur=global`, puis une fonction `affiche` qui déclare `local compteur=local` et affiche `$compteur`. Le script appelle ensuite `affiche`, puis affiche `$compteur`. La sortie doit être exactement deux lignes : `local` puis `global`."
+    solution: |
+      cat > ~/local.sh <<'EOF'
+      #!/bin/bash
+      compteur=global
+      affiche() {
+        local compteur=local
+        echo "$compteur"
+      }
+      affiche
+      echo "$compteur"
+      EOF
+      chmod +x ~/local.sh
+    check: |
+      cd ~ || exit 1
+      [ -x local.sh ] || exit 1
+      grep -q 'local ' local.sh || exit 1
+      out=$(timeout 3 ./local.sh 2>/dev/null)
+      expected=$'local\nglobal'
+      [ "$out" = "$expected" ] || exit 1
+      exit 0
+    solve: |
+      cat > ~/local.sh <<'EOF'
+      #!/bin/bash
+      compteur=global
+      affiche() {
+        local compteur=local
+        echo "$compteur"
+      }
+      affiche
+      echo "$compteur"
+      EOF
+      chmod +x ~/local.sh
+    hints:
+      - text: "`local VAR=valeur`, à l'intérieur de la fonction, crée une variable qui n'existe que pour cette fonction."
+      - text: "Sans local, la variable globale serait écrasée et la sortie serait `local` puis `local`."
+    variant:
+      kind: task
+      prompt: "Écris ~/double.sh. Il définit `n=0`, puis une fonction `calcule` qui fait `local n=5` et `n=$((n * 2))`, puis affiche `$n`. Le script appelle `calcule`, puis affiche `n=$n`. La sortie doit être exactement : `10` puis `n=0`."
+      solution: |
+        cat > ~/double.sh <<'EOF'
+        #!/bin/bash
+        n=0
+        calcule() {
+          local n=5
+          n=$((n * 2))
+          echo "$n"
+        }
+        calcule
+        echo "n=$n"
+        EOF
+        chmod +x ~/double.sh
+      check: |
+        cd ~ || exit 1
+        [ -x double.sh ] || exit 1
+        grep -q 'local ' double.sh || exit 1
+        out=$(timeout 3 ./double.sh 2>/dev/null)
+        expected=$'10\nn=0'
+        [ "$out" = "$expected" ] || exit 1
+        exit 0
+      solve: |
+        cat > ~/double.sh <<'EOF'
+        #!/bin/bash
+        n=0
+        calcule() {
+          local n=5
+          n=$((n * 2))
+          echo "$n"
+        }
+        calcule
+        echo "n=$n"
+        EOF
+        chmod +x ~/double.sh
+      hints:
+        - text: "La variable globale doit rester à 0 après l'appel : c'est tout l'intérêt de local."
+  - kind: task
+    prompt: "Écris ~/menu.sh qui prend un mot en argument (`start`, `stop`, `status`), utilise `case`, et affiche respectivement `Démarrage`, `Arrêt`, `Statut`. Tout autre mot affiche `Inconnu`. Sans argument, affiche aussi `Inconnu`."
+    solution: |
+      cat > ~/menu.sh <<'EOF'
+      #!/bin/bash
+      case "${1:-}" in
+        start)  echo "Démarrage" ;;
+        stop)   echo "Arrêt" ;;
+        status) echo "Statut" ;;
+        *)      echo "Inconnu" ;;
+      esac
+      EOF
+      chmod +x ~/menu.sh
+    check: |
+      cd ~ || exit 1
+      [ -x menu.sh ] || exit 1
+      grep -q 'case' menu.sh || exit 1
+      [ "$(timeout 3 ./menu.sh start)" = "Démarrage" ] || exit 1
+      [ "$(timeout 3 ./menu.sh stop)" = "Arrêt" ] || exit 1
+      [ "$(timeout 3 ./menu.sh status)" = "Statut" ] || exit 1
+      [ "$(timeout 3 ./menu.sh autre)" = "Inconnu" ] || exit 1
+      [ "$(timeout 3 ./menu.sh)" = "Inconnu" ] || exit 1
+      exit 0
+    solve: |
+      cat > ~/menu.sh <<'EOF'
+      #!/bin/bash
+      case "${1:-}" in
+        start)  echo "Démarrage" ;;
+        stop)   echo "Arrêt" ;;
+        status) echo "Statut" ;;
+        *)      echo "Inconnu" ;;
+      esac
+      EOF
+      chmod +x ~/menu.sh
+    hints:
+      - text: "case VAR in motif) … ;; esac. Le motif * sert de branche par défaut."
+      - text: "Pour gérer l'absence d'argument sans erreur, écris `${1:-}`."
+    variant:
+      kind: task
+      prompt: "Écris ~/verdict.sh qui prend un code de sortie en argument (`0`, `1`, `2`) et affiche `succes` pour 0, `erreur-legere` pour 1, `erreur-grave` pour 2, et `inconnu` pour tout autre code."
+      solution: |
+        cat > ~/verdict.sh <<'EOF'
+        #!/bin/bash
+        case "${1:-}" in
+          0) echo "succes" ;;
+          1) echo "erreur-legere" ;;
+          2) echo "erreur-grave" ;;
+          *) echo "inconnu" ;;
+        esac
+        EOF
+        chmod +x ~/verdict.sh
+      check: |
+        cd ~ || exit 1
+        [ -x verdict.sh ] || exit 1
+        grep -q 'case' verdict.sh || exit 1
+        [ "$(timeout 3 ./verdict.sh 0)" = "succes" ] || exit 1
+        [ "$(timeout 3 ./verdict.sh 1)" = "erreur-legere" ] || exit 1
+        [ "$(timeout 3 ./verdict.sh 2)" = "erreur-grave" ] || exit 1
+        [ "$(timeout 3 ./verdict.sh 42)" = "inconnu" ] || exit 1
+        exit 0
+      solve: |
+        cat > ~/verdict.sh <<'EOF'
+        #!/bin/bash
+        case "${1:-}" in
+          0) echo "succes" ;;
+          1) echo "erreur-legere" ;;
+          2) echo "erreur-grave" ;;
+          *) echo "inconnu" ;;
+        esac
+        EOF
+        chmod +x ~/verdict.sh
+      hints:
+        - text: "Les motifs de case peuvent être des nombres, pas seulement des mots."
+  - kind: task
+    prompt: "Écris ~/opts.sh qui utilise `getopts` avec `-n NOM` et `-v`. La variable `nom` vaut `inconnu` par défaut, ou la valeur passée à `-n`. Le script affiche d'abord `verbeux` si `-v` a été donné, puis `nom=<valeur>`. Sans -v, il n'affiche que la ligne `nom=…`."
+    solution: |
+      cat > ~/opts.sh <<'EOF'
+      #!/bin/bash
+      nom=inconnu
+      verbeux=non
+      while getopts "n:v" opt; do
+        case "$opt" in
+          n) nom="$OPTARG" ;;
+          v) verbeux=oui ;;
+        esac
+      done
+      [ "$verbeux" = oui ] && echo "verbeux"
+      echo "nom=$nom"
+      EOF
+      chmod +x ~/opts.sh
+    check: |
+      cd ~ || exit 1
+      [ -x opts.sh ] || exit 1
+      grep -q getopts opts.sh || exit 1
+      # Des noms tirés au hasard : impossible de les prévoir dans le script.
+      a=agent$RANDOM; b=joueur$RANDOM
+      out1=$(timeout 3 ./opts.sh 2>/dev/null)
+      [ "$out1" = "nom=inconnu" ] || exit 1
+      out2=$(timeout 3 ./opts.sh -n "$a" 2>/dev/null)
+      [ "$out2" = "nom=$a" ] || exit 1
+      out3=$(timeout 3 ./opts.sh -v -n "$b" 2>/dev/null)
+      expected3=$'verbeux\n'"nom=$b"
+      [ "$out3" = "$expected3" ] || exit 1
+      exit 0
+    solve: |
+      cat > ~/opts.sh <<'EOF'
+      #!/bin/bash
+      nom=inconnu
+      verbeux=non
+      while getopts "n:v" opt; do
+        case "$opt" in
+          n) nom="$OPTARG" ;;
+          v) verbeux=oui ;;
+        esac
+      done
+      [ "$verbeux" = oui ] && echo "verbeux"
+      echo "nom=$nom"
+      EOF
+      chmod +x ~/opts.sh
+    hints:
+      - text: "La chaîne d'options de getopts utilise deux-points après une lettre quand elle attend une valeur : `n:`."
+      - text: "L'argument associé se lit dans `$OPTARG` à l'intérieur du case."
+    variant:
+      kind: task
+      prompt: "Écris ~/args.sh qui utilise `getopts` avec `-f FICHIER` et `-d` (mode debug). Par défaut, `fichier` vaut `defaut.txt` et `debug` vaut `non`. Le script affiche `debug` si -d a été donné, puis `fichier=<valeur>`."
+      solution: |
+        cat > ~/args.sh <<'EOF'
+        #!/bin/bash
+        fichier=defaut.txt
+        debug=non
+        while getopts "f:d" opt; do
+          case "$opt" in
+            f) fichier="$OPTARG" ;;
+            d) debug=oui ;;
+          esac
+        done
+        [ "$debug" = oui ] && echo "debug"
+        echo "fichier=$fichier"
+        EOF
+        chmod +x ~/args.sh
+      check: |
+        cd ~ || exit 1
+        [ -x args.sh ] || exit 1
+        grep -q getopts args.sh || exit 1
+        f=notes$RANDOM.txt
+        [ "$(timeout 3 ./args.sh 2>/dev/null)" = "fichier=defaut.txt" ] || exit 1
+        [ "$(timeout 3 ./args.sh -f "$f" 2>/dev/null)" = "fichier=$f" ] || exit 1
+        [ "$(timeout 3 ./args.sh -d 2>/dev/null)" = $'debug\nfichier=defaut.txt' ] || exit 1
+        exit 0
+      solve: |
+        cat > ~/args.sh <<'EOF'
+        #!/bin/bash
+        fichier=defaut.txt
+        debug=non
+        while getopts "f:d" opt; do
+          case "$opt" in
+            f) fichier="$OPTARG" ;;
+            d) debug=oui ;;
+          esac
+        done
+        [ "$debug" = oui ] && echo "debug"
+        echo "fichier=$fichier"
+        EOF
+        chmod +x ~/args.sh
+      hints:
+        - text: "Les options dans la chaîne suivent l'ordre habituel : lettres seules, deux-points pour celles qui attendent une valeur."
+  - kind: task
+    prompt: "Écris ~/confgen.sh qui utilise un here-doc pour créer ~/serveur.conf contenant exactement deux lignes : `port=8080` puis `nom=mon-serveur`. Le script affiche aussi `ok` à la fin."
+    solution: |
+      cat > ~/confgen.sh <<'SCRIPT'
+      #!/bin/bash
+      cat > "$HOME/serveur.conf" <<CONF
+      port=8080
+      nom=mon-serveur
+      CONF
+      echo ok
+      SCRIPT
+      chmod +x ~/confgen.sh
+    check: |
+      cd ~ || exit 1
+      [ -x confgen.sh ] || exit 1
+      grep -q '<<' confgen.sh || exit 1
+      rm -f serveur.conf
+      out=$(timeout 3 ./confgen.sh 2>/dev/null)
+      [ "$out" = "ok" ] || exit 1
+      expected=$'port=8080\nnom=mon-serveur'
+      actual=$(cat serveur.conf 2>/dev/null)
+      [ "$actual" = "$expected" ] || exit 1
+      exit 0
+    solve: |
+      cat > ~/confgen.sh <<'SCRIPT'
+      #!/bin/bash
+      cat > "$HOME/serveur.conf" <<CONF
+      port=8080
+      nom=mon-serveur
+      CONF
+      echo ok
+      SCRIPT
+      chmod +x ~/confgen.sh
+    hints:
+      - text: "Un here-doc commence par `COMMANDE <<MARQUEUR` et se termine par une ligne qui contient seulement `MARQUEUR`."
+      - text: "Mets des guillemets autour du marqueur (`<<'CONF'`) si le contenu ne doit pas subir d'expansion de variables."
+    variant:
+      kind: task
+      prompt: "Écris ~/gen_conf.sh qui utilise un here-doc pour créer ~/reseau.conf contenant exactement deux lignes : `host=localhost` puis `port=9000`. Le script affiche aussi `reseau pret` à la fin."
+      solution: |
+        cat > ~/gen_conf.sh <<'SCRIPT'
+        #!/bin/bash
+        cat > "$HOME/reseau.conf" <<CONF
+        host=localhost
+        port=9000
+        CONF
+        echo "reseau pret"
+        SCRIPT
+        chmod +x ~/gen_conf.sh
+      check: |
+        cd ~ || exit 1
+        [ -x gen_conf.sh ] || exit 1
+        grep -q '<<' gen_conf.sh || exit 1
+        rm -f reseau.conf
+        out=$(timeout 3 ./gen_conf.sh 2>/dev/null)
+        [ "$out" = "reseau pret" ] || exit 1
+        expected=$'host=localhost\nport=9000'
+        actual=$(cat reseau.conf 2>/dev/null)
+        [ "$actual" = "$expected" ] || exit 1
+        exit 0
+      solve: |
+        cat > ~/gen_conf.sh <<'SCRIPT'
+        #!/bin/bash
+        cat > "$HOME/reseau.conf" <<CONF
+        host=localhost
+        port=9000
+        CONF
+        echo "reseau pret"
+        SCRIPT
+        chmod +x ~/gen_conf.sh
+      hints:
+        - text: "Même structure que pour serveur.conf, avec un autre contenu."
+rewards:
+  xp: 460
