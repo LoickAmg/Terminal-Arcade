@@ -121,6 +121,13 @@ npm run build
   - `src/components/` : terminal xterm.js, bannières des niveaux, questions
     en bulles, compagnon, barre de saisie mobile.
 
+## Catalogue et contenu
+
+- `docs/exercices.md` : tous les niveaux, questions, réponses, indices et
+  défis, générés depuis les YAML (`npm run export:exercices`).
+- `docs/prompt-contenu.md` : le prompt pour faire proposer de nouveaux
+  niveaux à d'autres IA, avec le format attendu et la grille d'évaluation.
+
 ## Ajouter un niveau
 
 Créer un fichier YAML dans `shared/levels/<palier>/`. Le format est décrit

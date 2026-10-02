@@ -13,7 +13,8 @@
     "lint": "npm run lint -w frontend",
     "test": "vitest run",
     "typecheck": "tsc -p shared --noEmit && tsc -p frontend --noEmit && tsc -p backend --noEmit",
-    "sandbox": "npm run dev -w backend"
+    "sandbox": "npm run dev -w backend",
+    "export:exercices": "tsx scripts/export-exercices.ts"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
