@@ -1,0 +1,210 @@
+# Lot F de la vague 2 (Kimi), testé au banc d'essai.
+id: ps_scripts_01
+title: "Scripts sous tension"
+hook: "Arguments, erreurs, processus : du vrai PowerShell, pas une ligne jetable."
+tier: root_wizard
+tree: powershell
+runtime: docker
+shell: pwsh
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [mutation, hostile_alias] }
+intro: "Construire du JSON objet par objet, réécrire du texte avec des expressions régulières, écrire un script qui prend des arguments, encadrer ce qui peut échouer avec try/catch, et gérer les processus avec des cmdlets."
+setup: |
+  mkdir -p ~/logs ~/donnees
+  for n in api web worker; do
+    head -c $((RANDOM % 50000 + 1000)) /dev/zero > ~/logs/$n.log
+  done
+  printf 'notes diverses\n' > ~/logs/notes.txt
+  for i in 1 2 3; do
+    printf 'jeu de donnees %d\n' "$i" > ~/donnees/jeu$i.dat
+  done
+  : > ~/acces.log
+  for i in $(seq 1 $((RANDOM % 5 + 8))); do
+    printf '2026-10-03 09:%02d connexion utilisateur%d depuis 10.%d.%d.%d\n' \
+      "$((i % 60))" "$i" "$((RANDOM % 256))" "$((RANDOM % 256))" "$((RANDOM % 256))" >> ~/acces.log
+  done
+questions:
+  - kind: task
+    prompt: 'Écris dans taille.json un tableau JSON avec, pour chaque fichier .log de logs, un objet { "nom": <nom du fichier>, "taille": <taille en octets> }. Construis les objets avec [PSCustomObject] et sérialise avec ConvertTo-Json.'
+    check: |
+      [ -f ~/taille.json ] || exit 1
+      pwsh -NoProfile -NonInteractive -Command '
+      try { $got = @(Get-Content "$HOME/taille.json" -Raw | ConvertFrom-Json) } catch { exit 1 }
+      $exp = @(Get-ChildItem "$HOME/logs" -Filter *.log | Sort-Object Name | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } })
+      if ($got.Count -ne $exp.Count) { exit 1 }
+      foreach ($g in $got) {
+        $e = $exp | Where-Object { $_.nom -eq $g.nom }
+        if (-not $e -or [long]$g.taille -ne [long]$e.taille) { exit 1 }
+      }
+      exit 0
+      '
+    solution: 'Get-ChildItem logs -Filter *.log | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } } | ConvertTo-Json | Set-Content taille.json'
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem "$HOME/logs" -Filter *.log | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } } | ConvertTo-Json | Set-Content "$HOME/taille.json"'
+    explain: "Pas de sed ni de collage de chaînes : chaque fichier devient un objet, ConvertTo-Json sérialise le tableau."
+    hints:
+      - { text: 'Une hashtable @{ nom = ...; taille = ... } ou [PSCustomObject]@{ ... } crée l''objet ; $_ est le fichier courant.' }
+      - { text: "Le pipeline entier part dans ConvertTo-Json, puis Set-Content taille.json.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: 'Même exercice, mais n''écris dans taille.json que les fichiers .log de logs qui dépassent 10000 octets (il y en a au moins un).'
+      setup: |
+        head -c $((RANDOM % 30000 + 20000)) /dev/zero > ~/logs/gros.log
+        rm -f ~/taille.json
+      check: |
+        [ -f ~/taille.json ] || exit 1
+        pwsh -NoProfile -NonInteractive -Command '
+        try { $got = @(Get-Content "$HOME/taille.json" -Raw | ConvertFrom-Json) } catch { exit 1 }
+        $exp = @(Get-ChildItem "$HOME/logs" -Filter *.log | Where-Object Length -gt 10000 | Sort-Object Name | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } })
+        if ($got.Count -ne $exp.Count) { exit 1 }
+        foreach ($g in $got) {
+          $e = $exp | Where-Object { $_.nom -eq $g.nom }
+          if (-not $e -or [long]$g.taille -ne [long]$e.taille) { exit 1 }
+        }
+        exit 0
+        '
+      solution: 'Get-ChildItem logs -Filter *.log | Where-Object Length -gt 10000 | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } } | ConvertTo-Json | Set-Content taille.json'
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem "$HOME/logs" -Filter *.log | Where-Object Length -gt 10000 | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } } | ConvertTo-Json | Set-Content "$HOME/taille.json"'
+      hints:
+        - { text: "Insère un Where-Object Length -gt 10000 avant de construire les objets." }
+  - kind: task
+    prompt: "acces.log finit chaque ligne par une adresse IPv4. Masque le dernier octet (remplace-le par X) avec -replace, et écris le résultat dans acces_masque.txt."
+    check: |
+      [ -f ~/acces_masque.txt ] || exit 1
+      diff -q <(sed -E 's/\.[0-9]{1,3}$/.X/' ~/acces.log) ~/acces_masque.txt >/dev/null 2>&1
+    solution: '(Get-Content acces.log) -replace ''\.[0-9]{1,3}$'', ''.X'' | Set-Content acces_masque.txt'
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command '(Get-Content "$HOME/acces.log") -replace "\.[0-9]{1,3}$", ".X" | Set-Content "$HOME/acces_masque.txt"'
+    explain: "-replace applique une expression régulière à chaque ligne du tableau ; le $ ancre en fin de ligne."
+    hints:
+      - { text: "(Get-Content acces.log) donne un tableau de lignes ; -replace s'applique à chacune." }
+      - { text: "Le motif : un point, un à trois chiffres, en fin de ligne.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Dans acces.log, remplace chaque nom d'utilisateur (utilisateur suivi d'un nombre) par le mot invite, avec -replace. Écris le résultat dans acces_anonyme.txt."
+      check: |
+        [ -f ~/acces_anonyme.txt ] || exit 1
+        diff -q <(sed -E 's/utilisateur[0-9]+/invite/' ~/acces.log) ~/acces_anonyme.txt >/dev/null 2>&1
+      solution: '(Get-Content acces.log) -replace ''utilisateur[0-9]+'', ''invite'' | Set-Content acces_anonyme.txt'
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command '(Get-Content "$HOME/acces.log") -replace "utilisateur[0-9]+", "invite" | Set-Content "$HOME/acces_anonyme.txt"'
+      hints:
+        - { text: "Le motif : utilisateur puis [0-9]+ (au moins un chiffre)." }
+  - kind: task
+    prompt: "Écris un script verifie.ps1 qui prend un chemin en argument (param) et affiche PRESENT:<chemin> si le chemin existe, ABSENT:<chemin> sinon. Il sera lancé depuis PowerShell ainsi : ./verifie.ps1 <chemin>"
+    check: |
+      [ -f ~/verifie.ps1 ] || exit 1
+      ex=$(find ~/donnees -maxdepth 1 -name "*.dat" | shuf -n 1)
+      out=$(cd ~ && timeout 3 pwsh -NoProfile -NonInteractive -Command '& ./verifie.ps1 '"$ex"'; & ./verifie.ps1 /home/agent/fantome.txt' 2>/dev/null)
+      [ "$(echo "$out" | wc -l)" = 2 ] \
+        && [ "$(echo "$out" | sed -n 1p)" = "PRESENT:$ex" ] \
+        && [ "$(echo "$out" | sed -n 2p)" = "ABSENT:/home/agent/fantome.txt" ]
+    solution: 'param([string]$chemin) puis : if (Test-Path $chemin) { "PRESENT:$chemin" } else { "ABSENT:$chemin" }'
+    solve: |
+      cat > ~/verifie.ps1 <<'PWSH'
+      param([string]$chemin)
+      if (Test-Path $chemin) { "PRESENT:$chemin" } else { "ABSENT:$chemin" }
+      PWSH
+    explain: "param() déclare les arguments du script ; Test-Path répond par un vrai booléen, pas par du texte à décortiquer."
+    hints:
+      - { text: 'param([string]$chemin) en première ligne ; $chemin contient l''argument.' }
+      - { text: "Test-Path $chemin renvoie True ou False : un if suffit.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Écris un script verifie.ps1 qui prend un chemin en argument (param) et affiche DOSSIER:<chemin> si c'est un dossier, FICHIER:<chemin> si c'est un fichier, ABSENT:<chemin> sinon. Il sera lancé depuis PowerShell ainsi : ./verifie.ps1 <chemin>"
+      setup: |
+        rm -f ~/verifie.ps1
+      check: |
+        [ -f ~/verifie.ps1 ] || exit 1
+        f=$(find ~/donnees -maxdepth 1 -name "*.dat" | shuf -n 1)
+        out=$(cd ~ && timeout 3 pwsh -NoProfile -NonInteractive -Command '& ./verifie.ps1 '"$HOME"'/donnees; & ./verifie.ps1 '"$f"'; & ./verifie.ps1 /home/agent/fantome.txt' 2>/dev/null)
+        [ "$(echo "$out" | wc -l)" = 3 ] \
+          && [ "$(echo "$out" | sed -n 1p)" = "DOSSIER:$HOME/donnees" ] \
+          && [ "$(echo "$out" | sed -n 2p)" = "FICHIER:$f" ] \
+          && [ "$(echo "$out" | sed -n 3p)" = "ABSENT:/home/agent/fantome.txt" ]
+      solution: 'param([string]$chemin) puis : if (Test-Path $chemin -PathType Container) { "DOSSIER:$chemin" } elseif (Test-Path $chemin) { "FICHIER:$chemin" } else { "ABSENT:$chemin" }'
+      solve: |
+        cat > ~/verifie.ps1 <<'PWSH'
+        param([string]$chemin)
+        if (Test-Path $chemin -PathType Container) { "DOSSIER:$chemin" }
+        elseif (Test-Path $chemin) { "FICHIER:$chemin" }
+        else { "ABSENT:$chemin" }
+        PWSH
+      hints:
+        - { text: "Test-Path -PathType Container distingue les dossiers des fichiers." }
+  - kind: task
+    prompt: "config.json contient du JSON, peut-être cassé. Écris dans etat.txt le mot VALIDE si le fichier se lit avec ConvertFrom-Json, CASSE sinon. Entoure la lecture d'un try/catch."
+    setup: |
+      if [ $((RANDOM % 2)) = 0 ]; then
+        printf '{"service": "api", "port": %d}\n' $((RANDOM % 2000 + 8000)) > ~/config.json
+      else
+        printf '{"service": "api", port: %d}\n' $((RANDOM % 2000 + 8000)) > ~/config.json
+      fi
+      rm -f ~/etat.txt
+    check: |
+      [ -f ~/etat.txt ] || exit 1
+      attendu=$(pwsh -NoProfile -NonInteractive -Command 'try { $null = Get-Content "$HOME/config.json" -Raw | ConvertFrom-Json -ErrorAction Stop; "VALIDE" } catch { "CASSE" }')
+      [ "$(tr -d ' \r\n' < ~/etat.txt)" = "$attendu" ]
+    solution: 'try { Get-Content config.json -Raw | ConvertFrom-Json | Out-Null; "VALIDE" } catch { "CASSE" }, écrit dans etat.txt avec Set-Content'
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command 'try { $null = Get-Content "$HOME/config.json" -Raw | ConvertFrom-Json -ErrorAction Stop; "VALIDE" | Set-Content "$HOME/etat.txt" } catch { "CASSE" | Set-Content "$HOME/etat.txt" }'
+    explain: "ConvertFrom-Json échoue sur du JSON cassé ; le catch récupère l'erreur proprement au lieu de planter."
+    hints:
+      - { text: 'try { ... } catch { ... } : le bloc catch s''exécute quand la lecture JSON échoue.' }
+      - { text: "Un seul mot dans le fichier : VALIDE ou CASSE, rien d'autre.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "diviseur.txt contient un nombre... ou le mot rien. Écris dans resultat.txt le double du nombre, ou le mot ERREUR si la conversion échoue. Entoure la conversion d'un try/catch."
+      setup: |
+        if [ $((RANDOM % 3)) = 0 ]; then echo rien > ~/diviseur.txt; else echo $((RANDOM % 8 + 2)) > ~/diviseur.txt; fi
+        rm -f ~/resultat.txt
+      check: |
+        [ -f ~/resultat.txt ] || exit 1
+        attendu=$(pwsh -NoProfile -NonInteractive -Command 'try { [int](Get-Content "$HOME/diviseur.txt") * 2 } catch { "ERREUR" }')
+        [ "$(tr -d ' \r\n' < ~/resultat.txt)" = "$attendu" ]
+      solution: 'try { [int](Get-Content diviseur.txt) * 2 } catch { "ERREUR" }, écrit dans resultat.txt avec Set-Content'
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command 'try { ([int](Get-Content "$HOME/diviseur.txt") * 2) | Set-Content "$HOME/resultat.txt" } catch { "ERREUR" | Set-Content "$HOME/resultat.txt" }'
+      hints:
+        - { text: "[int] devant une chaîne la convertit en nombre, ou lève une erreur si c'est impossible." }
+  - kind: task
+    prompt: "Trois processus tournent : veille1 et veille2 sont légitimes, goulot ne devrait pas tourner. Avec Get-Process et Stop-Process, arrête goulot sans toucher aux deux autres."
+    setup: |
+      mkdir -p ~/.bin
+      for p in goulot veille1 veille2; do
+        [ -x ~/.bin/$p ] || cp /bin/sleep ~/.bin/$p
+        pgrep -x $p >/dev/null || { setsid nohup ~/.bin/$p 100000 >/dev/null 2>&1 & }
+      done
+      sleep 0.3
+    check: |
+      ! pgrep -x goulot >/dev/null && pgrep -x veille1 >/dev/null && pgrep -x veille2 >/dev/null
+    solution: "Get-Process goulot pour le voir, puis Stop-Process -Name goulot"
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command 'Stop-Process -Name goulot -Force'
+      sleep 0.2
+    explain: "Get-Process et Stop-Process travaillent sur des objets processus : -Name vise un nom exact, sans risque pour les voisins."
+    hints:
+      - { text: "Get-Process goulot affiche le processus et son Id." }
+      - { text: "Stop-Process -Name goulot l'arrête ; veille1 et veille2 doivent rester en vie.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "goulot est de retour, avec un complice : espion. Arrête-les tous les deux, sans toucher à veille1 ni veille2."
+      setup: |
+        mkdir -p ~/.bin
+        for p in goulot espion veille1 veille2; do
+          [ -x ~/.bin/$p ] || cp /bin/sleep ~/.bin/$p
+          pgrep -x $p >/dev/null || { setsid nohup ~/.bin/$p 100000 >/dev/null 2>&1 & }
+        done
+        sleep 0.3
+      check: |
+        ! pgrep -x goulot >/dev/null && ! pgrep -x espion >/dev/null && pgrep -x veille1 >/dev/null && pgrep -x veille2 >/dev/null
+      solution: "Stop-Process -Name goulot, espion"
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command 'Stop-Process -Name goulot, espion -Force'
+        sleep 0.2
+      hints:
+        - { text: "Stop-Process accepte une liste de noms, séparés par des virgules." }
+rewards:
+  xp: 460

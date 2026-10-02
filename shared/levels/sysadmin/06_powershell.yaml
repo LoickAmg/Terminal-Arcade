@@ -54,7 +54,16 @@ questions:
 
   - kind: task
     prompt: "Exporte la liste des fichiers de data, avec les colonnes Name et Length, dans fichiers.csv (Export-Csv)."
-    check: 'head -n 1 ~/fichiers.csv 2>/dev/null | grep -q "\"Name\",\"Length\"" && grep -q "\.bin\"" ~/fichiers.csv'
+    # Chaque fichier avec sa vraie taille, et rien de plus (correctif du lot F).
+    check: |
+      [ -f ~/fichiers.csv ] || exit 1
+      head -n 1 ~/fichiers.csv | grep -qx '"Name","Length"' || exit 1
+      n=0
+      while IFS= read -r f; do
+        grep -qF "\"$(basename "$f")\",\"$(stat -c %s "$f")\"" ~/fichiers.csv || exit 1
+        n=$((n + 1))
+      done < <(find ~/data -maxdepth 1 -type f)
+      [ "$(wc -l < ~/fichiers.csv)" = $((n + 1)) ]
     solution: "Get-ChildItem data | Select-Object Name, Length | Export-Csv fichiers.csv"
     solve: |
       pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object Name, Length | Export-Csv ~/fichiers.csv'
@@ -72,4 +81,4 @@ questions:
 
 rewards:
   xp: 360
-  unlocks: ps_pipeline_01
+  unlocks: [ps_pipeline_01, ps_stock_01]

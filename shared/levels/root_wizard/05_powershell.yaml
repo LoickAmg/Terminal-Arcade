@@ -16,7 +16,7 @@ setup: |
     echo "2026-10-02 10:$(printf %02d "$i") $lvl service$((i % 3))" >> ~/app.log
   done
   for m in janvier fevrier mars; do echo "$m" > ~/rapports/$m.txt; done
-  seq 1 20 > ~/valeurs.txt
+  seq 1 $((RANDOM % 20 + 15)) | shuf > ~/valeurs.txt
 questions:
   - kind: task
     prompt: "Combien de lignes de app.log contiennent ERROR ? Utilise Select-String, puis envoie le nombre avec submit."
@@ -49,7 +49,9 @@ questions:
 
   - kind: task
     prompt: "Écris dans somme.txt la somme des nombres de valeurs.txt (Measure-Object)."
-    check: '[ "$(tr -d " \r\n" < ~/somme.txt 2>/dev/null)" = 210 ]'
+    check: |
+      [ -f ~/somme.txt ] || exit 1
+      [ "$(tr -d ' \r\n' < ~/somme.txt)" = "$(awk '{s += $1} END {print s}' ~/valeurs.txt)" ]
     solution: "(Get-Content valeurs.txt | Measure-Object -Sum).Sum | Set-Content somme.txt"
     solve: |
       pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/valeurs.txt | Measure-Object -Sum).Sum | Set-Content ~/somme.txt'
@@ -58,3 +60,4 @@ questions:
 
 rewards:
   xp: 420
+  unlocks: ps_scripts_01

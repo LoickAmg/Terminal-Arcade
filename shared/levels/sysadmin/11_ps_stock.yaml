@@ -1,0 +1,136 @@
+# Lot F de la vague 2 (Kimi), testé au banc d'essai.
+id: ps_stock_01
+title: "Des objets en rayon"
+hook: "Un inventaire plein de virgules. Le texte seul ne suffit plus."
+tier: sysadmin
+tree: powershell
+runtime: docker
+shell: pwsh
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [mutation, false_red] }
+intro: "Créer dossiers et fichiers, copier un arbre entier, lire un CSV en objets et garder la fin d'un journal : les gestes PowerShell de base."
+setup: |
+  mkdir -p ~/depot/archives ~/depot/photos
+  printf 'vieux rapport\n' > ~/depot/archives/rapport.txt
+  head -c 2048 /dev/zero > ~/depot/photos/logo.bin
+  printf 'inventaire du mois\n' > ~/depot/lisezmoi.txt
+  q1=$((RANDOM % 45 + 5)); q2=$((RANDOM % 45 + 5))
+  while [ "$q2" = "$q1" ]; do q2=$((RANDOM % 45 + 5)); done
+  q3=$((RANDOM % 50 + 50))
+  mapfile -t qs < <(printf '%s\n' "$q1" "$q2" "$q3" | shuf)
+  {
+    echo 'nom,salle,quantite'
+    echo "\"clavier, sans fil\",A$((RANDOM % 20 + 1)),${qs[0]}"
+    echo "souris,B$((RANDOM % 20 + 1)),${qs[1]}"
+    echo "ecran,C$((RANDOM % 20 + 1)),${qs[2]}"
+  } > ~/inventaire.csv
+  n=$((RANDOM % 30 + 20))
+  : > ~/journal.log
+  for i in $(seq 1 "$n"); do
+    printf '2026-10-03 08:%02d INFO evenement %d\n' "$((i % 60))" "$i" >> ~/journal.log
+  done
+  printf 'CODE: %s\n' "$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')" >> ~/journal.log
+questions:
+  - kind: task
+    prompt: "Crée le dossier exports/2026 (y compris exports s'il n'existe pas) avec New-Item."
+    check: |
+      [ -d ~/exports/2026 ]
+    solution: "New-Item -ItemType Directory -Path exports/2026 -Force"
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command 'New-Item -ItemType Directory -Path "$HOME/exports/2026" -Force | Out-Null'
+    hints:
+      - { text: "New-Item -ItemType Directory -Path, suivi du chemin, crée un dossier." }
+      - { text: "-Force crée aussi les dossiers parents manquants.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Crée un fichier vide exports/brouillon.txt (y compris exports s'il n'existe pas) avec New-Item."
+      check: |
+        [ -f ~/exports/brouillon.txt ]
+      solution: "New-Item -ItemType File -Path exports/brouillon.txt -Force"
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command 'New-Item -ItemType File -Path "$HOME/exports/brouillon.txt" -Force | Out-Null'
+      hints:
+        - { text: "Même cmdlet, mais -ItemType File." }
+  - kind: task
+    prompt: "Copie tout le dossier depot, sous-dossiers et fichiers compris, dans un nouveau dossier sauvegarde. Une seule commande."
+    check: |
+      [ -d ~/sauvegarde ] && diff -r ~/depot ~/sauvegarde >/dev/null 2>&1
+    solution: "Copy-Item -Recurse depot sauvegarde"
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command 'Copy-Item -Recurse "$HOME/depot" "$HOME/sauvegarde"'
+    hints:
+      - { text: "Copy-Item copie ; sans option, un dossier arrive vide." }
+      - { text: "-Recurse emporte tout le contenu du dossier.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Copie tout le dossier depot, sous-dossiers et fichiers compris, dans un nouveau dossier archives_depot. Une seule commande."
+      check: |
+        [ -d ~/archives_depot ] && diff -r ~/depot ~/archives_depot >/dev/null 2>&1
+      solution: "Copy-Item -Recurse depot archives_depot"
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command 'Copy-Item -Recurse "$HOME/depot" "$HOME/archives_depot"'
+      hints:
+        - { text: "Copy-Item -Recurse SOURCE CIBLE." }
+  - kind: task
+    prompt: "inventaire.csv contient un article dont le nom porte une virgule, entre guillemets. Quel article a la plus grande quantité ? Envoie son nom exact avec submit."
+    check: |
+      answer-is "$(pwsh -NoProfile -NonInteractive -Command '(Import-Csv "$HOME/inventaire.csv" | Sort-Object { [int]$_.quantite } | Select-Object -Last 1 -ExpandProperty nom)')"
+    solution: "Import-Csv inventaire.csv | Sort-Object { [int]$_.quantite } | Select-Object -Last 1 -ExpandProperty nom, puis submit <nom>"
+    solve: |
+      submit "$(pwsh -NoProfile -NonInteractive -Command '(Import-Csv "$HOME/inventaire.csv" | Sort-Object { [int]$_.quantite } | Select-Object -Last 1 -ExpandProperty nom)')"
+    explain: "cut ou awk casseraient les colonnes à cause de la virgule entre guillemets ; Import-Csv lit de vrais objets."
+    hints:
+      - { text: "Import-Csv inventaire.csv donne un objet par ligne, avec la propriété quantite." }
+      - { text: "Trie sur [int]$_.quantite et prends le dernier.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Toujours dans inventaire.csv : quel article a la plus petite quantité ? Envoie son nom exact avec submit."
+      check: |
+        answer-is "$(pwsh -NoProfile -NonInteractive -Command '(Import-Csv "$HOME/inventaire.csv" | Sort-Object { [int]$_.quantite } | Select-Object -First 1 -ExpandProperty nom)')"
+      solution: "Import-Csv inventaire.csv | Sort-Object { [int]$_.quantite } | Select-Object -First 1 -ExpandProperty nom, puis submit <nom>"
+      solve: |
+        submit "$(pwsh -NoProfile -NonInteractive -Command '(Import-Csv "$HOME/inventaire.csv" | Sort-Object { [int]$_.quantite } | Select-Object -First 1 -ExpandProperty nom)')"
+      hints:
+        - { text: "Même tri, mais prends le premier." }
+  - kind: task
+    prompt: 'Calcule la somme de toutes les quantités de inventaire.csv, avec une variable et $_ dans ForEach-Object. Envoie le total avec submit.'
+    check: |
+      answer-is "$(pwsh -NoProfile -NonInteractive -Command '$t = 0; Import-Csv "$HOME/inventaire.csv" | ForEach-Object { $t += [int]$_.quantite }; $t')"
+    solution: '$t = 0; Import-Csv inventaire.csv | ForEach-Object { $t += [int]$_.quantite }; $t, puis submit <total>'
+    solve: |
+      submit "$(pwsh -NoProfile -NonInteractive -Command '$t = 0; Import-Csv "$HOME/inventaire.csv" | ForEach-Object { $t += [int]$_.quantite }; $t')"
+    hints:
+      - { text: '$_ désigne l''objet qui passe dans le pipeline ; [int] convertit le texte en nombre.' }
+      - { text: '$t = 0, puis dans le bloc : $t += [int]$_.quantite', cost_s: 20 }
+    variant:
+      kind: task
+      prompt: 'Combien d''articles de inventaire.csv ont une quantité strictement supérieure à 20 ? Compte-les avec une variable et $_ dans ForEach-Object, puis envoie le nombre avec submit.'
+      check: |
+        answer-is "$(pwsh -NoProfile -NonInteractive -Command '$n = 0; Import-Csv "$HOME/inventaire.csv" | ForEach-Object { if ([int]$_.quantite -gt 20) { $n++ } }; $n')"
+      solution: '$n = 0; Import-Csv inventaire.csv | ForEach-Object { if ([int]$_.quantite -gt 20) { $n++ } }; $n, puis submit <nombre>'
+      solve: |
+        submit "$(pwsh -NoProfile -NonInteractive -Command '$n = 0; Import-Csv "$HOME/inventaire.csv" | ForEach-Object { if ([int]$_.quantite -gt 20) { $n++ } }; $n')"
+      hints:
+        - { text: "Un if dans le bloc ForEach-Object : $n++ quand la condition est vraie." }
+  - kind: task
+    prompt: "La dernière ligne de journal.log contient un code (CODE: xxxx). Affiche-la avec Get-Content -Tail et envoie la ligne entière avec submit."
+    check: |
+      answer-is "$(tail -n 1 ~/journal.log)"
+    solution: "Get-Content journal.log -Tail 1, puis submit CODE: <code>"
+    solve: |
+      submit "$(tail -n 1 ~/journal.log)"
+    hints:
+      - { text: "Get-Content journal.log -Tail 1 n'affiche que la dernière ligne." }
+    variant:
+      kind: task
+      prompt: "Écris les 3 dernières lignes de journal.log dans extrait.txt, avec Get-Content -Tail."
+      check: |
+        [ -f ~/extrait.txt ] && diff -q <(tail -n 3 ~/journal.log) ~/extrait.txt >/dev/null 2>&1
+      solution: "Get-Content journal.log -Tail 3 | Set-Content extrait.txt"
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command 'Get-Content "$HOME/journal.log" -Tail 3 | Set-Content "$HOME/extrait.txt"'
+      hints:
+        - { text: "Get-Content journal.log -Tail 3, puis un pipe vers Set-Content." }
+rewards:
+  xp: 350

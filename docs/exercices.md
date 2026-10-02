@@ -3,7 +3,7 @@
 Généré automatiquement depuis `shared/levels/` par `npm run export:exercices`.
 Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 
-**25 niveaux, 127 questions, 44 variantes.**
+**27 niveaux, 137 questions, 54 variantes.**
 
 | Type de question | Nombre |
 | --- | --- |
@@ -12,7 +12,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | Piège | 7 |
 | Prédire la sortie | 6 |
 | Compléter | 3 |
-| Défi réel (sandbox) | 84 |
+| Défi réel (sandbox) | 94 |
 
 ## Vue d'ensemble
 
@@ -35,6 +35,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | [sa_grep_02](#sa_grep_02--traquer-lintrus) | Traquer l'intrus | SysAdmin | Data Surgeon | Sandbox Docker (bash) | Classique | 5 | 330 |
 | [sa_find_01](#sa_find_01--chasse-aux-fichiers) | Chasse aux fichiers | SysAdmin | File System Ninja | Sandbox Docker (bash) | Classique | 5 | 350 |
 | [gg_tags_01](#gg_tags_01--étiquettes-et-versions) | Étiquettes et versions | SysAdmin | Git-Gud | Sandbox Docker (bash) | Classique | 5 | 360 |
+| [ps_stock_01](#ps_stock_01--des-objets-en-rayon) | Des objets en rayon | SysAdmin | PowerShell | Sandbox Docker (PowerShell) | Classique | 5 | 350 |
 | [rw_proc_01](#rw_proc_01--processus-fantôme) | Processus fantôme | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 4 | 380 |
 | [rw_script_01](#rw_script_01--automatise-tout) | Automatise tout | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 4 | 400 |
 | [gg_history_01](#gg_history_01--machine-à-remonter-le-temps) | Machine à remonter le temps | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 4 | 420 |
@@ -43,6 +44,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | [rw_shellcraft_01](#rw_shellcraft_01--scripts-résistants) | Scripts résistants | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 5 | 460 |
 | [rw_awk_01](#rw_awk_01--awk-sans-filet) | awk sans filet | Root Wizard | Data Surgeon | Sandbox Docker (bash) | Classique | 5 | 420 |
 | [gg_workflow_01](#gg_workflow_01--historique-propre) | Historique propre | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 4 | 480 |
+| [ps_scripts_01](#ps_scripts_01--scripts-sous-tension) | Scripts sous tension | Root Wizard | PowerShell | Sandbox Docker (PowerShell) | Classique | 5 | 460 |
 
 ## Palier Script Kiddie
 
@@ -1882,7 +1884,7 @@ git -C ~/appli branch -qd rouge
 | Questions | 5 |
 | XP | 360 |
 | Timer | random, 480 s (référence 240 s) |
-| Débloque | ps_pipeline_01 |
+| Débloque | ps_pipeline_01, ps_stock_01 |
 
 Arbre PowerShell : un vrai pwsh. Les réponses s'envoient avec submit <réponse>.
 
@@ -2003,7 +2005,14 @@ Exporte la liste des fichiers de data, avec les colonnes Name et Length, dans fi
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-head -n 1 ~/fichiers.csv 2>/dev/null | grep -q "\"Name\",\"Length\"" && grep -q "\.bin\"" ~/fichiers.csv
+[ -f ~/fichiers.csv ] || exit 1
+head -n 1 ~/fichiers.csv | grep -qx '"Name","Length"' || exit 1
+n=0
+while IFS= read -r f; do
+  grep -qF "\"$(basename "$f")\",\"$(stat -c %s "$f")\"" ~/fichiers.csv || exit 1
+  n=$((n + 1))
+done < <(find ~/data -maxdepth 1 -type f)
+[ "$(wc -l < ~/fichiers.csv)" = $((n + 1)) ]
 ```
 
 Résolution automatique (tests) :
@@ -2796,6 +2805,285 @@ cd ~/site && git worktree remove ~/site-hotfix
 
 </details>
 
+### ps_stock_01 — Des objets en rayon
+
+> Un inventaire plein de virgules. Le texte seul ne suffit plus.
+
+| | |
+| --- | --- |
+| Palier | SysAdmin |
+| Arbre | PowerShell |
+| Exécution | Sandbox Docker (PowerShell) |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 5 |
+| XP | 350 |
+| Sabotages signature | mutation, false_red |
+
+Créer dossiers et fichiers, copier un arbre entier, lire un CSV en objets et garder la fin d'un journal : les gestes PowerShell de base.
+
+<details><summary>Préparation du niveau</summary>
+
+```bash
+mkdir -p ~/depot/archives ~/depot/photos
+printf 'vieux rapport\n' > ~/depot/archives/rapport.txt
+head -c 2048 /dev/zero > ~/depot/photos/logo.bin
+printf 'inventaire du mois\n' > ~/depot/lisezmoi.txt
+q1=$((RANDOM % 45 + 5)); q2=$((RANDOM % 45 + 5))
+while [ "$q2" = "$q1" ]; do q2=$((RANDOM % 45 + 5)); done
+q3=$((RANDOM % 50 + 50))
+mapfile -t qs < <(printf '%s\n' "$q1" "$q2" "$q3" | shuf)
+{
+  echo 'nom,salle,quantite'
+  echo "\"clavier, sans fil\",A$((RANDOM % 20 + 1)),${qs[0]}"
+  echo "souris,B$((RANDOM % 20 + 1)),${qs[1]}"
+  echo "ecran,C$((RANDOM % 20 + 1)),${qs[2]}"
+} > ~/inventaire.csv
+n=$((RANDOM % 30 + 20))
+: > ~/journal.log
+for i in $(seq 1 "$n"); do
+  printf '2026-10-03 08:%02d INFO evenement %d\n' "$((i % 60))" "$i" >> ~/journal.log
+done
+printf 'CODE: %s\n' "$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')" >> ~/journal.log
+```
+
+</details>
+
+#### Q1 · Défi réel (sandbox)
+
+Crée le dossier exports/2026 (y compris exports s'il n'existe pas) avec New-Item.
+
+- Solution : `New-Item -ItemType Directory -Path exports/2026 -Force`
+- Indice 1 (10 s) : New-Item -ItemType Directory -Path, suivi du chemin, crée un dossier.
+- Indice 2 (20 s) : -Force crée aussi les dossiers parents manquants.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -d ~/exports/2026 ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'New-Item -ItemType Directory -Path "$HOME/exports/2026" -Force | Out-Null'
+```
+
+</details>
+
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Crée un fichier vide exports/brouillon.txt (y compris exports s'il n'existe pas) avec New-Item.
+
+- Solution : `New-Item -ItemType File -Path exports/brouillon.txt -Force`
+- Indice 1 (10 s) : Même cmdlet, mais -ItemType File.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/exports/brouillon.txt ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'New-Item -ItemType File -Path "$HOME/exports/brouillon.txt" -Force | Out-Null'
+```
+
+</details>
+
+#### Q2 · Défi réel (sandbox)
+
+Copie tout le dossier depot, sous-dossiers et fichiers compris, dans un nouveau dossier sauvegarde. Une seule commande.
+
+- Solution : `Copy-Item -Recurse depot sauvegarde`
+- Indice 1 (10 s) : Copy-Item copie ; sans option, un dossier arrive vide.
+- Indice 2 (20 s) : -Recurse emporte tout le contenu du dossier.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -d ~/sauvegarde ] && diff -r ~/depot ~/sauvegarde >/dev/null 2>&1
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Copy-Item -Recurse "$HOME/depot" "$HOME/sauvegarde"'
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Copie tout le dossier depot, sous-dossiers et fichiers compris, dans un nouveau dossier archives_depot. Une seule commande.
+
+- Solution : `Copy-Item -Recurse depot archives_depot`
+- Indice 1 (10 s) : Copy-Item -Recurse SOURCE CIBLE.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -d ~/archives_depot ] && diff -r ~/depot ~/archives_depot >/dev/null 2>&1
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Copy-Item -Recurse "$HOME/depot" "$HOME/archives_depot"'
+```
+
+</details>
+
+#### Q3 · Défi réel (sandbox)
+
+inventaire.csv contient un article dont le nom porte une virgule, entre guillemets. Quel article a la plus grande quantité ? Envoie son nom exact avec submit.
+
+- Solution : `Import-Csv inventaire.csv | Sort-Object { [int]$_.quantite } | Select-Object -Last 1 -ExpandProperty nom, puis submit <nom>`
+- Explication : cut ou awk casseraient les colonnes à cause de la virgule entre guillemets ; Import-Csv lit de vrais objets.
+- Indice 1 (10 s) : Import-Csv inventaire.csv donne un objet par ligne, avec la propriété quantite.
+- Indice 2 (20 s) : Trie sur [int]$_.quantite et prends le dernier.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(pwsh -NoProfile -NonInteractive -Command '(Import-Csv "$HOME/inventaire.csv" | Sort-Object { [int]$_.quantite } | Select-Object -Last 1 -ExpandProperty nom)')"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(pwsh -NoProfile -NonInteractive -Command '(Import-Csv "$HOME/inventaire.csv" | Sort-Object { [int]$_.quantite } | Select-Object -Last 1 -ExpandProperty nom)')"
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Toujours dans inventaire.csv : quel article a la plus petite quantité ? Envoie son nom exact avec submit.
+
+- Solution : `Import-Csv inventaire.csv | Sort-Object { [int]$_.quantite } | Select-Object -First 1 -ExpandProperty nom, puis submit <nom>`
+- Indice 1 (10 s) : Même tri, mais prends le premier.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(pwsh -NoProfile -NonInteractive -Command '(Import-Csv "$HOME/inventaire.csv" | Sort-Object { [int]$_.quantite } | Select-Object -First 1 -ExpandProperty nom)')"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(pwsh -NoProfile -NonInteractive -Command '(Import-Csv "$HOME/inventaire.csv" | Sort-Object { [int]$_.quantite } | Select-Object -First 1 -ExpandProperty nom)')"
+```
+
+</details>
+
+#### Q4 · Défi réel (sandbox)
+
+Calcule la somme de toutes les quantités de inventaire.csv, avec une variable et $_ dans ForEach-Object. Envoie le total avec submit.
+
+- Solution : `$t = 0; Import-Csv inventaire.csv | ForEach-Object { $t += [int]$_.quantite }; $t, puis submit <total>`
+- Indice 1 (10 s) : $_ désigne l'objet qui passe dans le pipeline ; [int] convertit le texte en nombre.
+- Indice 2 (20 s) : $t = 0, puis dans le bloc : $t += [int]$_.quantite
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(pwsh -NoProfile -NonInteractive -Command '$t = 0; Import-Csv "$HOME/inventaire.csv" | ForEach-Object { $t += [int]$_.quantite }; $t')"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(pwsh -NoProfile -NonInteractive -Command '$t = 0; Import-Csv "$HOME/inventaire.csv" | ForEach-Object { $t += [int]$_.quantite }; $t')"
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Combien d'articles de inventaire.csv ont une quantité strictement supérieure à 20 ? Compte-les avec une variable et $_ dans ForEach-Object, puis envoie le nombre avec submit.
+
+- Solution : `$n = 0; Import-Csv inventaire.csv | ForEach-Object { if ([int]$_.quantite -gt 20) { $n++ } }; $n, puis submit <nombre>`
+- Indice 1 (10 s) : Un if dans le bloc ForEach-Object : $n++ quand la condition est vraie.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(pwsh -NoProfile -NonInteractive -Command '$n = 0; Import-Csv "$HOME/inventaire.csv" | ForEach-Object { if ([int]$_.quantite -gt 20) { $n++ } }; $n')"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(pwsh -NoProfile -NonInteractive -Command '$n = 0; Import-Csv "$HOME/inventaire.csv" | ForEach-Object { if ([int]$_.quantite -gt 20) { $n++ } }; $n')"
+```
+
+</details>
+
+#### Q5 · Défi réel (sandbox)
+
+La dernière ligne de journal.log contient un code (CODE: xxxx). Affiche-la avec Get-Content -Tail et envoie la ligne entière avec submit.
+
+- Solution : `Get-Content journal.log -Tail 1, puis submit CODE: <code>`
+- Indice 1 (10 s) : Get-Content journal.log -Tail 1 n'affiche que la dernière ligne.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(tail -n 1 ~/journal.log)"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(tail -n 1 ~/journal.log)"
+```
+
+</details>
+
+#### Q5 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris les 3 dernières lignes de journal.log dans extrait.txt, avec Get-Content -Tail.
+
+- Solution : `Get-Content journal.log -Tail 3 | Set-Content extrait.txt`
+- Indice 1 (10 s) : Get-Content journal.log -Tail 3, puis un pipe vers Set-Content.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/extrait.txt ] && diff -q <(tail -n 3 ~/journal.log) ~/extrait.txt >/dev/null 2>&1
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-Content "$HOME/journal.log" -Tail 3 | Set-Content "$HOME/extrait.txt"'
+```
+
+</details>
+
 ## Palier Root Wizard
 
 ### rw_proc_01 — Processus fantôme
@@ -3377,6 +3665,7 @@ cd ~/calcul && bad=$(git log --reverse --format=%H | while read -r h; do git sho
 | Questions | 4 |
 | XP | 420 |
 | Timer | random, 480 s (référence 240 s) |
+| Débloque | ps_scripts_01 |
 
 Select-String, Group-Object, ForEach-Object, Measure-Object.
 
@@ -3389,7 +3678,7 @@ for i in $(seq 1 30); do
   echo "2026-10-02 10:$(printf %02d "$i") $lvl service$((i % 3))" >> ~/app.log
 done
 for m in janvier fevrier mars; do echo "$m" > ~/rapports/$m.txt; done
-seq 1 20 > ~/valeurs.txt
+seq 1 $((RANDOM % 20 + 15)) | shuf > ~/valeurs.txt
 ```
 
 </details>
@@ -3476,7 +3765,8 @@ pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/rapports -Filter *.txt
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-[ "$(tr -d " \r\n" < ~/somme.txt 2>/dev/null)" = 210 ]
+[ -f ~/somme.txt ] || exit 1
+[ "$(tr -d ' \r\n' < ~/somme.txt)" = "$(awk '{s += $1} END {print s}' ~/valeurs.txt)" ]
 ```
 
 Résolution automatique (tests) :
@@ -4002,6 +4292,383 @@ cd ~/atelier-git
 printf '#!/bin/sh\ngit log -1 --format=%%s > "$HOME/dernier-commit.txt"\n' > .git/hooks/post-commit
 chmod +x .git/hooks/post-commit
 git commit -qam "Hook actif"
+```
+
+</details>
+
+### ps_scripts_01 — Scripts sous tension
+
+> Arguments, erreurs, processus : du vrai PowerShell, pas une ligne jetable.
+
+| | |
+| --- | --- |
+| Palier | Root Wizard |
+| Arbre | PowerShell |
+| Exécution | Sandbox Docker (PowerShell) |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 5 |
+| XP | 460 |
+| Sabotages signature | mutation, hostile_alias |
+
+Construire du JSON objet par objet, réécrire du texte avec des expressions régulières, écrire un script qui prend des arguments, encadrer ce qui peut échouer avec try/catch, et gérer les processus avec des cmdlets.
+
+<details><summary>Préparation du niveau</summary>
+
+```bash
+mkdir -p ~/logs ~/donnees
+for n in api web worker; do
+  head -c $((RANDOM % 50000 + 1000)) /dev/zero > ~/logs/$n.log
+done
+printf 'notes diverses\n' > ~/logs/notes.txt
+for i in 1 2 3; do
+  printf 'jeu de donnees %d\n' "$i" > ~/donnees/jeu$i.dat
+done
+: > ~/acces.log
+for i in $(seq 1 $((RANDOM % 5 + 8))); do
+  printf '2026-10-03 09:%02d connexion utilisateur%d depuis 10.%d.%d.%d\n' \
+    "$((i % 60))" "$i" "$((RANDOM % 256))" "$((RANDOM % 256))" "$((RANDOM % 256))" >> ~/acces.log
+done
+```
+
+</details>
+
+#### Q1 · Défi réel (sandbox)
+
+Écris dans taille.json un tableau JSON avec, pour chaque fichier .log de logs, un objet { "nom": <nom du fichier>, "taille": <taille en octets> }. Construis les objets avec [PSCustomObject] et sérialise avec ConvertTo-Json.
+
+- Solution : `Get-ChildItem logs -Filter *.log | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } } | ConvertTo-Json | Set-Content taille.json`
+- Explication : Pas de sed ni de collage de chaînes : chaque fichier devient un objet, ConvertTo-Json sérialise le tableau.
+- Indice 1 (10 s) : Une hashtable @{ nom = ...; taille = ... } ou [PSCustomObject]@{ ... } crée l'objet ; $_ est le fichier courant.
+- Indice 2 (20 s) : Le pipeline entier part dans ConvertTo-Json, puis Set-Content taille.json.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/taille.json ] || exit 1
+pwsh -NoProfile -NonInteractive -Command '
+try { $got = @(Get-Content "$HOME/taille.json" -Raw | ConvertFrom-Json) } catch { exit 1 }
+$exp = @(Get-ChildItem "$HOME/logs" -Filter *.log | Sort-Object Name | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } })
+if ($got.Count -ne $exp.Count) { exit 1 }
+foreach ($g in $got) {
+  $e = $exp | Where-Object { $_.nom -eq $g.nom }
+  if (-not $e -or [long]$g.taille -ne [long]$e.taille) { exit 1 }
+}
+exit 0
+'
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem "$HOME/logs" -Filter *.log | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } } | ConvertTo-Json | Set-Content "$HOME/taille.json"'
+```
+
+</details>
+
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Même exercice, mais n'écris dans taille.json que les fichiers .log de logs qui dépassent 10000 octets (il y en a au moins un).
+
+- Solution : `Get-ChildItem logs -Filter *.log | Where-Object Length -gt 10000 | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } } | ConvertTo-Json | Set-Content taille.json`
+- Indice 1 (10 s) : Insère un Where-Object Length -gt 10000 avant de construire les objets.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+head -c $((RANDOM % 30000 + 20000)) /dev/zero > ~/logs/gros.log
+rm -f ~/taille.json
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/taille.json ] || exit 1
+pwsh -NoProfile -NonInteractive -Command '
+try { $got = @(Get-Content "$HOME/taille.json" -Raw | ConvertFrom-Json) } catch { exit 1 }
+$exp = @(Get-ChildItem "$HOME/logs" -Filter *.log | Where-Object Length -gt 10000 | Sort-Object Name | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } })
+if ($got.Count -ne $exp.Count) { exit 1 }
+foreach ($g in $got) {
+  $e = $exp | Where-Object { $_.nom -eq $g.nom }
+  if (-not $e -or [long]$g.taille -ne [long]$e.taille) { exit 1 }
+}
+exit 0
+'
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem "$HOME/logs" -Filter *.log | Where-Object Length -gt 10000 | ForEach-Object { [PSCustomObject]@{ nom = $_.Name; taille = $_.Length } } | ConvertTo-Json | Set-Content "$HOME/taille.json"'
+```
+
+</details>
+
+#### Q2 · Défi réel (sandbox)
+
+acces.log finit chaque ligne par une adresse IPv4. Masque le dernier octet (remplace-le par X) avec -replace, et écris le résultat dans acces_masque.txt.
+
+- Solution : `(Get-Content acces.log) -replace '\.[0-9]{1,3}$', '.X' | Set-Content acces_masque.txt`
+- Explication : -replace applique une expression régulière à chaque ligne du tableau ; le $ ancre en fin de ligne.
+- Indice 1 (10 s) : (Get-Content acces.log) donne un tableau de lignes ; -replace s'applique à chacune.
+- Indice 2 (20 s) : Le motif : un point, un à trois chiffres, en fin de ligne.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/acces_masque.txt ] || exit 1
+diff -q <(sed -E 's/\.[0-9]{1,3}$/.X/' ~/acces.log) ~/acces_masque.txt >/dev/null 2>&1
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command '(Get-Content "$HOME/acces.log") -replace "\.[0-9]{1,3}$", ".X" | Set-Content "$HOME/acces_masque.txt"'
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Dans acces.log, remplace chaque nom d'utilisateur (utilisateur suivi d'un nombre) par le mot invite, avec -replace. Écris le résultat dans acces_anonyme.txt.
+
+- Solution : `(Get-Content acces.log) -replace 'utilisateur[0-9]+', 'invite' | Set-Content acces_anonyme.txt`
+- Indice 1 (10 s) : Le motif : utilisateur puis [0-9]+ (au moins un chiffre).
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/acces_anonyme.txt ] || exit 1
+diff -q <(sed -E 's/utilisateur[0-9]+/invite/' ~/acces.log) ~/acces_anonyme.txt >/dev/null 2>&1
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command '(Get-Content "$HOME/acces.log") -replace "utilisateur[0-9]+", "invite" | Set-Content "$HOME/acces_anonyme.txt"'
+```
+
+</details>
+
+#### Q3 · Défi réel (sandbox)
+
+Écris un script verifie.ps1 qui prend un chemin en argument (param) et affiche PRESENT:<chemin> si le chemin existe, ABSENT:<chemin> sinon. Il sera lancé depuis PowerShell ainsi : ./verifie.ps1 <chemin>
+
+- Solution : `param([string]$chemin) puis : if (Test-Path $chemin) { "PRESENT:$chemin" } else { "ABSENT:$chemin" }`
+- Explication : param() déclare les arguments du script ; Test-Path répond par un vrai booléen, pas par du texte à décortiquer.
+- Indice 1 (10 s) : param([string]$chemin) en première ligne ; $chemin contient l'argument.
+- Indice 2 (20 s) : Test-Path $chemin renvoie True ou False : un if suffit.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/verifie.ps1 ] || exit 1
+ex=$(find ~/donnees -maxdepth 1 -name "*.dat" | shuf -n 1)
+out=$(cd ~ && timeout 3 pwsh -NoProfile -NonInteractive -Command '& ./verifie.ps1 '"$ex"'; & ./verifie.ps1 /home/agent/fantome.txt' 2>/dev/null)
+[ "$(echo "$out" | wc -l)" = 2 ] \
+  && [ "$(echo "$out" | sed -n 1p)" = "PRESENT:$ex" ] \
+  && [ "$(echo "$out" | sed -n 2p)" = "ABSENT:/home/agent/fantome.txt" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/verifie.ps1 <<'PWSH'
+param([string]$chemin)
+if (Test-Path $chemin) { "PRESENT:$chemin" } else { "ABSENT:$chemin" }
+PWSH
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris un script verifie.ps1 qui prend un chemin en argument (param) et affiche DOSSIER:<chemin> si c'est un dossier, FICHIER:<chemin> si c'est un fichier, ABSENT:<chemin> sinon. Il sera lancé depuis PowerShell ainsi : ./verifie.ps1 <chemin>
+
+- Solution : `param([string]$chemin) puis : if (Test-Path $chemin -PathType Container) { "DOSSIER:$chemin" } elseif (Test-Path $chemin) { "FICHIER:$chemin" } else { "ABSENT:$chemin" }`
+- Indice 1 (10 s) : Test-Path -PathType Container distingue les dossiers des fichiers.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+rm -f ~/verifie.ps1
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/verifie.ps1 ] || exit 1
+f=$(find ~/donnees -maxdepth 1 -name "*.dat" | shuf -n 1)
+out=$(cd ~ && timeout 3 pwsh -NoProfile -NonInteractive -Command '& ./verifie.ps1 '"$HOME"'/donnees; & ./verifie.ps1 '"$f"'; & ./verifie.ps1 /home/agent/fantome.txt' 2>/dev/null)
+[ "$(echo "$out" | wc -l)" = 3 ] \
+  && [ "$(echo "$out" | sed -n 1p)" = "DOSSIER:$HOME/donnees" ] \
+  && [ "$(echo "$out" | sed -n 2p)" = "FICHIER:$f" ] \
+  && [ "$(echo "$out" | sed -n 3p)" = "ABSENT:/home/agent/fantome.txt" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat > ~/verifie.ps1 <<'PWSH'
+param([string]$chemin)
+if (Test-Path $chemin -PathType Container) { "DOSSIER:$chemin" }
+elseif (Test-Path $chemin) { "FICHIER:$chemin" }
+else { "ABSENT:$chemin" }
+PWSH
+```
+
+</details>
+
+#### Q4 · Défi réel (sandbox)
+
+config.json contient du JSON, peut-être cassé. Écris dans etat.txt le mot VALIDE si le fichier se lit avec ConvertFrom-Json, CASSE sinon. Entoure la lecture d'un try/catch.
+
+- Solution : `try { Get-Content config.json -Raw | ConvertFrom-Json | Out-Null; "VALIDE" } catch { "CASSE" }, écrit dans etat.txt avec Set-Content`
+- Explication : ConvertFrom-Json échoue sur du JSON cassé ; le catch récupère l'erreur proprement au lieu de planter.
+- Indice 1 (10 s) : try { ... } catch { ... } : le bloc catch s'exécute quand la lecture JSON échoue.
+- Indice 2 (20 s) : Un seul mot dans le fichier : VALIDE ou CASSE, rien d'autre.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+if [ $((RANDOM % 2)) = 0 ]; then
+  printf '{"service": "api", "port": %d}\n' $((RANDOM % 2000 + 8000)) > ~/config.json
+else
+  printf '{"service": "api", port: %d}\n' $((RANDOM % 2000 + 8000)) > ~/config.json
+fi
+rm -f ~/etat.txt
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/etat.txt ] || exit 1
+attendu=$(pwsh -NoProfile -NonInteractive -Command 'try { $null = Get-Content "$HOME/config.json" -Raw | ConvertFrom-Json -ErrorAction Stop; "VALIDE" } catch { "CASSE" }')
+[ "$(tr -d ' \r\n' < ~/etat.txt)" = "$attendu" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'try { $null = Get-Content "$HOME/config.json" -Raw | ConvertFrom-Json -ErrorAction Stop; "VALIDE" | Set-Content "$HOME/etat.txt" } catch { "CASSE" | Set-Content "$HOME/etat.txt" }'
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+diviseur.txt contient un nombre... ou le mot rien. Écris dans resultat.txt le double du nombre, ou le mot ERREUR si la conversion échoue. Entoure la conversion d'un try/catch.
+
+- Solution : `try { [int](Get-Content diviseur.txt) * 2 } catch { "ERREUR" }, écrit dans resultat.txt avec Set-Content`
+- Indice 1 (10 s) : [int] devant une chaîne la convertit en nombre, ou lève une erreur si c'est impossible.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+if [ $((RANDOM % 3)) = 0 ]; then echo rien > ~/diviseur.txt; else echo $((RANDOM % 8 + 2)) > ~/diviseur.txt; fi
+rm -f ~/resultat.txt
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/resultat.txt ] || exit 1
+attendu=$(pwsh -NoProfile -NonInteractive -Command 'try { [int](Get-Content "$HOME/diviseur.txt") * 2 } catch { "ERREUR" }')
+[ "$(tr -d ' \r\n' < ~/resultat.txt)" = "$attendu" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'try { ([int](Get-Content "$HOME/diviseur.txt") * 2) | Set-Content "$HOME/resultat.txt" } catch { "ERREUR" | Set-Content "$HOME/resultat.txt" }'
+```
+
+</details>
+
+#### Q5 · Défi réel (sandbox)
+
+Trois processus tournent : veille1 et veille2 sont légitimes, goulot ne devrait pas tourner. Avec Get-Process et Stop-Process, arrête goulot sans toucher aux deux autres.
+
+- Solution : `Get-Process goulot pour le voir, puis Stop-Process -Name goulot`
+- Explication : Get-Process et Stop-Process travaillent sur des objets processus : -Name vise un nom exact, sans risque pour les voisins.
+- Indice 1 (10 s) : Get-Process goulot affiche le processus et son Id.
+- Indice 2 (20 s) : Stop-Process -Name goulot l'arrête ; veille1 et veille2 doivent rester en vie.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+mkdir -p ~/.bin
+for p in goulot veille1 veille2; do
+  [ -x ~/.bin/$p ] || cp /bin/sleep ~/.bin/$p
+  pgrep -x $p >/dev/null || { setsid nohup ~/.bin/$p 100000 >/dev/null 2>&1 & }
+done
+sleep 0.3
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+! pgrep -x goulot >/dev/null && pgrep -x veille1 >/dev/null && pgrep -x veille2 >/dev/null
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Stop-Process -Name goulot -Force'
+sleep 0.2
+```
+
+</details>
+
+#### Q5 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+goulot est de retour, avec un complice : espion. Arrête-les tous les deux, sans toucher à veille1 ni veille2.
+
+- Solution : `Stop-Process -Name goulot, espion`
+- Indice 1 (10 s) : Stop-Process accepte une liste de noms, séparés par des virgules.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+mkdir -p ~/.bin
+for p in goulot espion veille1 veille2; do
+  [ -x ~/.bin/$p ] || cp /bin/sleep ~/.bin/$p
+  pgrep -x $p >/dev/null || { setsid nohup ~/.bin/$p 100000 >/dev/null 2>&1 & }
+done
+sleep 0.3
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+! pgrep -x goulot >/dev/null && ! pgrep -x espion >/dev/null && pgrep -x veille1 >/dev/null && pgrep -x veille2 >/dev/null
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Stop-Process -Name goulot, espion -Force'
+sleep 0.2
 ```
 
 </details>
