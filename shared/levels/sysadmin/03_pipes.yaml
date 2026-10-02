@@ -36,6 +36,16 @@ questions:
       echo FIN >> ~/etc.txt
     hints:
       - text: ">> ajoute à la fin au lieu de remplacer."
+    variant:
+      kind: task
+      prompt: "Ajoute la ligne 'Dernière ligne' à la fin de bin.txt, sans effacer ce qu'il contient."
+      setup: |
+        ls /usr/bin > ~/bin.txt
+      check: |
+        [ "$(tail -n 1 ~/bin.txt)" = "Dernière ligne" ] && diff -q <(ls /usr/bin) <(head -n -1 ~/bin.txt) >/dev/null 2>&1
+      solution: "echo 'Dernière ligne' >> bin.txt"
+      solve: |
+        echo "Dernière ligne" >> ~/bin.txt
 
   - kind: task
     prompt: "Lance ls /nexistepas et envoie uniquement son message d'erreur dans erreurs.log."
@@ -45,6 +55,14 @@ questions:
       ls /nexistepas 2> ~/erreurs.log; true
     hints:
       - text: "Les erreurs sortent sur le canal 2."
+    variant:
+      kind: task
+      prompt: "Lance cat /fichier_inconnu et envoie uniquement son message d'erreur dans echec.log."
+      check: |
+        diff -q <(cat /fichier_inconnu 2>&1) ~/echec.log >/dev/null 2>&1
+      solution: "cat /fichier_inconnu 2> echec.log"
+      solve: |
+        cat /fichier_inconnu 2> ~/echec.log; true
 
   - kind: task
     prompt: "Combien de lignes de /etc/passwd contiennent nologin ? Envoie le nombre avec submit."

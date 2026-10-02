@@ -46,6 +46,17 @@ questions:
       pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/rapports -Filter *.txt | Rename-Item -NewName { $_.Name -replace "\.txt$", ".old" }'
     hints:
       - text: "Rename-Item accepte un bloc { } qui calcule le nouveau nom de chaque fichier ($_)."
+    variant:
+      kind: task
+      prompt: "Renomme tous les fichiers .csv de rapports en .bak, en un seul pipeline."
+      setup: |
+        mkdir -p ~/rapports
+        for m in janvier fevrier mars; do echo "$m" > ~/rapports/$m.csv; done
+      check: |
+        [ -z "$(ls ~/rapports/*.csv 2>/dev/null)" ] && [ "$(ls ~/rapports/*.bak 2>/dev/null | wc -l)" = 3 ]
+      solution: "Get-ChildItem rapports -Filter *.csv | Rename-Item -NewName { $_.Name -replace '[.]csv$', '.bak' }"
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/rapports -Filter *.csv | Rename-Item -NewName { $_.Name -replace "\.csv$", ".bak" }'
 
   - kind: task
     prompt: "Écris dans somme.txt la somme des nombres de valeurs.txt (Measure-Object)."

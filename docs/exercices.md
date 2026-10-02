@@ -3,7 +3,7 @@
 Généré automatiquement depuis `shared/levels/` par `npm run export:exercices`.
 Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 
-**33 niveaux, 172 questions, 89 variantes.**
+**33 niveaux, 172 questions, 101 variantes.**
 
 | Type de question | Nombre |
 | --- | --- |
@@ -1338,6 +1338,38 @@ submit "$(~/deploy.sh | sed 's/.*Code : //')"
 
 </details>
 
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Le script backup.sh contient un flag. Lance-le et envoie le code qu'il affiche avec : submit <code>.
+
+- Solution : `./backup.sh, puis submit FLAG{…}`
+- Flag aléatoire à chaque partie ($FLAG)
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+printf '%s' "$FLAG" > ~/.backup_code
+chmod 600 ~/.backup_code
+printf '#!/bin/bash\necho "Code: $(cat ~/.backup_code 2>/dev/null || echo none)"\n' > ~/backup.sh
+chmod +x ~/backup.sh
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$FLAG"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(~/backup.sh | sed 's/.*Code: //')"
+```
+
+</details>
+
 #### Q3 · Défi réel (sandbox)
 
 secret.txt est lisible par tout le monde. Ne laisse que lecture et écriture, pour toi seul (rw-------).
@@ -1420,6 +1452,28 @@ mkdir -p ~/projets/2026/notes
 
 </details>
 
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Crée, en une seule commande, l'arborescence documents/2025/rapports.
+
+- Solution : `mkdir -p documents/2025/rapports`
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -d ~/documents/2025/rapports ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+mkdir -p ~/documents/2025/rapports
+```
+
+</details>
+
 #### Q5 · Défi réel (sandbox)
 
 Archive le dossier projets dans projets.tar.gz (archive tar compressée avec gzip).
@@ -1446,6 +1500,35 @@ Résolution automatique (tests) :
 
 ```bash
 cd ~ && tar -czf projets.tar.gz projets
+```
+
+</details>
+
+#### Q5 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Archive le dossier documents dans documents.tar.bz2 (archive tar compressée avec bzip2).
+
+- Solution : `tar -cjf documents.tar.bz2 documents`
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+mkdir -p ~/documents/2025/rapports
+echo "idée de génie" > ~/documents/2025/rapports/idee.txt
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+tar -tjf ~/documents.tar.bz2 2>/dev/null | grep -q "documents/2025/rapports/idee.txt"
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~ && tar -cjf documents.tar.bz2 documents
 ```
 
 </details>
@@ -1734,6 +1817,34 @@ echo FIN >> ~/etc.txt
 
 </details>
 
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Ajoute la ligne 'Dernière ligne' à la fin de bin.txt, sans effacer ce qu'il contient.
+
+- Solution : `echo 'Dernière ligne' >> bin.txt`
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+ls /usr/bin > ~/bin.txt
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ "$(tail -n 1 ~/bin.txt)" = "Dernière ligne" ] && diff -q <(ls /usr/bin) <(head -n -1 ~/bin.txt) >/dev/null 2>&1
+```
+
+Résolution automatique (tests) :
+
+```bash
+echo "Dernière ligne" >> ~/bin.txt
+```
+
+</details>
+
 #### Q3 · Défi réel (sandbox)
 
 Lance ls /nexistepas et envoie uniquement son message d'erreur dans erreurs.log.
@@ -1753,6 +1864,28 @@ Résolution automatique (tests) :
 
 ```bash
 ls /nexistepas 2> ~/erreurs.log; true
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Lance cat /fichier_inconnu et envoie uniquement son message d'erreur dans echec.log.
+
+- Solution : `cat /fichier_inconnu 2> echec.log`
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+diff -q <(cat /fichier_inconnu 2>&1) ~/echec.log >/dev/null 2>&1
+```
+
+Résolution automatique (tests) :
+
+```bash
+cat /fichier_inconnu 2> ~/echec.log; true
 ```
 
 </details>
@@ -3907,6 +4040,36 @@ submit "$(pgrep -x virus | head -n 1)"
 
 </details>
 
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Un processus nommé daemon tourne. Trouve son PID et envoie-le avec submit.
+
+- Solution : `pgrep daemon (ou ps aux | grep daemon), puis submit <PID>`
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+mkdir -p ~/.bin
+cp /bin/sleep ~/.bin/daemon
+pgrep -x daemon >/dev/null || { setsid nohup ~/.bin/daemon 100000 >/dev/null 2>&1 & sleep 0.2; }
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(pgrep -x daemon | head -n 1)"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(pgrep -x daemon | head -n 1)"
+```
+
+</details>
+
 #### Q2 · Défi réel (sandbox)
 
 Arrête ce processus.
@@ -3932,6 +4095,36 @@ Résolution automatique (tests) :
 
 ```bash
 pkill -x virus
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Arrête ce processus.
+
+- Solution : `kill <PID> (ou pkill daemon)`
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+mkdir -p ~/.bin
+[ -x ~/.bin/daemon ] || cp /bin/sleep ~/.bin/daemon
+pgrep -x daemon >/dev/null || { setsid nohup ~/.bin/daemon 100000 >/dev/null 2>&1 & sleep 0.2; }
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+! pgrep -x daemon >/dev/null
+```
+
+Résolution automatique (tests) :
+
+```bash
+pkill -x daemon
 ```
 
 </details>
@@ -3967,6 +4160,35 @@ pkill -x gardien; sleep 0.3; pkill -x virus
 
 </details>
 
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Le daemon revient : un processus superviseur le relance chaque seconde. Arrête-les pour de bon.
+
+- Solution : `pkill gardien, puis pkill daemon`
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+[ -x ~/.bin/daemon ] || cp /bin/sleep ~/.bin/daemon
+setsid nohup ~/.bin/gardien -c 'while true; do pgrep -x daemon >/dev/null || setsid ~/.bin/daemon 100000 >/dev/null 2>&1 & sleep 1; done' >/dev/null 2>&1 &
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+! pgrep -x gardien >/dev/null && ! pgrep -x daemon >/dev/null
+```
+
+Résolution automatique (tests) :
+
+```bash
+pkill -x gardien; sleep 0.3; pkill -x daemon
+```
+
+</details>
+
 #### Q4 · Défi réel (sandbox)
 
 Un processus monopolise le processeur. Trouve-le (top ou ps) et arrête-le.
@@ -3992,6 +4214,35 @@ Résolution automatique (tests) :
 
 ```bash
 pkill -x miner
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Un processus nommé worker monopolise le processeur. Trouve-le et arrête-le.
+
+- Solution : `ps aux --sort=-%cpu | head, puis pkill worker`
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cp /usr/bin/yes ~/.bin/worker
+setsid nohup ~/.bin/worker >/dev/null 2>&1 &
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+! pgrep -x worker >/dev/null
+```
+
+Résolution automatique (tests) :
+
+```bash
+pkill -x worker
 ```
 
 </details>
@@ -4045,6 +4296,35 @@ cd ~ && for f in rapports/*.txt; do mv "$f" "${f%.txt}.bak"; done
 
 </details>
 
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Renomme tous les fichiers .log du dossier archives en .old, avec une boucle for.
+
+- Solution : `for f in archives/*.log; do mv "$f" "${f%.log}.old"; done`
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+mkdir -p ~/archives
+for n in janvier fevrier mars avril; do echo "$n" > ~/archives/$n.log; done
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -z "$(ls ~/archives/*.log 2>/dev/null)" ] && [ "$(ls ~/archives/*.old 2>/dev/null | wc -l)" = 4 ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~ && for f in archives/*.log; do mv "$f" "${f%.log}.old"; done
+```
+
+</details>
+
 #### Q2 · Défi réel (sandbox)
 
 Supprime tous les fichiers .tmp sous le dossier chantier, à toutes les profondeurs, sans toucher aux autres.
@@ -4071,6 +4351,35 @@ Résolution automatique (tests) :
 
 ```bash
 find ~/chantier -name '*.tmp' -delete
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Supprime tous les fichiers .bak sous le dossier backup, à toutes les profondeurs, sans toucher aux autres.
+
+- Solution : `find backup -name '*.bak' -delete`
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+mkdir -p ~/backup/x ~/backup/y/z
+touch ~/backup/1.bak ~/backup/x/2.bak ~/backup/y/z/3.bak ~/backup/garde.txt ~/backup/y/garde2.txt
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -z "$(find ~/backup -name "*.bak")" ] && [ -f ~/backup/garde.txt ] && [ -f ~/backup/y/garde2.txt ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+find ~/backup -name '*.bak' -delete
 ```
 
 </details>
@@ -4519,6 +4828,35 @@ Résolution automatique (tests) :
 
 ```bash
 pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/rapports -Filter *.txt | Rename-Item -NewName { $_.Name -replace "\.txt$", ".old" }'
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Renomme tous les fichiers .csv de rapports en .bak, en un seul pipeline.
+
+- Solution : `Get-ChildItem rapports -Filter *.csv | Rename-Item -NewName { $_.Name -replace '[.]csv$', '.bak' }`
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+mkdir -p ~/rapports
+for m in janvier fevrier mars; do echo "$m" > ~/rapports/$m.csv; done
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -z "$(ls ~/rapports/*.csv 2>/dev/null)" ] && [ "$(ls ~/rapports/*.bak 2>/dev/null | wc -l)" = 3 ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/rapports -Filter *.csv | Rename-Item -NewName { $_.Name -replace "\.csv$", ".bak" }'
 ```
 
 </details>

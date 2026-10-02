@@ -21,6 +21,17 @@ questions:
     hints:
       - text: "for f in rapports/*.txt; do ...; done traite les fichiers un par un, chacun dans $f."
       - text: '${f%.txt} retire l''extension .txt du nom contenu dans $f.'
+    variant:
+      kind: task
+      prompt: "Renomme tous les fichiers .log du dossier archives en .old, avec une boucle for."
+      setup: |
+        mkdir -p ~/archives
+        for n in janvier fevrier mars avril; do echo "$n" > ~/archives/$n.log; done
+      check: |
+        [ -z "$(ls ~/archives/*.log 2>/dev/null)" ] && [ "$(ls ~/archives/*.old 2>/dev/null | wc -l)" = 4 ]
+      solution: 'for f in archives/*.log; do mv "$f" "${f%.log}.old"; done'
+      solve: |
+        cd ~ && for f in archives/*.log; do mv "$f" "${f%.log}.old"; done
 
   - kind: task
     prompt: "Supprime tous les fichiers .tmp sous le dossier chantier, à toutes les profondeurs, sans toucher aux autres."
@@ -33,6 +44,17 @@ questions:
       find ~/chantier -name '*.tmp' -delete
     hints:
       - text: "find sait supprimer ce qu'il trouve."
+    variant:
+      kind: task
+      prompt: "Supprime tous les fichiers .bak sous le dossier backup, à toutes les profondeurs, sans toucher aux autres."
+      setup: |
+        mkdir -p ~/backup/x ~/backup/y/z
+        touch ~/backup/1.bak ~/backup/x/2.bak ~/backup/y/z/3.bak ~/backup/garde.txt ~/backup/y/garde2.txt
+      check: |
+        [ -z "$(find ~/backup -name "*.bak")" ] && [ -f ~/backup/garde.txt ] && [ -f ~/backup/y/garde2.txt ]
+      solution: "find backup -name '*.bak' -delete"
+      solve: |
+        find ~/backup -name '*.bak' -delete
 
   - kind: task
     prompt: "Écris un script compte.sh qui affiche le nombre de lignes du fichier passé en argument, et rends-le exécutable."

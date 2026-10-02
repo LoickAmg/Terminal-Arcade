@@ -52,6 +52,20 @@ questions:
       submit "$(~/deploy.sh | sed 's/.*Code : //')"
     hints:
       - text: "Un script du dossier courant se lance avec ./ devant son nom."
+    variant:
+      kind: task
+      prompt: "Le script backup.sh contient un flag. Lance-le et envoie le code qu'il affiche avec : submit <code>."
+      setup: |
+        printf '%s' "$FLAG" > ~/.backup_code
+        chmod 600 ~/.backup_code
+        printf '#!/bin/bash\necho "Code: $(cat ~/.backup_code 2>/dev/null || echo none)"\n' > ~/backup.sh
+        chmod +x ~/backup.sh
+      check: |
+        answer-is "$FLAG"
+      solution: "./backup.sh, puis submit FLAG{…}"
+      solve: |
+        submit "$(~/backup.sh | sed 's/.*Code: //')"
+      flag: true
 
   - kind: task
     prompt: "secret.txt est lisible par tout le monde. Ne laisse que lecture et écriture, pour toi seul (rw-------)."
@@ -83,6 +97,14 @@ questions:
       mkdir -p ~/projets/2026/notes
     hints:
       - text: "mkdir a une option qui crée aussi les dossiers parents."
+    variant:
+      kind: task
+      prompt: "Crée, en une seule commande, l'arborescence documents/2025/rapports."
+      check: |
+        [ -d ~/documents/2025/rapports ]
+      solution: "mkdir -p documents/2025/rapports"
+      solve: |
+        mkdir -p ~/documents/2025/rapports
 
   - kind: task
     prompt: "Archive le dossier projets dans projets.tar.gz (archive tar compressée avec gzip)."
@@ -95,6 +117,17 @@ questions:
       cd ~ && tar -czf projets.tar.gz projets
     hints:
       - text: "tar -c crée, -z compresse en gzip, -f donne le nom de l'archive."
+    variant:
+      kind: task
+      prompt: "Archive le dossier documents dans documents.tar.bz2 (archive tar compressée avec bzip2)."
+      setup: |
+        mkdir -p ~/documents/2025/rapports
+        echo "idée de génie" > ~/documents/2025/rapports/idee.txt
+      check: |
+        tar -tjf ~/documents.tar.bz2 2>/dev/null | grep -q "documents/2025/rapports/idee.txt"
+      solution: "tar -cjf documents.tar.bz2 documents"
+      solve: |
+        cd ~ && tar -cjf documents.tar.bz2 documents
 
 rewards:
   xp: 300
