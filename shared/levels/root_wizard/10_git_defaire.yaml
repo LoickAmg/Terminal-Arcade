@@ -265,3 +265,4 @@ questions:
         - { text: "La même commande de ménage, un autre motif : old-*.bak." }
 rewards:
   xp: 460
+  unlocks: gg_fouille_01

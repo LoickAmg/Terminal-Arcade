@@ -1,0 +1,149 @@
+# Idées de Mistral (vague 2) : le code éparpillé dans les messages de commit
+# et le blob orphelin retrouvé avec git fsck.
+id: gg_fouille_01
+title: "L'archéologue"
+hook: "Rien ne se perd vraiment dans Git. Encore faut-il savoir où creuser."
+tier: root_wizard
+tree: git_gud
+runtime: docker
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [hostile_alias, mutation] }
+intro: "Fouiller un historique : chercher dans les messages, retrouver qui a introduit une ligne, déterrer des objets que plus rien ne référence."
+setup: |
+  git config --global user.name agent
+  git config --global user.email agent@sandbox
+  git config --global init.defaultBranch main
+  rm -rf ~/fouille && mkdir ~/fouille && cd ~/fouille && git init -q
+  # Trois morceaux de code cachés dans trois messages de commit, dans le désordre.
+  m1=$(head -c 3 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  m2=$(head -c 3 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  m3=$(head -c 3 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  morceaux=("$m1" "$m2" "$m3")
+  printf '%s%s%s\n' "$m1" "$m2" "$m3" > /tmp/.gf-code
+  mapfile -t pos < <(shuf -i 3-28 -n 3)
+  mapfile -t ks < <(shuf -e 1 2 3)
+  # Un mot de passe ajouté puis retiré de config.txt.
+  ajout=$(shuf -i 6-12 -n 1); retrait=$(shuf -i 16-24 -n 1)
+  : > config.txt
+  for i in $(seq 1 30); do
+    echo "entrée $i" >> journal.txt
+    [ "$i" = "$ajout" ] && echo "mot de passe = $RANDOM$RANDOM" >> config.txt
+    [ "$i" = "$retrait" ] && sed -i '/mot de passe/d' config.txt
+    msg="maj $i"
+    for j in 0 1 2; do
+      [ "$i" = "${pos[$j]}" ] && msg="maj $i (morceau ${ks[$j]}/3 : ${morceaux[$((ks[$j] - 1))]})"
+    done
+    git add -A && git commit -qm "$msg"
+  done
+questions:
+  - kind: task
+    prompt: "Dans le dépôt fouille, trois commits cachent dans leur message un « morceau k/3 : … ». Assemble le code (morceaux 1, 2 puis 3, collés sans espace) et envoie-le avec submit."
+    check: 'answer-is "$(cat /tmp/.gf-code)"'
+    solution: "git log --grep morceau --format=%s, puis remets les morceaux dans l'ordre et submit <code>"
+    solve: |
+      cd ~/fouille && submit "$(git log --grep morceau --format=%s | sed 's/.*morceau \([123]\)\/3 : \(.*\))$/\1 \2/' | sort | cut -d' ' -f2 | tr -d '\n')"
+    hints:
+      - text: "git log --grep MOT ne montre que les commits dont le message contient MOT."
+      - text: "--format=%s n'affiche que le message ; les morceaux ne sont pas dans l'ordre de l'historique."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Dans le dépôt fouille, un commit cache dans son message le « morceau 2/3 ». Envoie son identifiant (au moins 7 caractères) avec submit."
+      check: 'answer-prefix-of "$(git -C ~/fouille log --format=%H --grep "morceau 2/3")" 7'
+      solution: "git log --oneline --grep \"morceau 2/3\", puis submit <identifiant>"
+      solve: |
+        submit "$(git -C ~/fouille log --format=%h --grep 'morceau 2/3')"
+      hints:
+        - text: "git log --oneline --grep \"morceau 2/3\" affiche l'identifiant court et le message."
+
+  - kind: task
+    prompt: "Une ligne « mot de passe = … » a été ajoutée à config.txt, puis retirée plus tard. Trouve le commit qui l'a AJOUTÉE et envoie son identifiant (au moins 7 caractères) avec submit."
+    check: 'answer-prefix-of "$(git -C ~/fouille log -S "mot de passe" --format=%H | tail -n 1)" 7'
+    solution: "git log -S \"mot de passe\" --oneline : le plus ancien des deux commits est l'ajout"
+    solve: |
+      submit "$(git -C ~/fouille log -S 'mot de passe' --format=%h | tail -n 1)"
+    hints:
+      - text: "git log -S TEXTE trouve les commits où le nombre d'occurrences de TEXTE change : l'ajout et le retrait."
+      - text: "git log liste du plus récent au plus ancien : l'ajout est le dernier de la liste."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Une ligne « mot de passe = … » a été ajoutée à config.txt, puis retirée. Trouve le commit qui l'a RETIRÉE et envoie son identifiant (au moins 7 caractères) avec submit."
+      check: 'answer-prefix-of "$(git -C ~/fouille log -S "mot de passe" --format=%H | head -n 1)" 7'
+      solution: "git log -S \"mot de passe\" --oneline : le plus récent des deux est le retrait"
+      solve: |
+        submit "$(git -C ~/fouille log -S 'mot de passe' --format=%h | head -n 1)"
+      hints:
+        - text: "git log -S montre l'ajout et le retrait ; le retrait est le plus récent."
+
+  - kind: task
+    prompt: "Quelqu'un a rangé un fichier dans la base d'objets de fouille sans jamais le commiter : aucune branche ne le référence. Déterre-le avec git fsck et envoie son contenu avec submit."
+    flag: true
+    setup: |
+      cd ~/fouille && rm -rf .git/lost-found
+      printf '%s\n' "$FLAG" | git hash-object -w --stdin >/dev/null
+    check: 'answer-is "$FLAG"'
+    solution: "git fsck --lost-found, puis cat .git/lost-found/other/<objet> (ou git cat-file -p <objet>)"
+    solve: |
+      cd ~/fouille && git fsck --lost-found >/dev/null 2>&1
+      submit "$(cat .git/lost-found/other/* | head -n 1)"
+    hints:
+      - text: "git fsck vérifie la base d'objets et signale ceux que rien ne référence (dangling)."
+      - text: "Avec --lost-found, git fsck les recopie dans .git/lost-found/. git cat-file -p ID affiche un objet."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Une branche a été supprimée et son journal effacé : son dernier commit n'est plus référencé nulle part. Retrouve-le avec git fsck : son message contient un flag, envoie-le avec submit."
+      flag: true
+      setup: |
+        cd ~/fouille && rm -rf .git/lost-found
+        git switch -qc oubli && echo "trace" > oubli.txt && git add oubli.txt && git commit -qm "secret: $FLAG"
+        git switch -q main && git branch -qD oubli
+        git reflog expire --expire=now --all
+      check: 'answer-is "$FLAG"'
+      solution: "git fsck --lost-found, puis git show <commit> (ou git log -1 <commit>)"
+      solve: |
+        cd ~/fouille && git fsck --lost-found >/dev/null 2>&1
+        submit "$(git log -1 --format=%s "$(ls .git/lost-found/commit/ | head -n 1)" | sed 's/^secret: //')"
+      hints:
+        - text: "git fsck --lost-found range les commits orphelins dans .git/lost-found/commit/."
+
+  - kind: task
+    prompt: "La branche experience a été supprimée par erreur. Recrée-la exactement sur son dernier commit (le reflog s'en souvient)."
+    setup: |
+      cd ~/fouille && git switch -q main
+      git branch -qD experience 2>/dev/null
+      git switch -qc experience
+      echo "essai $RANDOM" > essai.txt && git add essai.txt && git commit -qm "essai 1"
+      echo "essai $RANDOM" >> essai.txt && git commit -qam "essai 2"
+      git rev-parse HEAD > /tmp/.gf-experience
+      git switch -q main && git branch -qD experience
+    check: '[ "$(git -C ~/fouille rev-parse -q --verify refs/heads/experience)" = "$(cat /tmp/.gf-experience)" ]'
+    solution: "git reflog, repère « essai 2 », puis git branch experience <identifiant>"
+    solve: |
+      cd ~/fouille && git branch experience "$(git reflog --format='%H %s' | grep ' essai 2$' | head -n 1 | cut -d' ' -f1)"
+    hints:
+      - text: "git reflog garde la trace des commits sur lesquels HEAD est passé, même sur une branche supprimée."
+      - text: "git branch NOM ID crée une branche sur un commit précis."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "La branche correctif a été supprimée par erreur. Recrée-la exactement sur son dernier commit."
+      setup: |
+        cd ~/fouille && git switch -q main
+        git branch -qD correctif 2>/dev/null
+        git switch -qc correctif
+        echo "patch $RANDOM" > patch.txt && git add patch.txt && git commit -qm "patch 1"
+        echo "patch $RANDOM" >> patch.txt && git commit -qam "patch 2"
+        git rev-parse HEAD > /tmp/.gf-correctif
+        git switch -q main && git branch -qD correctif
+      check: '[ "$(git -C ~/fouille rev-parse -q --verify refs/heads/correctif)" = "$(cat /tmp/.gf-correctif)" ]'
+      solution: "git reflog, repère « patch 2 », puis git branch correctif <identifiant>"
+      solve: |
+        cd ~/fouille && git branch correctif "$(git reflog --format='%H %s' | grep ' patch 2$' | head -n 1 | cut -d' ' -f1)"
+      hints:
+        - text: "Le reflog se souvient de « patch 2 »."
+
+rewards:
+  xp: 480

@@ -3,7 +3,7 @@
 Généré automatiquement depuis `shared/levels/` par `npm run export:exercices`.
 Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 
-**34 niveaux, 177 questions, 105 variantes.**
+**35 niveaux, 181 questions, 109 variantes.**
 
 | Type de question | Nombre |
 | --- | --- |
@@ -12,7 +12,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | Piège | 9 |
 | Prédire la sortie | 10 |
 | Compléter | 3 |
-| Défi réel (sandbox) | 121 |
+| Défi réel (sandbox) | 125 |
 
 ## Vue d'ensemble
 
@@ -52,6 +52,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | [rw_script_02](#rw_script_02--scripts-solides) | Scripts solides | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 5 | 460 |
 | [rw_text_01](#rw_text_01--la-boîte-à-outils-texte) | La boîte à outils texte | Root Wizard | Data Surgeon | Sandbox Docker (bash) | Classique | 5 | 420 |
 | [np_fragments_01](#np_fragments_01--les-fragments-du-réseau) | Les fragments du réseau | Root Wizard | Network Phantom | Sandbox Docker (bash) | Classique | 5 | 480 |
+| [gg_fouille_01](#gg_fouille_01--larchéologue) | L'archéologue | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 4 | 480 |
 
 ## Palier Script Kiddie
 
@@ -5804,6 +5805,7 @@ sleep 0.2
 | Questions | 6 |
 | XP | 460 |
 | Sabotages signature | mutation, hostile_alias |
+| Débloque | gg_fouille_01 |
 
 reset --soft, restore --staged, restore, commit --amend, rm --cached, clean : six façons de défaire, chacune à sa place exacte.
 
@@ -7396,6 +7398,287 @@ Résolution automatique (tests) :
 ```bash
 printf '#!/bin/bash\ntimeout 2 nc 127.0.0.1 "$1" </dev/null 2>/dev/null | head -n 1\n' > ~/net/sonde.sh
 chmod +x ~/net/sonde.sh
+```
+
+</details>
+
+### gg_fouille_01 — L'archéologue
+
+> Rien ne se perd vraiment dans Git. Encore faut-il savoir où creuser.
+
+| | |
+| --- | --- |
+| Palier | Root Wizard |
+| Arbre | Git-Gud |
+| Exécution | Sandbox Docker (bash) |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 4 |
+| XP | 480 |
+| Sabotages signature | hostile_alias, mutation |
+
+Fouiller un historique : chercher dans les messages, retrouver qui a introduit une ligne, déterrer des objets que plus rien ne référence.
+
+<details><summary>Préparation du niveau</summary>
+
+```bash
+git config --global user.name agent
+git config --global user.email agent@sandbox
+git config --global init.defaultBranch main
+rm -rf ~/fouille && mkdir ~/fouille && cd ~/fouille && git init -q
+# Trois morceaux de code cachés dans trois messages de commit, dans le désordre.
+m1=$(head -c 3 /dev/urandom | od -An -tx1 | tr -d ' \n')
+m2=$(head -c 3 /dev/urandom | od -An -tx1 | tr -d ' \n')
+m3=$(head -c 3 /dev/urandom | od -An -tx1 | tr -d ' \n')
+morceaux=("$m1" "$m2" "$m3")
+printf '%s%s%s\n' "$m1" "$m2" "$m3" > /tmp/.gf-code
+mapfile -t pos < <(shuf -i 3-28 -n 3)
+mapfile -t ks < <(shuf -e 1 2 3)
+# Un mot de passe ajouté puis retiré de config.txt.
+ajout=$(shuf -i 6-12 -n 1); retrait=$(shuf -i 16-24 -n 1)
+: > config.txt
+for i in $(seq 1 30); do
+  echo "entrée $i" >> journal.txt
+  [ "$i" = "$ajout" ] && echo "mot de passe = $RANDOM$RANDOM" >> config.txt
+  [ "$i" = "$retrait" ] && sed -i '/mot de passe/d' config.txt
+  msg="maj $i"
+  for j in 0 1 2; do
+    [ "$i" = "${pos[$j]}" ] && msg="maj $i (morceau ${ks[$j]}/3 : ${morceaux[$((ks[$j] - 1))]})"
+  done
+  git add -A && git commit -qm "$msg"
+done
+```
+
+</details>
+
+#### Q1 · Défi réel (sandbox)
+
+Dans le dépôt fouille, trois commits cachent dans leur message un « morceau k/3 : … ». Assemble le code (morceaux 1, 2 puis 3, collés sans espace) et envoie-le avec submit.
+
+- Solution : `git log --grep morceau --format=%s, puis remets les morceaux dans l'ordre et submit <code>`
+- Indice 1 (10 s) : git log --grep MOT ne montre que les commits dont le message contient MOT.
+- Indice 2 (20 s) : --format=%s n'affiche que le message ; les morceaux ne sont pas dans l'ordre de l'historique.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(cat /tmp/.gf-code)"
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/fouille && submit "$(git log --grep morceau --format=%s | sed 's/.*morceau \([123]\)\/3 : \(.*\))$/\1 \2/' | sort | cut -d' ' -f2 | tr -d '\n')"
+```
+
+</details>
+
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Dans le dépôt fouille, un commit cache dans son message le « morceau 2/3 ». Envoie son identifiant (au moins 7 caractères) avec submit.
+
+- Solution : `git log --oneline --grep "morceau 2/3", puis submit <identifiant>`
+- Indice 1 (10 s) : git log --oneline --grep "morceau 2/3" affiche l'identifiant court et le message.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-prefix-of "$(git -C ~/fouille log --format=%H --grep "morceau 2/3")" 7
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(git -C ~/fouille log --format=%h --grep 'morceau 2/3')"
+```
+
+</details>
+
+#### Q2 · Défi réel (sandbox)
+
+Une ligne « mot de passe = … » a été ajoutée à config.txt, puis retirée plus tard. Trouve le commit qui l'a AJOUTÉE et envoie son identifiant (au moins 7 caractères) avec submit.
+
+- Solution : `git log -S "mot de passe" --oneline : le plus ancien des deux commits est l'ajout`
+- Indice 1 (10 s) : git log -S TEXTE trouve les commits où le nombre d'occurrences de TEXTE change : l'ajout et le retrait.
+- Indice 2 (20 s) : git log liste du plus récent au plus ancien : l'ajout est le dernier de la liste.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-prefix-of "$(git -C ~/fouille log -S "mot de passe" --format=%H | tail -n 1)" 7
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(git -C ~/fouille log -S 'mot de passe' --format=%h | tail -n 1)"
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Une ligne « mot de passe = … » a été ajoutée à config.txt, puis retirée. Trouve le commit qui l'a RETIRÉE et envoie son identifiant (au moins 7 caractères) avec submit.
+
+- Solution : `git log -S "mot de passe" --oneline : le plus récent des deux est le retrait`
+- Indice 1 (10 s) : git log -S montre l'ajout et le retrait ; le retrait est le plus récent.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-prefix-of "$(git -C ~/fouille log -S "mot de passe" --format=%H | head -n 1)" 7
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(git -C ~/fouille log -S 'mot de passe' --format=%h | head -n 1)"
+```
+
+</details>
+
+#### Q3 · Défi réel (sandbox)
+
+Quelqu'un a rangé un fichier dans la base d'objets de fouille sans jamais le commiter : aucune branche ne le référence. Déterre-le avec git fsck et envoie son contenu avec submit.
+
+- Solution : `git fsck --lost-found, puis cat .git/lost-found/other/<objet> (ou git cat-file -p <objet>)`
+- Flag aléatoire à chaque partie ($FLAG)
+- Indice 1 (10 s) : git fsck vérifie la base d'objets et signale ceux que rien ne référence (dangling).
+- Indice 2 (20 s) : Avec --lost-found, git fsck les recopie dans .git/lost-found/. git cat-file -p ID affiche un objet.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/fouille && rm -rf .git/lost-found
+printf '%s\n' "$FLAG" | git hash-object -w --stdin >/dev/null
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$FLAG"
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/fouille && git fsck --lost-found >/dev/null 2>&1
+submit "$(cat .git/lost-found/other/* | head -n 1)"
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Une branche a été supprimée et son journal effacé : son dernier commit n'est plus référencé nulle part. Retrouve-le avec git fsck : son message contient un flag, envoie-le avec submit.
+
+- Solution : `git fsck --lost-found, puis git show <commit> (ou git log -1 <commit>)`
+- Flag aléatoire à chaque partie ($FLAG)
+- Indice 1 (10 s) : git fsck --lost-found range les commits orphelins dans .git/lost-found/commit/.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/fouille && rm -rf .git/lost-found
+git switch -qc oubli && echo "trace" > oubli.txt && git add oubli.txt && git commit -qm "secret: $FLAG"
+git switch -q main && git branch -qD oubli
+git reflog expire --expire=now --all
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$FLAG"
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/fouille && git fsck --lost-found >/dev/null 2>&1
+submit "$(git log -1 --format=%s "$(ls .git/lost-found/commit/ | head -n 1)" | sed 's/^secret: //')"
+```
+
+</details>
+
+#### Q4 · Défi réel (sandbox)
+
+La branche experience a été supprimée par erreur. Recrée-la exactement sur son dernier commit (le reflog s'en souvient).
+
+- Solution : `git reflog, repère « essai 2 », puis git branch experience <identifiant>`
+- Indice 1 (10 s) : git reflog garde la trace des commits sur lesquels HEAD est passé, même sur une branche supprimée.
+- Indice 2 (20 s) : git branch NOM ID crée une branche sur un commit précis.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/fouille && git switch -q main
+git branch -qD experience 2>/dev/null
+git switch -qc experience
+echo "essai $RANDOM" > essai.txt && git add essai.txt && git commit -qm "essai 1"
+echo "essai $RANDOM" >> essai.txt && git commit -qam "essai 2"
+git rev-parse HEAD > /tmp/.gf-experience
+git switch -q main && git branch -qD experience
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ "$(git -C ~/fouille rev-parse -q --verify refs/heads/experience)" = "$(cat /tmp/.gf-experience)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/fouille && git branch experience "$(git reflog --format='%H %s' | grep ' essai 2$' | head -n 1 | cut -d' ' -f1)"
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+La branche correctif a été supprimée par erreur. Recrée-la exactement sur son dernier commit.
+
+- Solution : `git reflog, repère « patch 2 », puis git branch correctif <identifiant>`
+- Indice 1 (10 s) : Le reflog se souvient de « patch 2 ».
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+cd ~/fouille && git switch -q main
+git branch -qD correctif 2>/dev/null
+git switch -qc correctif
+echo "patch $RANDOM" > patch.txt && git add patch.txt && git commit -qm "patch 1"
+echo "patch $RANDOM" >> patch.txt && git commit -qam "patch 2"
+git rev-parse HEAD > /tmp/.gf-correctif
+git switch -q main && git branch -qD correctif
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ "$(git -C ~/fouille rev-parse -q --verify refs/heads/correctif)" = "$(cat /tmp/.gf-correctif)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+cd ~/fouille && git branch correctif "$(git reflog --format='%H %s' | grep ' patch 2$' | head -n 1 | cut -d' ' -f1)"
 ```
 
 </details>
