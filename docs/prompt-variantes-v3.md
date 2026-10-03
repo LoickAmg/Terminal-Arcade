@@ -3,7 +3,7 @@
 Troisième vague, consacrée à une seule chose : **une variante pour chaque
 question**. C'est ce que tire le sabotage « mutation » du mode Chaos : sans
 variante, une question ne peut pas changer en cours de partie. Il en manque
-72 sur 177.
+72 sur 185.
 
 Deux lots, confiés aux IA les plus fiables des vagues 1 et 2 :
 
