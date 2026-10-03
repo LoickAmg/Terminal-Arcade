@@ -14,7 +14,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p shared --noEmit && tsc -p frontend --noEmit && tsc -p backend --noEmit",
     "sandbox": "npm run dev -w backend",
-    "export:exercices": "tsx scripts/export-exercices.ts"
+    "export:exercices": "tsx scripts/export-exercices.ts",
+    "levels:meta": "tsx scripts/levels-meta.mts"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

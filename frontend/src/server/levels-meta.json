@@ -1,0 +1,314 @@
+[
+ {
+  "id": "fs_nav_01",
+  "tier": "script_kiddie",
+  "tree": "file_system_ninja",
+  "xp": 120,
+  "unlocks": [
+   "fs_read_01"
+  ]
+ },
+ {
+  "id": "fs_read_01",
+  "tier": "script_kiddie",
+  "tree": "file_system_ninja",
+  "xp": 140,
+  "unlocks": [
+   "grep_01",
+   "sk_aide_01"
+  ]
+ },
+ {
+  "id": "grep_01",
+  "tier": "script_kiddie",
+  "tree": "data_surgeon",
+  "xp": 160,
+  "unlocks": [
+   "sk_rush_01"
+  ]
+ },
+ {
+  "id": "sk_rush_01",
+  "tier": "script_kiddie",
+  "tree": "file_system_ninja",
+  "xp": 180,
+  "unlocks": [
+   "sk_chaos_01"
+  ]
+ },
+ {
+  "id": "sk_chaos_01",
+  "tier": "script_kiddie",
+  "tree": "data_surgeon",
+  "xp": 220,
+  "unlocks": [
+   "sa_perms_01"
+  ]
+ },
+ {
+  "id": "sk_aide_01",
+  "tier": "script_kiddie",
+  "tree": "file_system_ninja",
+  "xp": 180,
+  "unlocks": [
+   "sk_glob_01"
+  ]
+ },
+ {
+  "id": "sk_glob_01",
+  "tier": "script_kiddie",
+  "tree": "file_system_ninja",
+  "xp": 190,
+  "unlocks": [
+   "sk_manage_01"
+  ]
+ },
+ {
+  "id": "sk_manage_01",
+  "tier": "script_kiddie",
+  "tree": "file_system_ninja",
+  "xp": 170,
+  "unlocks": [
+   "sk_logic_01"
+  ]
+ },
+ {
+  "id": "sk_logic_01",
+  "tier": "script_kiddie",
+  "tree": "data_surgeon",
+  "xp": 180,
+  "unlocks": []
+ },
+ {
+  "id": "sa_perms_01",
+  "tier": "sysadmin",
+  "tree": "file_system_ninja",
+  "xp": 300,
+  "unlocks": [
+   "sa_text_01"
+  ]
+ },
+ {
+  "id": "sa_text_01",
+  "tier": "sysadmin",
+  "tree": "data_surgeon",
+  "xp": 320,
+  "unlocks": [
+   "sa_pipes_01",
+   "sa_grep_02"
+  ]
+ },
+ {
+  "id": "sa_pipes_01",
+  "tier": "sysadmin",
+  "tree": "file_system_ninja",
+  "xp": 320,
+  "unlocks": [
+   "gg_git_01",
+   "ps_basics_01",
+   "sa_find_01",
+   "np_local_01"
+  ]
+ },
+ {
+  "id": "gg_git_01",
+  "tier": "sysadmin",
+  "tree": "git_gud",
+  "xp": 340,
+  "unlocks": [
+   "rw_proc_01",
+   "gg_branch_01"
+  ]
+ },
+ {
+  "id": "gg_branch_01",
+  "tier": "sysadmin",
+  "tree": "git_gud",
+  "xp": 360,
+  "unlocks": [
+   "gg_history_01",
+   "gg_tags_01"
+  ]
+ },
+ {
+  "id": "ps_basics_01",
+  "tier": "sysadmin",
+  "tree": "powershell",
+  "xp": 360,
+  "unlocks": [
+   "ps_pipeline_01",
+   "ps_stock_01"
+  ]
+ },
+ {
+  "id": "np_local_01",
+  "tier": "sysadmin",
+  "tree": "network_phantom",
+  "xp": 340,
+  "unlocks": [
+   "np_fragments_01"
+  ]
+ },
+ {
+  "id": "sa_grep_02",
+  "tier": "sysadmin",
+  "tree": "data_surgeon",
+  "xp": 330,
+  "unlocks": [
+   "rw_awk_01"
+  ]
+ },
+ {
+  "id": "sa_find_01",
+  "tier": "sysadmin",
+  "tree": "file_system_ninja",
+  "xp": 350,
+  "unlocks": []
+ },
+ {
+  "id": "gg_tags_01",
+  "tier": "sysadmin",
+  "tree": "git_gud",
+  "xp": 360,
+  "unlocks": [
+   "gg_miroir_01"
+  ]
+ },
+ {
+  "id": "ps_stock_01",
+  "tier": "sysadmin",
+  "tree": "powershell",
+  "xp": 350,
+  "unlocks": [
+   "ps_objets_01"
+  ]
+ },
+ {
+  "id": "gg_miroir_01",
+  "tier": "sysadmin",
+  "tree": "git_gud",
+  "xp": 360,
+  "unlocks": []
+ },
+ {
+  "id": "ps_objets_01",
+  "tier": "sysadmin",
+  "tree": "powershell",
+  "xp": 360,
+  "unlocks": []
+ },
+ {
+  "id": "rw_proc_01",
+  "tier": "root_wizard",
+  "tree": "system_overlord",
+  "xp": 380,
+  "unlocks": [
+   "rw_script_01",
+   "rw_shellcraft_01"
+  ]
+ },
+ {
+  "id": "rw_script_01",
+  "tier": "root_wizard",
+  "tree": "system_overlord",
+  "xp": 400,
+  "unlocks": [
+   "rw_script_02"
+  ]
+ },
+ {
+  "id": "gg_history_01",
+  "tier": "root_wizard",
+  "tree": "git_gud",
+  "xp": 420,
+  "unlocks": [
+   "gg_bisect_01",
+   "gg_workflow_01"
+  ]
+ },
+ {
+  "id": "gg_bisect_01",
+  "tier": "root_wizard",
+  "tree": "git_gud",
+  "xp": 500,
+  "unlocks": []
+ },
+ {
+  "id": "ps_pipeline_01",
+  "tier": "root_wizard",
+  "tree": "powershell",
+  "xp": 420,
+  "unlocks": [
+   "ps_scripts_01"
+  ]
+ },
+ {
+  "id": "rw_shellcraft_01",
+  "tier": "root_wizard",
+  "tree": "system_overlord",
+  "xp": 460,
+  "unlocks": []
+ },
+ {
+  "id": "rw_awk_01",
+  "tier": "root_wizard",
+  "tree": "data_surgeon",
+  "xp": 420,
+  "unlocks": [
+   "rw_text_01"
+  ]
+ },
+ {
+  "id": "gg_workflow_01",
+  "tier": "root_wizard",
+  "tree": "git_gud",
+  "xp": 480,
+  "unlocks": [
+   "gg_defaire_01"
+  ]
+ },
+ {
+  "id": "ps_scripts_01",
+  "tier": "root_wizard",
+  "tree": "powershell",
+  "xp": 460,
+  "unlocks": []
+ },
+ {
+  "id": "gg_defaire_01",
+  "tier": "root_wizard",
+  "tree": "git_gud",
+  "xp": 460,
+  "unlocks": [
+   "gg_fouille_01"
+  ]
+ },
+ {
+  "id": "rw_script_02",
+  "tier": "root_wizard",
+  "tree": "system_overlord",
+  "xp": 460,
+  "unlocks": []
+ },
+ {
+  "id": "rw_text_01",
+  "tier": "root_wizard",
+  "tree": "data_surgeon",
+  "xp": 420,
+  "unlocks": []
+ },
+ {
+  "id": "np_fragments_01",
+  "tier": "root_wizard",
+  "tree": "network_phantom",
+  "xp": 480,
+  "unlocks": []
+ },
+ {
+  "id": "gg_fouille_01",
+  "tier": "root_wizard",
+  "tree": "git_gud",
+  "xp": 480,
+  "unlocks": []
+ }
+]
