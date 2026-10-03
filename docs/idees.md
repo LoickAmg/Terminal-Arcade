@@ -9,7 +9,7 @@ raison).
 
 | Idée | Source | Apprend | Statut |
 | --- | --- | --- | --- |
-| Invite menteuse : l'invite affiche un faux dossier, seul `pwd` dit vrai | Qwen | se méfier de l'affichage, vérifier | **en cours** (`hostile_prompt`) |
+| Invite menteuse : l'invite affiche un faux dossier, seul `pwd` dit vrai | Qwen | se méfier de l'affichage, vérifier | fait (`hostile_prompt`) |
 | Faux `git log` : un alias cache un commit, on démasque avec `type git`, `unalias` | Mistral | diagnostiquer un shell piégé | retenu (variante de `hostile_alias` pour les niveaux Git) |
 | Faux affichage PowerShell : un `.Count` ou un CSV « réparé » mensonger à l'écran | Kimi | réexécuter plutôt que croire | retenu (déclinaison de `falsify_code`) |
 | Historique piégé : la flèche ↑ ressort une commande légèrement modifiée | DeepSeek (vague 1) | relire avant Entrée | retenu |
@@ -26,10 +26,10 @@ raison).
 
 | Idée | Source | Statut |
 | --- | --- | --- |
-| Blob Git orphelin à retrouver avec `git fsck --lost-found` | Mistral | **en cours** (`gg_fouille_01`) |
-| Flag éparpillé dans les messages de commit (`git log --grep`, `--format`) | Mistral | **en cours** (`gg_fouille_01`) |
-| `Get-Member` détective : une propriété au nom inconnu | Kimi | **en cours** (`ps_objets_01`) |
-| `Format-Table` assassin : un export cassé par `Format-*` | Kimi | **en cours** (`ps_objets_01`) |
+| Blob Git orphelin à retrouver avec `git fsck --lost-found` | Mistral | fait (`gg_fouille_01`) |
+| Flag éparpillé dans les messages de commit (`git log --grep`, `--format`) | Mistral | fait (`gg_fouille_01`) |
+| `Get-Member` détective : une propriété au nom inconnu | Kimi | fait (`ps_objets_01`) |
+| `Format-Table` assassin : un export cassé par `Format-*` | Kimi | fait (`ps_objets_01`) |
 | Ports leurres, message fragmenté, service à plusieurs connexions | ChatGPT | fait (`np_fragments_01`) |
 | Service qui attend une commande (requête et réponse) | prompt v2 | fait (`np_fragments_01`, le guichet) |
 | Flag en trois morceaux sur trois ports | DeepSeek (vague 1) | fait (`np_fragments_01`) |

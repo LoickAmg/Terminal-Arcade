@@ -33,6 +33,9 @@ const FAKE_CAT = [
   "chmod +x ~/.cache/arcade/bin/cat",
 ].join("\n");
 
+// Dossiers affichés à tort par l'invite menteuse.
+const FAKE_DIRS = ["/root", "/etc", "/var/www", "~/coffre", "/srv/secret"];
+
 export const HOSTILE_SCRIPTS: Record<string, (shell: Shell) => string> = {
   // Une commande courante remplacée par un piège (alias bash, fonction PowerShell).
   hostile_alias: (shell) =>
@@ -47,6 +50,16 @@ export const HOSTILE_SCRIPTS: Record<string, (shell: Shell) => string> = {
     `f=$(find ~ -maxdepth 2 -type f ! -path '*/.*' 2>/dev/null | shuf -n 1); [ -n "$f" ] && chmod 000 "$f"; true`,
   // Un faux flag à côté des vrais indices.
   hostile_decoy: () => `echo "FLAG{$(head -c 6 /dev/urandom | od -An -tx1 | tr -d ' \\n')}" > ~/flag.txt`,
+  // L'invite, identique à la vraie, affiche un dossier figé : seul pwd dit vrai.
+  // Réparation : relancer le shell (exec bash, pwsh) ou redéfinir l'invite.
+  hostile_prompt: (shell) => {
+    const dir = pick(FAKE_DIRS);
+    return `${pending(shell)} <<'EOF'\n${
+      shell === "bash"
+        ? `PS1='\\[\\e[32m\\]agent\\[\\e[0m\\]@\\[\\e[36m\\]sandbox\\[\\e[0m\\]:\\[\\e[34m\\]${dir}\\[\\e[0m\\]\\$ '`
+        : `$global:ArcadeFakeWhere = '${dir}'`
+    }\nEOF`;
+  },
 };
 
 /** Commandes qui démasquent chaque sabotage quand le joueur les tape (bash ou PowerShell). */
@@ -58,6 +71,7 @@ const DETECTORS: [string, RegExp][] = [
   ["hostile_path", /\b(which|type|hash)\b|\$PATH|\$env:PATH|Get-Command|(^|\s)\/(usr\/)?bin\/\w/i],
   ["hostile_chmod", /\bchmod\b/],
   ["hostile_decoy", /\b(rm|Remove-Item)\b.*flag\.txt/i],
+  ["hostile_prompt", /(^|[;&|]\s*)(pwd|Get-Location|gl)\b|\$PWD|\bPS1=|ArcadeFakeWhere|^\s*exec\s+bash/i],
 ];
 
 export function detectHostile(line: string, active: Set<string>): string[] {

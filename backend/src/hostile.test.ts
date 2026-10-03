@@ -13,7 +13,7 @@ describe("saisie suivie par le serveur", () => {
 });
 
 describe("détection des sabotages hostiles", () => {
-  const all = new Set(["hostile_alias", "hostile_path", "hostile_chmod", "hostile_decoy"]);
+  const all = new Set(["hostile_alias", "hostile_path", "hostile_chmod", "hostile_decoy", "hostile_prompt"]);
 
   it("reconnaît les commandes qui démasquent", () => {
     expect(detectHostile("type ls", all)).toEqual(["hostile_alias", "hostile_path"]);
@@ -22,6 +22,9 @@ describe("détection des sabotages hostiles", () => {
     expect(detectHostile("/bin/cat notes.txt", all)).toEqual(["hostile_path"]);
     expect(detectHostile("chmod 644 notes.txt", all)).toEqual(["hostile_chmod"]);
     expect(detectHostile("rm flag.txt", all)).toEqual(["hostile_decoy"]);
+    expect(detectHostile("pwd", all)).toEqual(["hostile_prompt"]);
+    expect(detectHostile("cd /tmp && pwd", all)).toEqual(["hostile_prompt"]);
+    expect(detectHostile("Get-Location", all)).toEqual(["hostile_prompt"]);
   });
 
   it("ignore les commandes ordinaires et les sabotages inactifs", () => {

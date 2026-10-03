@@ -15,6 +15,8 @@ const CASES: [string, string, string][] = [
   ["hostile_path", shell('[ "$(type -P cat)" = "$HOME/.cache/arcade/bin/cat" ]'), "/bin/cat /etc/hostname >/dev/null"],
   ["hostile_chmod", 'find ~ -maxdepth 2 -type f -perm 000 | grep -q .', 'find ~ -maxdepth 2 -type f -perm 000 -exec chmod 644 {} + && ! find ~ -maxdepth 2 -type f -perm 000 | grep -q .'],
   ["hostile_decoy", 'grep -q "^FLAG{" ~/flag.txt', "rm ~/flag.txt"],
+  // L'invite ne suit plus le dossier courant ; un nouveau shell la répare.
+  ["hostile_prompt", shell('! printf %s "$PS1" | grep -qF "\\w"'), shell('printf %s "$PS1" | grep -qF "\\w"')],
 ];
 
 async function main() {
@@ -43,6 +45,7 @@ async function main() {
     for (const [kind, effect] of [
       ["hostile_alias", ps('if ((Get-Command Get-ChildItem, Get-Content, Select-String).CommandType -contains "Function") { exit 0 } else { exit 1 }')],
       ["hostile_path", ps('if ((Get-Command cat).Source -like "*/.cache/arcade/bin/cat") { exit 0 } else { exit 1 }')],
+      ["hostile_prompt", ps('if ((prompt) -match "/root|/etc|/var/www|~/coffre|/srv/secret") { exit 0 } else { exit 1 }')],
     ] as const) {
       const applied = await runScript(pwsh.container, HOSTILE_SCRIPTS[kind]("pwsh"));
       const seen = await runScript(pwsh.container, effect);

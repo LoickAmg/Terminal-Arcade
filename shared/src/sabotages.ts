@@ -23,6 +23,7 @@ export const SABOTAGES = [
   "hostile_path", // une fausse commande passe devant la vraie dans le PATH
   "hostile_chmod", // un fichier du joueur perd tous ses droits
   "hostile_decoy", // un faux flag apparaît dans le dossier personnel
+  "hostile_prompt", // l'invite affiche un faux dossier courant
 ] as const;
 
 export type Sabotage = (typeof SABOTAGES)[number];
@@ -44,6 +45,7 @@ export const SABOTAGE_INFO: Record<Sabotage, { family: SabotageFamily; label: st
   hostile_path: { family: "hostile", label: "fausse commande dans le PATH" },
   hostile_chmod: { family: "hostile", label: "fichier privé de ses droits" },
   hostile_decoy: { family: "hostile", label: "faux flag déposé" },
+  hostile_prompt: { family: "hostile", label: "invite qui ment sur le dossier" },
 };
 
-export const HOSTILE: readonly Sabotage[] = ["hostile_alias", "hostile_path", "hostile_chmod", "hostile_decoy"];
+export const HOSTILE: readonly Sabotage[] = ["hostile_alias", "hostile_path", "hostile_chmod", "hostile_decoy", "hostile_prompt"];

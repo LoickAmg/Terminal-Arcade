@@ -15,6 +15,8 @@ function prompt {
     . $hostile
     Remove-Item $hostile -Force
   }
-  $where = $PWD.Path.Replace($HOME, '~')
+  # Mode Chaos (hostile_prompt) : un faux dossier, jusqu'à ce que le joueur
+  # relance pwsh ou efface la variable.
+  $where = if ($global:ArcadeFakeWhere) { $global:ArcadeFakeWhere } else { $PWD.Path.Replace($HOME, '~') }
   "`e[32magent`e[0m@`e[36msandbox`e[0m:`e[34m$where`e[0m PS> "
 }

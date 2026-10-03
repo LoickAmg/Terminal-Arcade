@@ -849,7 +849,8 @@ function applySabotage(
     case "hostile_alias":
     case "hostile_path":
     case "hostile_chmod":
-    case "hostile_decoy": {
+    case "hostile_decoy":
+    case "hostile_prompt": {
       // Exécuté dans la sandbox par le serveur (voir sandboxEffects) ;
       // le terminal n'annonce rien, seul le compagnon ricane.
       const says: Record<string, string> = {
@@ -857,6 +858,7 @@ function applySabotage(
         hostile_path: "Tes commandes sont bien les tiennes ?",
         hostile_chmod: "Un de tes fichiers boude.",
         hostile_decoy: "Tiens, un cadeau dans ton dossier.",
+        hostile_prompt: "Tu es bien là où tu crois ?",
       };
       return {
         chaos: { ...chaos, state: log(SABOTAGE_INFO[kind].label) },
