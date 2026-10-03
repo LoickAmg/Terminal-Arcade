@@ -255,7 +255,39 @@ body::before {
   animation: breathe 7s ease-in-out infinite;
 }
 
+/* Accueil : le dessin s'imprime ligne par ligne, comme une sortie de terminal. */
+@keyframes print-line {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.print-line {
+  opacity: 0;
+  animation: print-line 0.12s steps(1) forwards;
+}
+
+/* Lueur d'accent derrière la fenêtre d'accueil. */
+.desk-glow {
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+  filter: blur(20px);
+}
+
+/* Segments fléchés de l'invite (style powerline). */
+.seg,
+.seg-first {
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%);
+  margin-left: -6px;
+}
+.seg-first {
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
+  margin-left: 0;
+  border-radius: 9999px 0 0 9999px;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .print-line {
+    opacity: 1;
+    animation: none;
+  }
   .pet-jump,
   .pet-shake,
   .scanlines,

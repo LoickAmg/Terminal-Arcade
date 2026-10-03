@@ -5,7 +5,7 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { EMPTY_PROGRESS, statusOf, type Level, type Progress } from "@terminal-arcade/shared";
 import { DEFAULT_PET, isPetConfig, type PetConfig } from "@/lib/pet";
 import { isObject, load, save } from "@/lib/storage";
-import { DEFAULT_SETTINGS, isSettings, terminalTheme, themeById, themeVars, type Settings } from "@/lib/themes";
+import { DEFAULT_SETTINGS, THEMES, isSettings, terminalTheme, themeById, themeVars, type Settings } from "@/lib/themes";
 import { Game } from "./Game";
 import { Home } from "./Home";
 import { Menu, type MenuAction } from "./Menu";
@@ -26,6 +26,7 @@ export function App({ levels }: { levels: Level[] }) {
   const [gameOpened, setGameOpened] = useState(false);
   const [gameKey, setGameKey] = useState(0);
   const [command, setCommand] = useState<{ text: string; id: number } | null>(null);
+  const [menuIndex, setMenuIndex] = useState(0);
 
   // Lecture du stockage local au montage (absent du rendu serveur).
   useEffect(() => {
@@ -50,7 +51,8 @@ export function App({ levels }: { levels: Level[] }) {
     save("settings", next);
   }, []);
 
-  const openMenu = useCallback(() => {
+  const openMenu = useCallback((index?: number) => {
+    if (index !== undefined) setMenuIndex(index);
     // Le jeu a pu faire avancer la progression ou changer le compagnon.
     setProgress(load("progress", EMPTY_PROGRESS, isProgress));
     setPet(load("pet", DEFAULT_PET, isPetConfig));
@@ -72,7 +74,17 @@ export function App({ levels }: { levels: Level[] }) {
   }, []);
 
   const passed = levels.filter((l) => statusOf(l.id, progress) === "passed").length;
-  const questionCount = levels.reduce((n, l) => n + l.questions.length, 0);
+  const stats = {
+    levels: levels.length,
+    questions: levels.reduce((n, l) => n + l.questions.length, 0),
+    variants: levels.reduce((n, l) => n + l.questions.filter((q) => q.variant).length, 0),
+    passed,
+    xp: Object.values(progress.xpByTree).reduce((a, b) => a + (b ?? 0), 0),
+    petName: pet.name,
+    petStyle: pet.style,
+    themeLabel: themeById(settings.theme).label,
+    themeCount: THEMES.length,
+  };
   const term = useMemo(() => terminalTheme(themeById(settings.theme), settings.accent), [settings.theme, settings.accent]);
 
   return (
@@ -81,7 +93,7 @@ export function App({ levels }: { levels: Level[] }) {
       <AnimatePresence mode="wait">
         {view === "home" && (
           <motion.div key="home" className="fixed inset-0 z-10 overflow-y-auto" exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.2 }}>
-            <Home levelCount={levels.length} questionCount={questionCount} passed={passed} onEnter={openMenu} />
+            <Home stats={stats} onEnter={openMenu} />
           </motion.div>
         )}
         {view === "menu" && (
@@ -94,6 +106,8 @@ export function App({ levels }: { levels: Level[] }) {
             transition={{ duration: 0.2 }}
           >
             <Menu
+              key={menuIndex}
+              initialIndex={menuIndex}
               levels={levels}
               progress={progress}
               pet={pet}
@@ -115,7 +129,7 @@ export function App({ levels }: { levels: Level[] }) {
             command={command}
             terminalTheme={term}
             fontSize={settings.fontSize}
-            onMenu={openMenu}
+            onMenu={() => openMenu()}
           />
         </div>
       )}

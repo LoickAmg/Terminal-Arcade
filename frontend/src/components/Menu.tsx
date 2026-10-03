@@ -49,6 +49,7 @@ const ITEMS: { id: ItemId; label: string; hint: string }[] = [
 ];
 
 export function Menu({
+  initialIndex = 0,
   levels,
   progress,
   pet,
@@ -58,6 +59,7 @@ export function Menu({
   onBack,
   onReset,
 }: {
+  initialIndex?: number;
   levels: Level[];
   progress: Progress;
   pet: PetConfig;
@@ -67,7 +69,7 @@ export function Menu({
   onBack: () => void;
   onReset: () => void;
 }) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(initialIndex);
   const item = ITEMS[index];
   const totalXp = Object.values(progress.xpByTree).reduce((a, b) => a + (b ?? 0), 0);
   const next = levels.find((l) => isUnlocked(l, levels, progress) && statusOf(l.id, progress) !== "passed");
