@@ -88,6 +88,7 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    | `NEXT_PUBLIC_LEGAL_NAME`, `NEXT_PUBLIC_LEGAL_CITY` | identité affichée dans les pages légales |
    | `NEXT_PUBLIC_CONTACT_EMAIL` | adresse de contact publique |
    | `NEXT_PUBLIC_SANDBOX_URL` | `https://sandbox.terminal-arcade.fr` |
+   | `SANDBOX_TICKET_KID`, `SANDBOX_TICKET_PRIVATE_KEY` | `npm run sandbox:keys` (voir étape 5) |
 
 4. Domaine : ajouter `terminal-arcade.fr` au projet. HTTPS est automatique ;
    l'en-tête HSTS est envoyé par le site en production.
@@ -99,17 +100,29 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
 ## 5. Sandbox (machine personnelle + Cloudflare Tunnel)
 
 1. Docker Desktop lancé, image construite : `npm run sandbox:build -w backend`.
-2. Serveur : `npm run sandbox`, avec `ALLOWED_ORIGINS=https://terminal-arcade.fr`,
-   et `MAX_SESSIONS` bas (4 par défaut) : c'est ta machine.
-3. **[toi]** `cloudflared tunnel create terminal-arcade`, puis une route
+2. Clés des tickets : `npm run sandbox:keys`. La clé **privée** et son
+   identifiant vont sur Vercel ; la ligne `SANDBOX_TICKET_PUBLIC_KEYS` va dans
+   `backend/.env.local` (fichier ignoré par Git, lu au démarrage).
+3. `backend/.env.local`, en plus de la clé publique :
+
+   ```
+   NODE_ENV=production
+   HOST=127.0.0.1
+   ALLOWED_ORIGINS=https://terminal-arcade.fr
+   TRUST_CLOUDFLARE=1
+   MAX_SESSIONS=4
+   ```
+
+   puis `npm run start -w backend`. Seuls les comptes à l'adresse confirmée
+   obtiennent un ticket ; sans clé, le serveur refuse tout.
+4. **[toi]** `cloudflared tunnel create terminal-arcade`, puis une route
    `sandbox.terminal-arcade.fr` vers `http://localhost:3108`. Aucun port à
    ouvrir sur ta box.
-4. Cloudflare → règle de limitation de débit sur `sandbox.terminal-arcade.fr`
+5. Cloudflare → règle de limitation de débit sur `sandbox.terminal-arcade.fr`
    (plan gratuit : une règle).
-5. À faire avant d'ouvrir la sandbox au public (prochaine étape de code) :
-   tickets d'accès Ed25519 émis par le site (2 min, anti-rejeu, `kid`, 30 s de
-   tolérance), sandbox réservée aux comptes vérifiés, et lecture de
-   `CF-Connecting-IP` pour les limites par joueur.
+6. Rotation des clés : `npm run sandbox:keys -- k2`, ajouter la nouvelle clé
+   publique à côté de l'ancienne (`k1:…,k2:…`), passer le site sur `k2`, puis
+   retirer `k1` quelques minutes plus tard.
 
 ## 6. Surveillance et alertes
 

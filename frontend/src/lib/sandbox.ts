@@ -20,6 +20,25 @@ export type SandboxHandlers = {
   onDetected: (kinds: string[]) => void;
 };
 
+/**
+ * Ticket d'accès signé par le site, pour le joueur connecté. null en local
+ * quand le site n'a pas de clé (la sandbox de développement n'en exige pas).
+ */
+async function requestTicket(): Promise<string | null> {
+  let res: Response;
+  try {
+    res = await fetch("/api/sandbox/ticket", { method: "POST", credentials: "same-origin", signal: AbortSignal.timeout(10_000) });
+  } catch {
+    throw new Error("le site ne répond pas");
+  }
+  const body = (await res.json().catch(() => ({}))) as { ticket?: string | null; message?: string };
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("les niveaux « vrai Linux » demandent un compte à l'adresse confirmée (menu Compte)");
+  }
+  if (!res.ok) throw new Error(body.message ?? "sandbox indisponible");
+  return body.ticket ?? null;
+}
+
 // Séquence OSC émise par la commande « arcade » de l'image.
 const GAME_COMMAND = /\x1b\]7777;([a-z]+)\x07/g;
 
@@ -28,11 +47,12 @@ export class SandboxClient {
 
   async start(levelId: string, handlers: SandboxHandlers): Promise<void> {
     this.stop();
+    const ticket = await requestTicket();
     const socket = io(SANDBOX_URL, {
       transports: ["websocket"],
       reconnection: false,
       timeout: 4000,
-      auth: SANDBOX_TOKEN ? { token: SANDBOX_TOKEN } : undefined,
+      auth: ticket ? { ticket } : SANDBOX_TOKEN ? { token: SANDBOX_TOKEN } : undefined,
     });
     this.socket = socket;
 

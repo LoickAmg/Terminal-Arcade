@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { Server, type Socket } from "socket.io";
 import { loadLevels } from "@terminal-arcade/shared/loader";
+import { ReplayGuard, publicKeysFrom, verifyTicket } from "@terminal-arcade/shared/ticket";
 import type { Level, Question } from "@terminal-arcade/shared";
 import { HOSTILE_SCRIPTS, appendTyped, detectHostile } from "./hostile";
 import { OutputMeter, RateLimiter, clientAddress, tokenMatches } from "./limits";
@@ -23,10 +24,23 @@ const MAX_SESSIONS = Number(env.MAX_SESSIONS ?? 4);
 // Parties simultanées et démarrages par heure, par adresse IP.
 const MAX_SESSIONS_PER_IP = Number(env.MAX_SESSIONS_PER_IP ?? 1);
 const STARTS_PER_HOUR = Number(env.STARTS_PER_HOUR ?? 30);
-// Jeton exigé à la connexion, si défini.
+// Parties simultanées par joueur (compte).
+const MAX_SESSIONS_PER_USER = Number(env.MAX_SESSIONS_PER_USER ?? 1);
+// Tickets signés par le site (clés publiques « kid:clé,… ») : seuls les
+// joueurs connectés, à l'adresse confirmée, peuvent ouvrir une sandbox.
+const TICKET_KEYS = env.SANDBOX_TICKET_PUBLIC_KEYS ? publicKeysFrom(env.SANDBOX_TICKET_PUBLIC_KEYS) : null;
+const replays = new ReplayGuard();
+setInterval(() => replays.prune(), 60_000).unref();
+// Ancien jeton partagé : seulement en local, sans tickets.
 const TOKEN = env.SANDBOX_TOKEN ?? "";
-// Derrière un proxy (TLS), croire X-Forwarded-For pour l'adresse du client.
-const TRUST_PROXY = env.TRUST_PROXY === "1";
+// Adresse du client : directe, derrière un proxy (X-Forwarded-For) ou
+// derrière Cloudflare (CF-Connecting-IP).
+const TRUST: "none" | "proxy" | "cloudflare" =
+  env.TRUST_CLOUDFLARE === "1" ? "cloudflare" : env.TRUST_PROXY === "1" ? "proxy" : "none";
+// Panne = bloque tout : un serveur de production sans clés refuse tout.
+if (env.NODE_ENV === "production" && !TICKET_KEYS) {
+  console.error("[sandbox] SANDBOX_TICKET_PUBLIC_KEYS manquant : toutes les connexions seront refusées.");
+}
 const SESSION_MAX_MS = 30 * 60_000;
 const IDLE_MS = Number(env.IDLE_MINUTES ?? 10) * 60_000;
 // Au-delà, la partie est coupée (déluge de sortie : yes, cat d'un gros fichier…).
@@ -43,6 +57,8 @@ const dockerLevels = new Map(levels.filter((l) => l.runtime === "docker").map((l
 type Session = {
   sandbox: Sandbox;
   ip: string;
+  // Joueur authentifié par son ticket ("" en local, sans tickets).
+  userId: string;
   idle: NodeJS.Timeout;
   level: Level;
   question: Question | null;
@@ -113,14 +129,22 @@ const httpServer = createServer((req, res) => {
 
 const io = new Server(httpServer, { cors: { origin: ORIGINS }, maxHttpBufferSize: 64 * 1024 });
 
-// Jeton d'accès : sans lui, la connexion est refusée avant toute partie.
+// Contrôle d'accès, avant toute partie : ticket signé par le site si les clés
+// sont configurées, sinon (en local seulement) l'ancien jeton partagé.
 io.use((socket, next) => {
+  if (TICKET_KEYS) {
+    const check = verifyTicket(socket.handshake.auth?.ticket, TICKET_KEYS);
+    if (!check.ok) return next(new Error(`accès refusé (${check.reason})`));
+    if (!replays.use(check.claims)) return next(new Error("accès refusé (ticket déjà utilisé)"));
+    socket.data.userId = check.claims.sub;
+    return next();
+  }
+  if (env.NODE_ENV === "production") return next(new Error("accès refusé (serveur non configuré)"));
   if (!TOKEN || tokenMatches(socket.handshake.auth?.token, TOKEN)) return next();
   next(new Error("accès refusé"));
 });
 
-const addressOf = (socket: Socket) =>
-  clientAddress(socket.handshake.headers, socket.handshake.address, TRUST_PROXY);
+const addressOf = (socket: Socket) => clientAddress(socket.handshake.headers, socket.handshake.address, TRUST);
 
 function endSession(socket: Socket, message: string, reason: string) {
   socket.emit("session:ended", { reason: message });
@@ -140,7 +164,11 @@ io.on("connection", (socket) => {
     if ([...sessions.values()].filter((s) => s.ip === ip).length >= MAX_SESSIONS_PER_IP) {
       return reply({ ok: false, error: "Une partie est déjà en cours depuis ton adresse." });
     }
-    if (!startLimiter.take(ip)) {
+    const userId = String(socket.data.userId ?? "");
+    if (userId && [...sessions.values()].filter((s) => s.userId === userId).length >= MAX_SESSIONS_PER_USER) {
+      return reply({ ok: false, error: "Tu as déjà une partie en cours dans un autre onglet." });
+    }
+    if (!startLimiter.take(userId || ip)) {
       return reply({ ok: false, error: "Trop de parties lancées récemment : réessaie dans un moment." });
     }
 
@@ -149,6 +177,7 @@ io.on("connection", (socket) => {
       const session: Session = {
         sandbox,
         ip,
+        userId,
         idle: setTimeout(() => endSession(socket, "Sandbox fermée après 10 minutes sans activité.", "inactivité"), IDLE_MS),
         level,
         question: null,

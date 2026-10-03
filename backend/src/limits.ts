@@ -52,13 +52,22 @@ export class OutputMeter {
   }
 }
 
-/** Adresse du client : l'en-tête du proxy n'est cru que si on l'a demandé. */
+/**
+ * Adresse du client : un en-tête de proxy n'est cru que si on l'a demandé.
+ * « cloudflare » : derrière un Cloudflare Tunnel, toutes les connexions
+ * arrivent de Cloudflare ; la vraie adresse est dans CF-Connecting-IP.
+ */
 export function clientAddress(
   headers: Record<string, string | string[] | undefined>,
   remote: string,
-  trustProxy: boolean,
+  trust: "none" | "proxy" | "cloudflare",
 ): string {
-  if (trustProxy) {
+  if (trust === "cloudflare") {
+    const cf = headers["cf-connecting-ip"];
+    const ip = (Array.isArray(cf) ? cf[0] : cf)?.trim();
+    if (ip) return ip;
+  }
+  if (trust === "proxy") {
     const forwarded = headers["x-forwarded-for"];
     const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim();
     if (first) return first;

@@ -38,9 +38,19 @@ publique » plus bas.
 **Serveur** (`backend/src/server.ts`, `backend/src/limits.ts`) :
 
 - écoute sur `127.0.0.1` par défaut, origines autorisées en liste blanche ;
-- jeton d'accès optionnel (`SANDBOX_TOKEN`), comparé en temps constant ;
+- accès par **ticket signé** (Ed25519) délivré par le site aux comptes à
+  l'adresse confirmée : 2 minutes de validité (30 s de tolérance d'horloge),
+  usage unique, identifiant de clé pour la rotation. La sandbox ne détient
+  que la clé publique : compromise, elle ne peut pas fabriquer de tickets.
+  En production sans clé configurée, tout est refusé. L'ancien jeton partagé
+  (`SANDBOX_TOKEN`) ne sert plus qu'en local ;
 - au plus `MAX_SESSIONS` parties (4), `MAX_SESSIONS_PER_IP` par adresse (1),
-  `STARTS_PER_HOUR` démarrages par adresse et par heure (30) ;
+  `MAX_SESSIONS_PER_USER` par joueur (1), `STARTS_PER_HOUR` démarrages par
+  joueur et par heure (30) ;
+- derrière un Cloudflare Tunnel (`TRUST_CLOUDFLARE=1`), l'adresse du joueur
+  est lue dans `CF-Connecting-IP` : sans cela, tous les joueurs auraient
+  l'adresse de Cloudflare. À n'activer que si le serveur n'écoute que sur
+  `127.0.0.1` (seul le tunnel peut alors le joindre et poser l'en-tête) ;
 - partie fermée après 30 minutes, ou 10 minutes sans frappe ;
 - partie fermée si le conteneur envoie plus de 4 Mo en 10 secondes ;
 - frappes limitées à 4 Ko par message, messages Socket.io à 64 Ko ;
@@ -58,6 +68,7 @@ npm run test:isolation -w backend  # écrire hors des dossiers permis, devenir r
 npm run test:sandbox -w backend    # chaque défi soluble, son arbitre non trivial
 npm run test:hostile -w backend    # sabotages appliqués et réparables (bash et PowerShell)
 npm test                           # dont les limiteurs (fréquence, sortie, jeton, adresse)
+                                   # et les tickets (signature, clé, dates, rejeu, rotation)
 ```
 
 Les protections du serveur (jeton refusé, deuxième partie depuis la même
@@ -69,9 +80,9 @@ un serveur réel le 2026-10-02.
 - **Triche** : les scripts d'arbitre et les réponses calculées vivent dans
   le conteneur du joueur, qui peut les lire en cherchant bien. Acceptable
   pour un jeu d'apprentissage ; pas pour un classement à enjeu.
-- **Le jeton est public** : `NEXT_PUBLIC_SANDBOX_TOKEN` est lisible dans le
-  code du site. Il réserve une instance à un cercle restreint, il ne
-  remplace pas des comptes.
+- **Anti-rejeu en mémoire** : les tickets déjà vus sont oubliés au
+  redémarrage du serveur. Un ticket intercepté juste avant un redémarrage
+  resterait utilisable le temps de sa validité (2 min 30 au plus).
 - **Le temps est mesuré dans le navigateur** : un joueur peut fausser le
   timer. Il faudrait le faire compter par le serveur.
 - **Docker Desktop** (Windows, macOS) passe par une machine virtuelle :
@@ -86,8 +97,8 @@ un serveur réel le 2026-10-02.
    relancer `npm run test:isolation -w backend` et `test:sandbox`.
 3. **TLS et proxy** : nginx ou Caddy devant le serveur (WebSocket en wss),
    `HOST=127.0.0.1`, `TRUST_PROXY=1`, `ALLOWED_ORIGINS` = l'adresse du site.
-4. **Comptes** : une vraie authentification (OAuth GitHub, liens magiques…)
-   à la place du jeton partagé, avec un quota par compte.
+4. **Comptes** : fait (tickets signés par le site, quota par compte). Poser
+   `SANDBOX_TICKET_PUBLIC_KEYS` et `NODE_ENV=production` sur le serveur.
 5. **Plafonds globaux** : quotas Docker sur la machine (cgroup parent),
    alertes sur la charge, le disque et le nombre de conteneurs.
 6. **Journal et retrait** : journaliser les débuts et fins de partie
@@ -99,9 +110,9 @@ un serveur réel le 2026-10-02.
 
 ## Déploiement suggéré
 
-- **Site** (Next.js) : Vercel ou tout hébergeur statique ; variables
-  `NEXT_PUBLIC_SANDBOX_URL` (adresse wss du serveur) et, si besoin,
-  `NEXT_PUBLIC_SANDBOX_TOKEN`.
+- **Site** (Next.js) : Vercel ; variables `NEXT_PUBLIC_SANDBOX_URL` (adresse
+  wss du serveur), `SANDBOX_TICKET_PRIVATE_KEY` et `SANDBOX_TICKET_KID`.
+  Le guide complet est dans `docs/DEPLOIEMENT.md`.
 - **Sandbox** : le VPS dédié ci-dessus, `npm run sandbox:build -w backend`
   puis `npm run start -w backend` sous un gestionnaire de services
   (systemd), derrière le proxy TLS.

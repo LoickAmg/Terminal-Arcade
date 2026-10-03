@@ -25,8 +25,10 @@ describe("compteur de sortie", () => {
 describe("adresse et jeton", () => {
   it("ne croit l'en-tête du proxy que si on le demande", () => {
     const headers = { "x-forwarded-for": "203.0.113.7, 10.0.0.1" };
-    expect(clientAddress(headers, "127.0.0.1", false)).toBe("127.0.0.1");
-    expect(clientAddress(headers, "127.0.0.1", true)).toBe("203.0.113.7");
+    expect(clientAddress(headers, "127.0.0.1", "none")).toBe("127.0.0.1");
+    expect(clientAddress(headers, "127.0.0.1", "proxy")).toBe("203.0.113.7");
+    expect(clientAddress({ ...headers, "cf-connecting-ip": "198.51.100.4" }, "127.0.0.1", "cloudflare")).toBe("198.51.100.4");
+    expect(clientAddress(headers, "127.0.0.1", "cloudflare")).toBe("127.0.0.1");
   });
 
   it("compare le jeton exactement", () => {
