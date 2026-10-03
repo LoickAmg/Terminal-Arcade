@@ -10,7 +10,7 @@ chaos: { signature: [hostile_path, time_accel] }
 intro: "xargs, trap, signaux, sauvegarde incrémentale et sed ciblé."
 questions:
   - kind: task
-    prompt: "Pour chaque nom listé dans cibles.txt, crée un fichier vide portant ce nom suivi de .ok, avec xargs."
+    prompt: "Pour chaque nom listé dans cibles.txt, crée un fichier vide portant ce nom suivi de .ok. Fais-le avec xargs : une boucle marcherait aussi, mais c'est xargs qu'on travaille ici."
     setup: |
       rm -f ~/*.ok
       for n in alpha beta gamma delta epsilon; do [ $((RANDOM % 3)) -gt 0 ] && echo "$n"; done > ~/cibles.txt

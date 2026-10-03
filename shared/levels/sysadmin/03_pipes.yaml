@@ -80,7 +80,7 @@ questions:
 
   - kind: task
     prompt: "Écris dans compte.txt le nombre de fichiers .conf présents directement dans /etc (seulement le nombre)."
-    check: '[ "$(tr -d " \n" < ~/compte.txt 2>/dev/null)" = "$(ls /etc/*.conf | wc -l)" ]'
+    check: '[ -f ~/compte.txt ] && [ "$(tr -d " \n" < ~/compte.txt)" = "$(ls /etc/*.conf 2>/dev/null | wc -l)" ]'
     solution: "ls /etc/*.conf | wc -l > compte.txt"
     solve: |
       ls /etc/*.conf | wc -l > ~/compte.txt

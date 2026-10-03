@@ -63,7 +63,7 @@ questions:
       - "Liste les dossiers"
       - "Ne fait rien"
     answer: 1
-    explain: ".. désigne toujours le dossier parent. Pour revenir au dossier personnel : cd tout court, ou cd ~."
+    explain: ".. désigne toujours le dossier parent ; à la racine /, qui n'a pas de parent, on y reste. Pour revenir au dossier personnel : cd tout court, ou cd ~."
     variant:
       kind: mcq
       prompt: "Que fait la commande cd tapée seule, sans argument ?"

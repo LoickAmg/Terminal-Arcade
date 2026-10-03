@@ -132,7 +132,7 @@ Que fait cd .. ?
 3. Liste les dossiers
 4. Ne fait rien
 
-- Explication : .. désigne toujours le dossier parent. Pour revenir au dossier personnel : cd tout court, ou cd ~.
+- Explication : .. désigne toujours le dossier parent ; à la racine /, qui n'a pas de parent, on y reste. Pour revenir au dossier personnel : cd tout court, ou cd ~.
 
 #### Q4 — variante (sabotage « mutation ») · QCM
 
@@ -1947,7 +1947,7 @@ submit "$(grep -vc nologin /etc/passwd)"
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-[ "$(tr -d " \n" < ~/compte.txt 2>/dev/null)" = "$(ls /etc/*.conf | wc -l)" ]
+[ -f ~/compte.txt ] && [ "$(tr -d " \n" < ~/compte.txt)" = "$(ls /etc/*.conf 2>/dev/null | wc -l)" ]
 ```
 
 Résolution automatique (tests) :
@@ -4026,12 +4026,13 @@ Préparation :
 
 ```bash
 pgrep -x virus >/dev/null || { setsid nohup ~/.bin/virus 100000 >/dev/null 2>&1 & sleep 0.2; }
+pgrep -x virus | head -n 1 > /tmp/.virus-pid
 ```
 
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-answer-is "$(pgrep -x virus | head -n 1)"
+answer-is "$(cat /tmp/.virus-pid)"
 ```
 
 Résolution automatique (tests) :
@@ -4269,7 +4270,7 @@ Boucles bash, find, scripts exécutables et calculs.
 
 #### Q1 · Défi réel (sandbox)
 
-Renomme tous les fichiers .txt du dossier rapports en .bak, avec une boucle for.
+Renomme tous les fichiers .txt du dossier rapports en .bak, avec une boucle for. À la fin, il ne doit plus rester aucun .txt dans rapports.
 
 - Solution : `for f in rapports/*.txt; do mv "$f" "${f%.txt}.bak"; done`
 - Indice 1 (10 s) : for f in rapports/*.txt; do ...; done traite les fichiers un par un, chacun dans $f.
@@ -4300,7 +4301,7 @@ cd ~ && for f in rapports/*.txt; do mv "$f" "${f%.txt}.bak"; done
 
 #### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
 
-Renomme tous les fichiers .log du dossier archives en .old, avec une boucle for.
+Renomme tous les fichiers .log du dossier archives en .old, avec une boucle for. À la fin, il ne doit plus rester aucun .log dans archives.
 
 - Solution : `for f in archives/*.log; do mv "$f" "${f%.log}.old"; done`
 
@@ -4340,13 +4341,16 @@ Préparation :
 
 ```bash
 mkdir -p ~/chantier/x ~/chantier/y/z
-touch ~/chantier/1.tmp ~/chantier/x/2.tmp ~/chantier/y/z/3.tmp ~/chantier/garde.txt ~/chantier/y/garde2.txt
+touch ~/chantier/1.tmp ~/chantier/x/2.tmp ~/chantier/y/z/3.tmp
+# Contenu au hasard : tout supprimer puis recréer les fichiers gardés ne passerait pas.
+echo "garde $RANDOM" > ~/chantier/garde.txt; echo "garde $RANDOM" > ~/chantier/y/garde2.txt
+cat ~/chantier/garde.txt ~/chantier/y/garde2.txt > /tmp/.chantier-garde
 ```
 
 Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
 
 ```bash
-[ -z "$(find ~/chantier -name "*.tmp")" ] && [ -f ~/chantier/garde.txt ] && [ -f ~/chantier/y/garde2.txt ]
+[ -z "$(find ~/chantier -name "*.tmp")" ] && [ "$(cat ~/chantier/garde.txt ~/chantier/y/garde2.txt 2>/dev/null)" = "$(cat /tmp/.chantier-garde)" ]
 ```
 
 Résolution automatique (tests) :
@@ -4906,7 +4910,7 @@ xargs, trap, signaux, sauvegarde incrémentale et sed ciblé.
 
 #### Q1 · Défi réel (sandbox)
 
-Pour chaque nom listé dans cibles.txt, crée un fichier vide portant ce nom suivi de .ok, avec xargs.
+Pour chaque nom listé dans cibles.txt, crée un fichier vide portant ce nom suivi de .ok. Fais-le avec xargs : une boucle marcherait aussi, mais c'est xargs qu'on travaille ici.
 
 - Solution : `xargs -I{} touch {}.ok < cibles.txt`
 - Indice 1 (10 s) : xargs transforme les lignes reçues en arguments d'une autre commande.

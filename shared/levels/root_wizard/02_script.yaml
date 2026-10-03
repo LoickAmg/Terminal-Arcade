@@ -10,7 +10,7 @@ timer: { mode: random, duration_s: 420, par_s: 220 }
 intro: "Boucles bash, find, scripts exécutables et calculs."
 questions:
   - kind: task
-    prompt: "Renomme tous les fichiers .txt du dossier rapports en .bak, avec une boucle for."
+    prompt: "Renomme tous les fichiers .txt du dossier rapports en .bak, avec une boucle for. À la fin, il ne doit plus rester aucun .txt dans rapports."
     setup: |
       mkdir -p ~/rapports
       for n in janvier fevrier mars avril; do echo "$n" > ~/rapports/$n.txt; done
@@ -23,7 +23,7 @@ questions:
       - text: '${f%.txt} retire l''extension .txt du nom contenu dans $f.'
     variant:
       kind: task
-      prompt: "Renomme tous les fichiers .log du dossier archives en .old, avec une boucle for."
+      prompt: "Renomme tous les fichiers .log du dossier archives en .old, avec une boucle for. À la fin, il ne doit plus rester aucun .log dans archives."
       setup: |
         mkdir -p ~/archives
         for n in janvier fevrier mars avril; do echo "$n" > ~/archives/$n.log; done
@@ -37,8 +37,11 @@ questions:
     prompt: "Supprime tous les fichiers .tmp sous le dossier chantier, à toutes les profondeurs, sans toucher aux autres."
     setup: |
       mkdir -p ~/chantier/x ~/chantier/y/z
-      touch ~/chantier/1.tmp ~/chantier/x/2.tmp ~/chantier/y/z/3.tmp ~/chantier/garde.txt ~/chantier/y/garde2.txt
-    check: '[ -z "$(find ~/chantier -name "*.tmp")" ] && [ -f ~/chantier/garde.txt ] && [ -f ~/chantier/y/garde2.txt ]'
+      touch ~/chantier/1.tmp ~/chantier/x/2.tmp ~/chantier/y/z/3.tmp
+      # Contenu au hasard : tout supprimer puis recréer les fichiers gardés ne passerait pas.
+      echo "garde $RANDOM" > ~/chantier/garde.txt; echo "garde $RANDOM" > ~/chantier/y/garde2.txt
+      cat ~/chantier/garde.txt ~/chantier/y/garde2.txt > /tmp/.chantier-garde
+    check: '[ -z "$(find ~/chantier -name "*.tmp")" ] && [ "$(cat ~/chantier/garde.txt ~/chantier/y/garde2.txt 2>/dev/null)" = "$(cat /tmp/.chantier-garde)" ]'
     solution: "find chantier -name '*.tmp' -delete"
     solve: |
       find ~/chantier -name '*.tmp' -delete
