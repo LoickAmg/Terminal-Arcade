@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { ResetForm } from "./ResetForm";
 
 export const metadata: Metadata = {
-  title: "Nouveau mot de passe · Terminal Arcade",
+  title: "Nouveau mot de passe",
   robots: { index: false },
 };
 

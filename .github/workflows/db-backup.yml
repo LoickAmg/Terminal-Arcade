@@ -1,0 +1,82 @@
+# Sauvegarde quotidienne de la base (Neon), chiffrée, puis restaurée dans un
+# Postgres jetable pour vérifier qu'elle est réellement utilisable.
+#
+# Secrets du dépôt à créer (Settings > Secrets and variables > Actions) :
+#   BACKUP_DATABASE_URL  connexion d'un rôle en LECTURE SEULE (voir docs/DEPLOIEMENT.md)
+#   BACKUP_PASSPHRASE    phrase de chiffrement, gardée aussi hors de GitHub
+#
+# L'archive est chiffrée (AES-256) : même si quelqu'un télécharge l'artefact,
+# il ne peut rien en lire sans la phrase. Conservée 30 jours.
+
+name: Sauvegarde de la base
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      restore:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: restore
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    steps:
+      # Tant que les secrets ne sont pas créés (avant la mise en ligne), le flux
+      # s'arrête ici sans échouer, pour ne pas envoyer d'alerte chaque nuit.
+      - name: Vérifier la configuration
+        id: config
+        env:
+          DB: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DB" ] || [ -z "$PASS" ]; then
+            echo "::notice::Secrets BACKUP_DATABASE_URL et BACKUP_PASSPHRASE absents : sauvegarde pas encore configurée."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Exporter la base
+        if: steps.config.outputs.ready == 'true'
+        env:
+          DB: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          docker run --rm --network host -e DB postgres:17 \
+            sh -c 'pg_dump --no-owner --no-privileges --format=custom "$DB"' > base.dump
+          test -s base.dump
+
+      - name: Tester la restauration
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          docker run --rm --network host -v "$PWD:/w" -e PGPASSWORD=restore postgres:17 \
+            pg_restore --no-owner -h localhost -U postgres -d postgres /w/base.dump
+          docker run --rm --network host -e PGPASSWORD=restore postgres:17 \
+            psql -h localhost -U postgres -d postgres -tAc \
+            "SELECT 'comptes=' || count(*) FROM \"user\"; SELECT 'sauvegardes=' || count(*) FROM saves; SELECT 'migration=' || max(id) FROM schema_migrations;"
+
+      - name: Chiffrer
+        if: steps.config.outputs.ready == 'true'
+        env:
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASS" \
+            --symmetric --cipher-algo AES256 -o "base-$(date -u +%Y-%m-%d).dump.gpg" base.dump
+          shred -u base.dump
+
+      - name: Conserver l'archive chiffrée
+        if: steps.config.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: base-${{ github.run_id }}
+          path: base-*.dump.gpg
+          retention-days: 30
+          if-no-files-found: error
