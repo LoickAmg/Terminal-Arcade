@@ -134,3 +134,4 @@ questions:
         - { text: "Get-Content journal.log -Tail 3, puis un pipe vers Set-Content." }
 rewards:
   xp: 350
+  unlocks: ps_objets_01

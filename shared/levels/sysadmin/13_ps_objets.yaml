@@ -1,0 +1,135 @@
+# Idées de Kimi (vague 2) : Get-Member pour découvrir un objet inconnu, et
+# le piège Format-Table qui transforme des objets en texte inexploitable.
+id: ps_objets_01
+title: "Objets inconnus"
+hook: "Un objet dont tu ne connais pas les propriétés. PowerShell sait te les montrer."
+tier: sysadmin
+tree: powershell
+runtime: docker
+shell: pwsh
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [mutation, false_red] }
+intro: "Découvrir un objet avec Get-Member, et ne jamais confondre l'affichage (Format-Table) avec les données (Export-Csv, -ExpandProperty)."
+setup: |
+  mkdir -p ~/data
+  for n in alpha beta gamma; do head -c $((RANDOM % 5000 + 100)) /dev/zero > ~/data/$n.bin; done
+  hex() { head -c "$1" /dev/urandom | od -An -tx1 | tr -d ' \n'; }
+  cle="cle$(hex 2)"
+  code="CODE-$(hex 3)"
+  # Des propriétés en plus, en nombre variable : il faut vraiment compter.
+  extra=""
+  for i in $(seq 1 $((RANDOM % 4))); do extra="$extra, \"note$i\": \"n$i\""; done
+  printf '{"auteur": "agent", "version": %d, "statut": "actif", "%s": "%s"%s}\n' \
+    $((RANDOM % 9 + 1)) "$cle" "$code" "$extra" > ~/mystere.json
+  printf '%s\n' "$code" > /tmp/.po-code
+questions:
+  - kind: task
+    prompt: "mystere.json décrit un objet. Une de ses propriétés, dont le nom commence par cle, contient un code. Découvre son nom avec Get-Member, puis envoie la valeur du code avec submit."
+    check: 'answer-is "$(cat /tmp/.po-code)"'
+    solution: "$o = Get-Content mystere.json | ConvertFrom-Json ; $o | Get-Member ; puis $o.cleXXXX"
+    solve: |
+      submit "$(pwsh -NoProfile -NonInteractive -Command '$o = Get-Content ~/mystere.json | ConvertFrom-Json; ($o.PSObject.Properties | Where-Object Name -like "cle*").Value')"
+    explain: "Get-Member liste les propriétés et méthodes d'un objet : c'est la carte d'un objet qu'on ne connaît pas."
+    hints:
+      - text: "Get-Content mystere.json | ConvertFrom-Json | Get-Member"
+      - text: "Une fois le nom trouvé : (Get-Content mystere.json | ConvertFrom-Json).cle…"
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "mystere.json décrit un objet. Une de ses propriétés a un nom qui commence par cle. Trouve ce nom exact avec Get-Member et envoie-le avec submit."
+      check: 'answer-is "$(grep -o "\"cle[0-9a-f]*\"" ~/mystere.json | tr -d "\"")"'
+      solution: "Get-Content mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty"
+      solve: |
+        submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty | Where-Object Name -like "cle*").Name')"
+      hints:
+        - text: "-MemberType NoteProperty ne garde que les propriétés du JSON."
+
+  - kind: task
+    prompt: "Combien de propriétés l'objet de mystere.json a-t-il ? Compte-les avec Get-Member -MemberType NoteProperty et envoie le nombre avec submit."
+    check: 'answer-is "$(grep -o "\"[a-z0-9]*\": " ~/mystere.json | wc -l)"'
+    solution: "(Get-Content mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty).Count"
+    solve: |
+      submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty).Count')"
+    hints:
+      - text: "Get-Member liste aussi des méthodes (Equals, ToString…) : -MemberType NoteProperty ne garde que les propriétés."
+      - text: "Entoure la commande de parenthèses et lis .Count."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Combien de propriétés de mystere.json contiennent du texte (type string) ? Regarde la colonne Definition de Get-Member et envoie le nombre avec submit."
+      check: 'answer-is "$(grep -o "\"[a-z0-9]*\": \"" ~/mystere.json | wc -l)"'
+      solution: "Get-Content mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty, puis compte les lignes « string »"
+      solve: |
+        submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty | Where-Object Definition -like "string*").Count')"
+      hints:
+        - text: "Where-Object Definition -like \"string*\" filtre les propriétés de type texte."
+
+  - kind: task
+    prompt: "rapport.csv a été fabriqué avec Format-Table puis Out-File : c'est un tableau de texte, pas un CSV. Refais-le avec Export-Csv : les colonnes Name et Length des fichiers de data."
+    setup: |
+      pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Format-Table Name, Length | Out-File ~/rapport.csv'
+    check: |
+      [ -f ~/rapport.csv ] || exit 1
+      head -n 1 ~/rapport.csv | grep -qx '"Name","Length"' || exit 1
+      n=0
+      while IFS= read -r f; do
+        grep -qF "\"$(basename "$f")\",\"$(stat -c %s "$f")\"" ~/rapport.csv || exit 1
+        n=$((n + 1))
+      done < <(find ~/data -maxdepth 1 -type f)
+      [ "$(wc -l < ~/rapport.csv)" = $((n + 1)) ]
+    solution: "Get-ChildItem data | Select-Object Name, Length | Export-Csv rapport.csv"
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object Name, Length | Export-Csv ~/rapport.csv'
+    explain: "Format-Table transforme les objets en lignes d'affichage : après lui, il n'y a plus de données. Les cmdlets Format-* se mettent toujours en dernier, seulement pour l'écran."
+    hints:
+      - text: "Garde les objets jusqu'au bout : Select-Object choisit les colonnes, Export-Csv écrit le fichier."
+      - text: "Aucun Format-Table dans le pipeline : il ne sert qu'à l'affichage."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "rapport.json a été fabriqué avec Format-List puis Out-File : du texte, pas du JSON. Refais-le avec ConvertTo-Json : les propriétés Name et Length des fichiers de data."
+      setup: |
+        pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Format-List Name, Length | Out-File ~/rapport.json'
+      check: |
+        [ -f ~/rapport.json ] || exit 1
+        n=0
+        while IFS= read -r f; do
+          grep -q "\"Name\": \"$(basename "$f")\"" ~/rapport.json || exit 1
+          grep -q "\"Length\": $(stat -c %s "$f")" ~/rapport.json || exit 1
+          n=$((n + 1))
+        done < <(find ~/data -maxdepth 1 -type f)
+        [ "$(grep -c '"Name":' ~/rapport.json)" = "$n" ]
+      solution: "Get-ChildItem data | Select-Object Name, Length | ConvertTo-Json | Set-Content rapport.json"
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object Name, Length | ConvertTo-Json | Set-Content ~/rapport.json'
+      hints:
+        - text: "Comme pour le CSV : Select-Object, puis ConvertTo-Json, puis Set-Content."
+
+  - kind: task
+    prompt: "Écris dans noms.txt les noms des fichiers de data, un par ligne, sans en-tête ni ligne vide."
+    check: |
+      [ -f ~/noms.txt ] || exit 1
+      [ "$(grep -v '^[[:space:]]*$' ~/noms.txt | tr -d '\r')" = "$(ls ~/data)" ] && ! grep -q -- '----' ~/noms.txt
+    solution: "Get-ChildItem data | Select-Object -ExpandProperty Name | Set-Content noms.txt"
+    solve: |
+      pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object -ExpandProperty Name | Set-Content ~/noms.txt'
+    explain: "Select-Object Name garde un objet avec une propriété Name, qui s'affiche avec un en-tête. -ExpandProperty Name sort la valeur elle-même, du simple texte."
+    hints:
+      - text: "Select-Object Name | Out-File écrirait aussi l'en-tête « Name » et sa ligne de tirets."
+      - text: "-ExpandProperty extrait la valeur au lieu de garder l'objet."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Écris dans tailles.txt la taille en octets de chaque fichier de data, une par ligne, dans l'ordre des noms, sans en-tête."
+      check: |
+        [ -f ~/tailles.txt ] || exit 1
+        [ "$(grep -v '^[[:space:]]*$' ~/tailles.txt | tr -d '\r')" = "$(for f in $(ls ~/data); do stat -c %s ~/data/$f; done)" ]
+      solution: "Get-ChildItem data | Select-Object -ExpandProperty Length | Set-Content tailles.txt"
+      solve: |
+        pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object -ExpandProperty Length | Set-Content ~/tailles.txt'
+      hints:
+        - text: "Même geste qu'avec Name, sur la propriété Length."
+
+rewards:
+  xp: 360

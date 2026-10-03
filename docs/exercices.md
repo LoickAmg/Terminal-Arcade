@@ -3,7 +3,7 @@
 Généré automatiquement depuis `shared/levels/` par `npm run export:exercices`.
 Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 
-**35 niveaux, 181 questions, 109 variantes.**
+**36 niveaux, 185 questions, 113 variantes.**
 
 | Type de question | Nombre |
 | --- | --- |
@@ -12,7 +12,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | Piège | 9 |
 | Prédire la sortie | 10 |
 | Compléter | 3 |
-| Défi réel (sandbox) | 125 |
+| Défi réel (sandbox) | 129 |
 
 ## Vue d'ensemble
 
@@ -39,6 +39,7 @@ Ne pas modifier à la main : modifier les fichiers YAML, puis régénérer.
 | [gg_tags_01](#gg_tags_01--étiquettes-et-versions) | Étiquettes et versions | SysAdmin | Git-Gud | Sandbox Docker (bash) | Classique | 5 | 360 |
 | [ps_stock_01](#ps_stock_01--des-objets-en-rayon) | Des objets en rayon | SysAdmin | PowerShell | Sandbox Docker (PowerShell) | Classique | 5 | 350 |
 | [gg_miroir_01](#gg_miroir_01--le-dépôt-miroir) | Le dépôt miroir | SysAdmin | Git-Gud | Sandbox Docker (bash) | Classique | 6 | 360 |
+| [ps_objets_01](#ps_objets_01--objets-inconnus) | Objets inconnus | SysAdmin | PowerShell | Sandbox Docker (PowerShell) | Classique | 4 | 360 |
 | [rw_proc_01](#rw_proc_01--processus-fantôme) | Processus fantôme | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 4 | 380 |
 | [rw_script_01](#rw_script_01--automatise-tout) | Automatise tout | Root Wizard | System Overlord | Sandbox Docker (bash) | Classique | 4 | 400 |
 | [gg_history_01](#gg_history_01--machine-à-remonter-le-temps) | Machine à remonter le temps | Root Wizard | Git-Gud | Sandbox Docker (bash) | Classique | 4 | 420 |
@@ -3287,6 +3288,7 @@ cd ~/site && git worktree remove ~/site-hotfix
 | Questions | 5 |
 | XP | 350 |
 | Sabotages signature | mutation, false_red |
+| Débloque | ps_objets_01 |
 
 Créer dossiers et fichiers, copier un arbre entier, lire un CSV en objets et garder la fin d'un journal : les gestes PowerShell de base.
 
@@ -3979,6 +3981,260 @@ Résolution automatique (tests) :
 
 ```bash
 git -C ~/musee fetch -q origin
+```
+
+</details>
+
+### ps_objets_01 — Objets inconnus
+
+> Un objet dont tu ne connais pas les propriétés. PowerShell sait te les montrer.
+
+| | |
+| --- | --- |
+| Palier | SysAdmin |
+| Arbre | PowerShell |
+| Exécution | Sandbox Docker (PowerShell) |
+| Type natif | Classique |
+| Rejouable | Chaos |
+| Questions | 4 |
+| XP | 360 |
+| Sabotages signature | mutation, false_red |
+
+Découvrir un objet avec Get-Member, et ne jamais confondre l'affichage (Format-Table) avec les données (Export-Csv, -ExpandProperty).
+
+<details><summary>Préparation du niveau</summary>
+
+```bash
+mkdir -p ~/data
+for n in alpha beta gamma; do head -c $((RANDOM % 5000 + 100)) /dev/zero > ~/data/$n.bin; done
+hex() { head -c "$1" /dev/urandom | od -An -tx1 | tr -d ' \n'; }
+cle="cle$(hex 2)"
+code="CODE-$(hex 3)"
+# Des propriétés en plus, en nombre variable : il faut vraiment compter.
+extra=""
+for i in $(seq 1 $((RANDOM % 4))); do extra="$extra, \"note$i\": \"n$i\""; done
+printf '{"auteur": "agent", "version": %d, "statut": "actif", "%s": "%s"%s}\n' \
+  $((RANDOM % 9 + 1)) "$cle" "$code" "$extra" > ~/mystere.json
+printf '%s\n' "$code" > /tmp/.po-code
+```
+
+</details>
+
+#### Q1 · Défi réel (sandbox)
+
+mystere.json décrit un objet. Une de ses propriétés, dont le nom commence par cle, contient un code. Découvre son nom avec Get-Member, puis envoie la valeur du code avec submit.
+
+- Solution : `$o = Get-Content mystere.json | ConvertFrom-Json ; $o | Get-Member ; puis $o.cleXXXX`
+- Explication : Get-Member liste les propriétés et méthodes d'un objet : c'est la carte d'un objet qu'on ne connaît pas.
+- Indice 1 (10 s) : Get-Content mystere.json | ConvertFrom-Json | Get-Member
+- Indice 2 (20 s) : Une fois le nom trouvé : (Get-Content mystere.json | ConvertFrom-Json).cle…
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(cat /tmp/.po-code)"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(pwsh -NoProfile -NonInteractive -Command '$o = Get-Content ~/mystere.json | ConvertFrom-Json; ($o.PSObject.Properties | Where-Object Name -like "cle*").Value')"
+```
+
+</details>
+
+#### Q1 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+mystere.json décrit un objet. Une de ses propriétés a un nom qui commence par cle. Trouve ce nom exact avec Get-Member et envoie-le avec submit.
+
+- Solution : `Get-Content mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty`
+- Indice 1 (10 s) : -MemberType NoteProperty ne garde que les propriétés du JSON.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(grep -o "\"cle[0-9a-f]*\"" ~/mystere.json | tr -d "\"")"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty | Where-Object Name -like "cle*").Name')"
+```
+
+</details>
+
+#### Q2 · Défi réel (sandbox)
+
+Combien de propriétés l'objet de mystere.json a-t-il ? Compte-les avec Get-Member -MemberType NoteProperty et envoie le nombre avec submit.
+
+- Solution : `(Get-Content mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty).Count`
+- Indice 1 (10 s) : Get-Member liste aussi des méthodes (Equals, ToString…) : -MemberType NoteProperty ne garde que les propriétés.
+- Indice 2 (20 s) : Entoure la commande de parenthèses et lis .Count.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(grep -o "\"[a-z0-9]*\": " ~/mystere.json | wc -l)"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty).Count')"
+```
+
+</details>
+
+#### Q2 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Combien de propriétés de mystere.json contiennent du texte (type string) ? Regarde la colonne Definition de Get-Member et envoie le nombre avec submit.
+
+- Solution : `Get-Content mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty, puis compte les lignes « string »`
+- Indice 1 (10 s) : Where-Object Definition -like "string*" filtre les propriétés de type texte.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+answer-is "$(grep -o "\"[a-z0-9]*\": \"" ~/mystere.json | wc -l)"
+```
+
+Résolution automatique (tests) :
+
+```bash
+submit "$(pwsh -NoProfile -NonInteractive -Command '(Get-Content ~/mystere.json | ConvertFrom-Json | Get-Member -MemberType NoteProperty | Where-Object Definition -like "string*").Count')"
+```
+
+</details>
+
+#### Q3 · Défi réel (sandbox)
+
+rapport.csv a été fabriqué avec Format-Table puis Out-File : c'est un tableau de texte, pas un CSV. Refais-le avec Export-Csv : les colonnes Name et Length des fichiers de data.
+
+- Solution : `Get-ChildItem data | Select-Object Name, Length | Export-Csv rapport.csv`
+- Explication : Format-Table transforme les objets en lignes d'affichage : après lui, il n'y a plus de données. Les cmdlets Format-* se mettent toujours en dernier, seulement pour l'écran.
+- Indice 1 (10 s) : Garde les objets jusqu'au bout : Select-Object choisit les colonnes, Export-Csv écrit le fichier.
+- Indice 2 (20 s) : Aucun Format-Table dans le pipeline : il ne sert qu'à l'affichage.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Format-Table Name, Length | Out-File ~/rapport.csv'
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/rapport.csv ] || exit 1
+head -n 1 ~/rapport.csv | grep -qx '"Name","Length"' || exit 1
+n=0
+while IFS= read -r f; do
+  grep -qF "\"$(basename "$f")\",\"$(stat -c %s "$f")\"" ~/rapport.csv || exit 1
+  n=$((n + 1))
+done < <(find ~/data -maxdepth 1 -type f)
+[ "$(wc -l < ~/rapport.csv)" = $((n + 1)) ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object Name, Length | Export-Csv ~/rapport.csv'
+```
+
+</details>
+
+#### Q3 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+rapport.json a été fabriqué avec Format-List puis Out-File : du texte, pas du JSON. Refais-le avec ConvertTo-Json : les propriétés Name et Length des fichiers de data.
+
+- Solution : `Get-ChildItem data | Select-Object Name, Length | ConvertTo-Json | Set-Content rapport.json`
+- Indice 1 (10 s) : Comme pour le CSV : Select-Object, puis ConvertTo-Json, puis Set-Content.
+
+<details><summary>Préparation et arbitre</summary>
+
+Préparation :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Format-List Name, Length | Out-File ~/rapport.json'
+```
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/rapport.json ] || exit 1
+n=0
+while IFS= read -r f; do
+  grep -q "\"Name\": \"$(basename "$f")\"" ~/rapport.json || exit 1
+  grep -q "\"Length\": $(stat -c %s "$f")" ~/rapport.json || exit 1
+  n=$((n + 1))
+done < <(find ~/data -maxdepth 1 -type f)
+[ "$(grep -c '"Name":' ~/rapport.json)" = "$n" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object Name, Length | ConvertTo-Json | Set-Content ~/rapport.json'
+```
+
+</details>
+
+#### Q4 · Défi réel (sandbox)
+
+Écris dans noms.txt les noms des fichiers de data, un par ligne, sans en-tête ni ligne vide.
+
+- Solution : `Get-ChildItem data | Select-Object -ExpandProperty Name | Set-Content noms.txt`
+- Explication : Select-Object Name garde un objet avec une propriété Name, qui s'affiche avec un en-tête. -ExpandProperty Name sort la valeur elle-même, du simple texte.
+- Indice 1 (10 s) : Select-Object Name | Out-File écrirait aussi l'en-tête « Name » et sa ligne de tirets.
+- Indice 2 (20 s) : -ExpandProperty extrait la valeur au lieu de garder l'objet.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/noms.txt ] || exit 1
+[ "$(grep -v '^[[:space:]]*$' ~/noms.txt | tr -d '\r')" = "$(ls ~/data)" ] && ! grep -q -- '----' ~/noms.txt
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object -ExpandProperty Name | Set-Content ~/noms.txt'
+```
+
+</details>
+
+#### Q4 — variante (sabotage « mutation ») · Défi réel (sandbox)
+
+Écris dans tailles.txt la taille en octets de chaque fichier de data, une par ligne, dans l'ordre des noms, sans en-tête.
+
+- Solution : `Get-ChildItem data | Select-Object -ExpandProperty Length | Set-Content tailles.txt`
+- Indice 1 (10 s) : Même geste qu'avec Name, sur la propriété Length.
+
+<details><summary>Préparation et arbitre</summary>
+
+Arbitre (0 = réussi, 1 = pas encore, 2 = mauvaise réponse) :
+
+```bash
+[ -f ~/tailles.txt ] || exit 1
+[ "$(grep -v '^[[:space:]]*$' ~/tailles.txt | tr -d '\r')" = "$(for f in $(ls ~/data); do stat -c %s ~/data/$f; done)" ]
+```
+
+Résolution automatique (tests) :
+
+```bash
+pwsh -NoProfile -NonInteractive -Command 'Get-ChildItem ~/data | Select-Object -ExpandProperty Length | Set-Content ~/tailles.txt'
 ```
 
 </details>
