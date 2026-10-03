@@ -15,12 +15,16 @@ export function load<T>(key: string, fallback: T, isValid: (v: unknown) => v is 
   }
 }
 
-export function save(key: string, value: unknown): void {
+/** Évènement émis à chaque sauvegarde locale (sauf silencieuse) : la synchronisation en ligne l'écoute. */
+export const SAVE_EVENT = "terminal-arcade:save";
+
+export function save(key: string, value: unknown, options: { silent?: boolean } = {}): void {
   try {
     window.localStorage.setItem(PREFIX + key, JSON.stringify(value));
   } catch {
     // Quota plein ou stockage bloqué : la partie continue sans sauvegarde.
   }
+  if (!options.silent) window.dispatchEvent(new CustomEvent(SAVE_EVENT, { detail: key }));
 }
 
 export const isObject = (v: unknown): v is Record<string, unknown> =>

@@ -52,7 +52,10 @@ async function open(): Promise<Db> {
   }
   const { PGlite } = await import("@electric-sql/pglite");
   const { drizzle } = await import("drizzle-orm/pglite");
-  const db = drizzle(new PGlite(process.env.PGLITE_DIR ?? ".data/pglite"), { schema }) as unknown as Db;
+  const dir = process.env.PGLITE_DIR ?? ".data/pglite";
+  // PGlite ne crée pas les dossiers parents d'une base sur disque.
+  if (!dir.startsWith("memory://")) (await import("node:fs")).mkdirSync(dir, { recursive: true });
+  const db = drizzle(new PGlite(dir), { schema }) as unknown as Db;
   await migrate(db);
   return db;
 }

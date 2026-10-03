@@ -27,8 +27,10 @@ const DOCK: { label: string; glyph: string; menu: number }[] = [
   { label: "Missions", glyph: "☰", menu: 1 },
   { label: "Git-Gud", glyph: "⎇", menu: 2 },
   { label: "Compagnon", glyph: "◕", menu: 3 },
-  { label: "Apparence", glyph: "◐", menu: 5 },
-  { label: "Aide", glyph: "?", menu: 7 },
+  { label: "Classement", glyph: "♛", menu: 5 },
+  { label: "Compte", glyph: "◉", menu: 6 },
+  { label: "Apparence", glyph: "◐", menu: 7 },
+  { label: "Aide", glyph: "?", menu: 9 },
 ];
 
 // Position des 8 points d'un caractère braille : (colonne, ligne, bit).

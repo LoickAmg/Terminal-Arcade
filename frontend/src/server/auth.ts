@@ -118,6 +118,8 @@ export function createAuth(db: Db) {
 
     emailVerification: {
       sendOnSignUp: true,
+      // Se connecter avec une adresse pas encore confirmée renvoie un lien.
+      sendOnSignIn: true,
       autoSignInAfterVerification: true,
       expiresIn: DAY,
       sendVerificationEmail: async ({ user, url }) => {
@@ -196,6 +198,20 @@ export function createAuth(db: Db) {
           },
           after: async (user) => {
             log("info", "account.created", { userId: user.id });
+          },
+        },
+        update: {
+          // Changement de pseudo depuis la page du compte : mêmes règles qu'à l'inscription.
+          before: async (data, ctx) => {
+            if (data.pseudo === undefined) return;
+            const wanted = typeof data.pseudo === "string" ? data.pseudo.trim() : "";
+            if (!PSEUDO_RE.test(wanted)) {
+              throw new APIError("BAD_REQUEST", { message: "Pseudo invalide : 3 à 20 caractères, lettres, chiffres, _ ou -." });
+            }
+            const self = ctx?.context.session?.user.id ?? "";
+            const r = await db.execute(sql`SELECT 1 FROM "user" WHERE lower(pseudo) = lower(${wanted}) AND id <> ${self} LIMIT 1`);
+            if (rows(r).length > 0) throw new APIError("BAD_REQUEST", { message: "Ce pseudo est déjà pris." });
+            return { data: { ...data, pseudo: wanted, name: wanted } };
           },
         },
       },

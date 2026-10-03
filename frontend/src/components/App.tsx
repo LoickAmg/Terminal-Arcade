@@ -1,14 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { EMPTY_PROGRESS, statusOf, type Level, type Progress } from "@terminal-arcade/shared";
+import { authClient } from "@/lib/account";
+import type { CloudSave } from "@/lib/cloud";
 import { DEFAULT_PET, isPetConfig, type PetConfig } from "@/lib/pet";
 import { isObject, load, save } from "@/lib/storage";
 import { DEFAULT_SETTINGS, THEMES, isSettings, terminalTheme, themeById, themeVars, type Settings } from "@/lib/themes";
+import { useCloudSync } from "@/lib/useCloudSync";
 import { Game } from "./Game";
 import { Home } from "./Home";
 import { Menu, type MenuAction } from "./Menu";
+
+/** Index de l'entrée « Compte » dans le menu. */
+const ACCOUNT_MENU = 6;
 
 // Coquille du site : accueil → menu → jeu. Le jeu reste monté une fois
 // ouvert (on peut revenir au menu sans perdre la partie en cours) ; il est
@@ -18,7 +24,7 @@ type View = "home" | "menu" | "game";
 
 const isProgress = (v: unknown): v is Progress => isObject(v) && isObject(v.levels) && isObject(v.xpByTree);
 
-export function App({ levels }: { levels: Level[] }) {
+export function App({ levels, googleEnabled }: { levels: Level[]; googleEnabled: boolean }) {
   const [view, setView] = useState<View>("home");
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
@@ -34,8 +40,40 @@ export function App({ levels }: { levels: Level[] }) {
     setSettings(load("settings", DEFAULT_SETTINGS, isSettings));
     setProgress(load("progress", EMPTY_PROGRESS, isProgress));
     setPet(load("pet", DEFAULT_PET, isPetConfig));
+    // Retour d'un lien de confirmation ou de la connexion Google : on ouvre
+    // directement le panneau du compte, puis on nettoie l'adresse.
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("compte") || params.has("error")) {
+      setMenuIndex(ACCOUNT_MENU);
+      setView("menu");
+      window.history.replaceState(null, "", window.location.pathname);
+    }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
+
+  // Compte et synchronisation de la sauvegarde.
+  const session = authClient.useSession();
+  const user = session.data?.user ?? null;
+  // « Chargement » seulement la première fois : les rechargements de session
+  // (après une inscription, par exemple) ne doivent pas effacer les formulaires.
+  const [sessionReady, setSessionReady] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- passe une seule fois à vrai
+    if (!session.isPending) setSessionReady(true);
+  }, [session.isPending]);
+  const gameOpenedRef = useRef(false);
+  useEffect(() => {
+    gameOpenedRef.current = gameOpened;
+  }, [gameOpened]);
+  const onMerged = useCallback((merged: CloudSave) => {
+    const before = JSON.stringify(load("progress", EMPTY_PROGRESS, isProgress));
+    setProgress(merged.progress);
+    if (merged.pet) setPet(merged.pet);
+    if (merged.settings) setSettings(merged.settings);
+    // Une autre sauvegarde a apporté des niveaux : le jeu se recharge avec.
+    if (gameOpenedRef.current && JSON.stringify(merged.progress) !== before) setGameKey((k) => k + 1);
+  }, []);
+  const sync = useCloudSync(user?.id ?? null, onMerged);
 
   // Application du thème : variables CSS sur <html>.
   useEffect(() => {
@@ -108,6 +146,7 @@ export function App({ levels }: { levels: Level[] }) {
             <Menu
               key={menuIndex}
               initialIndex={menuIndex}
+              account={{ user, loading: !sessionReady, googleEnabled, sync }}
               levels={levels}
               progress={progress}
               pet={pet}

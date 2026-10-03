@@ -26,7 +26,10 @@ import {
   type Settings,
   type ThemeGroup,
 } from "@/lib/themes";
+import { AccountPanel, type AccountUser } from "./AccountPanel";
+import { LeaderboardPanel } from "./LeaderboardPanel";
 import { PetSprite } from "./pet/PetSprite";
+import type { SyncState } from "@/lib/useCloudSync";
 import { TREE_STYLE } from "./MissionBanners";
 
 // Menu principal, à la manière d'un menu de console : une colonne de
@@ -35,7 +38,15 @@ import { TREE_STYLE } from "./MissionBanners";
 
 export type MenuAction = { type: "play"; command?: string };
 
-type ItemId = "play" | "missions" | "gitgud" | "pet" | "profile" | "look" | "options" | "help";
+type ItemId = "play" | "missions" | "gitgud" | "pet" | "profile" | "board" | "account" | "look" | "options" | "help";
+
+/** Ce que le menu sait du compte du joueur (voir App). */
+export type AccountProps = {
+  user: AccountUser | null;
+  loading: boolean;
+  googleEnabled: boolean;
+  sync: { state: SyncState; error: string; syncNow: () => void };
+};
 
 const ITEMS: { id: ItemId; label: string; hint: string }[] = [
   { id: "play", label: "Jouer", hint: "Reprendre là où tu t'es arrêté" },
@@ -43,6 +54,8 @@ const ITEMS: { id: ItemId; label: string; hint: string }[] = [
   { id: "gitgud", label: "Git-Gud", hint: "Le parcours Git, de init à bisect" },
   { id: "pet", label: "Compagnon", hint: "Ton saboteur préféré" },
   { id: "profile", label: "Profil", hint: "XP et arbres de compétences" },
+  { id: "board", label: "Classement", hint: "Tous les joueurs, par XP et par niveaux" },
+  { id: "account", label: "Compte", hint: "Sauvegarde en ligne et classement" },
   { id: "look", label: "Apparence", hint: "Thèmes, couleurs, motifs" },
   { id: "options", label: "Réglages", hint: "Terminal, écran, sauvegarde" },
   { id: "help", label: "Aide", hint: "Comment on joue" },
@@ -50,6 +63,7 @@ const ITEMS: { id: ItemId; label: string; hint: string }[] = [
 
 export function Menu({
   initialIndex = 0,
+  account,
   levels,
   progress,
   pet,
@@ -60,6 +74,7 @@ export function Menu({
   onReset,
 }: {
   initialIndex?: number;
+  account: AccountProps;
   levels: Level[];
   progress: Progress;
   pet: PetConfig;
@@ -136,7 +151,7 @@ export function Menu({
                 <li key={it.id} id={`menu-${it.id}`} role="option" aria-selected={selected} className="shrink-0">
                   <button
                     type="button"
-                    onMouseEnter={() => setIndex(i)}
+                    onMouseMove={() => index !== i && setIndex(i)}
                     onFocus={() => setIndex(i)}
                     onClick={() => (selected ? activate(it.id) : setIndex(i))}
                     onDoubleClick={() => activate(it.id)}
@@ -155,7 +170,7 @@ export function Menu({
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <span
-                      className={`type-display tilt relative text-xl transition-colors sm:text-2xl lg:text-[2.6rem] ${
+                      className={`type-display tilt relative text-xl transition-colors sm:text-2xl lg:text-[2.2rem] ${
                         selected ? "text-on-accent" : "text-fg/80 group-hover:text-fg"
                       }`}
                     >
@@ -193,6 +208,7 @@ export function Menu({
                   onAction={onAction}
                   onActivate={() => activate(item.id)}
                   onReset={onReset}
+                  account={account}
                 />
               </motion.div>
             </AnimatePresence>
@@ -266,6 +282,7 @@ function Detail({
   onAction,
   onActivate,
   onReset,
+  account,
 }: {
   id: ItemId;
   levels: Level[];
@@ -277,6 +294,7 @@ function Detail({
   onAction: (action: MenuAction) => void;
   onActivate: () => void;
   onReset: () => void;
+  account: AccountProps;
 }) {
   const passed = (list: Level[]) => list.filter((l) => statusOf(l.id, progress) === "passed").length;
 
@@ -422,6 +440,22 @@ function Detail({
         </div>
       );
     }
+
+    case "board":
+      return (
+        <div className="flex flex-col gap-6">
+          <Title>Classement</Title>
+          <LeaderboardPanel signedIn={!!account.user} />
+        </div>
+      );
+
+    case "account":
+      return (
+        <div className="flex flex-col gap-6">
+          <Title>{account.user ? "Ton compte" : "Compte"}</Title>
+          <AccountPanel {...account} />
+        </div>
+      );
 
     case "look":
       return <LookPanel settings={settings} onSettings={onSettings} />;
