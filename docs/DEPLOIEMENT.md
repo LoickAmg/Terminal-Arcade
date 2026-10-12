@@ -124,14 +124,42 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    publique à côté de l'ancienne (`k1:…,k2:…`), passer le site sur `k2`, puis
    retirer `k1` quelques minutes plus tard.
 
-## 6. Surveillance et alertes
+## 6. Surveillance, alertes et maintenance
 
-- **[toi]** UptimeRobot (gratuit) : deux sondes HTTP toutes les 5 minutes,
-  alerte par e-mail :
-  - `https://terminal-arcade.fr/api/health` (200 = site et base en état) ;
-  - `https://sandbox.terminal-arcade.fr/health`.
-- Journaux : Vercel → Logs. Chaque ligne est un JSON (`event`, `level`) :
-  filtrer sur `"level":"error"`.
+### UptimeRobot (gratuit)
+
+1. **[toi]** Créer un compte sur <https://uptimerobot.com>, puis
+   **Add New Monitor** :
+   - type **HTTP(s)**, nom « Terminal Arcade — site et base » ;
+   - URL `https://terminal-arcade.fr/api/health` ;
+   - intervalle **5 minutes**, alerte par e-mail (ton adresse).
+
+   `/api/health` répond 200 seulement si le site **et** la base répondent
+   (en moins de 3 s), 503 sinon : une seule sonde surveille les deux.
+2. Deuxième sonde, type **Keyword**, URL `https://terminal-arcade.fr/`,
+   mot-clé `Terminal Arcade`, alerte si le mot **manque** : elle détecte une
+   page d'accueil cassée même quand le serveur répond 200.
+3. **Status Pages → Create** : page publique avec les deux sondes. Copier son
+   adresse dans la variable Vercel `NEXT_PUBLIC_STATUS_URL` : les pages de
+   panne et de maintenance afficheront un bouton « État du service ».
+4. Avant une maintenance prévue : **Maintenance Windows** dans UptimeRobot,
+   pour ne pas recevoir d'alertes pendant ce temps.
+
+### Pages de panne
+
+- **Erreur pendant l'affichage** : une page « Panne » propose de réessayer ;
+  la progression locale n'est pas touchée.
+- **Maintenance volontaire** : variable Vercel `MAINTENANCE_MODE=1` (et, si
+  besoin, `MAINTENANCE_MESSAGE`), puis **Redeploy**. Toutes les pages
+  répondent 503 avec la page de maintenance, l'API répond 503, seul
+  `/api/health` reste ouvert. Pour finir : supprimer la variable, redéployer.
+- **Site entier hors ligne** (Vercel en panne) : aucune page du site ne
+  peut s'afficher ; c'est la page d'état UptimeRobot qui informe les joueurs.
+
+### Journaux
+
+- Vercel → Logs. Chaque ligne est un JSON (`event`, `level`) : filtrer sur
+  `"level":"error"`.
 - Sauvegardes : GitHub prévient par e-mail quand le flux échoue.
 
 ## 7. Sauvegardes et restauration
@@ -163,3 +191,4 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
 - [ ] En-têtes : <https://securityheaders.com> sur le domaine
 - [ ] Google Search Console : ajouter le domaine, envoyer `sitemap.xml`
 - [ ] `/api/health` répond 200, UptimeRobot vert
+- [ ] `MAINTENANCE_MODE=1` → page de maintenance, puis retour à la normale
