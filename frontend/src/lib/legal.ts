@@ -2,11 +2,13 @@
 // variables d'environnement (publiques, puisqu'affichées) pour ne pas
 // figer d'informations personnelles dans le code.
 
+import { siteUrl } from "./site-url";
+
 export const LEGAL = {
   name: process.env.NEXT_PUBLIC_LEGAL_NAME ?? "Mahouna",
   city: process.env.NEXT_PUBLIC_LEGAL_CITY ?? "Cotonou, Bénin",
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "",
-  site: process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3107",
+  site: siteUrl(),
   updated: "3 octobre 2026",
 };
 

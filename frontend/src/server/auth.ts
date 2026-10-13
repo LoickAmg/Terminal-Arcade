@@ -5,6 +5,7 @@ import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { sql } from "drizzle-orm";
 import { emailVerificationOn } from "@/lib/accounts-mode";
+import { authUrl } from "@/lib/site-url";
 import { getDb, rows, type Db } from "./db";
 import { layout, sendEmail } from "./email";
 import { log } from "./log";
@@ -57,7 +58,7 @@ async function freePseudo(db: Db, name: string): Promise<string> {
 }
 
 export function createAuth(db: Db) {
-  const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3107";
+  const baseURL = authUrl();
   const secure = baseURL.startsWith("https://");
   const verify = emailVerificationOn();
   const google =

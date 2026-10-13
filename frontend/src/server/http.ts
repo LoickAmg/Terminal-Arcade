@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { authUrl } from "@/lib/site-url";
 import { getAuth } from "./auth";
 import { rows, type Db } from "./db";
 
@@ -15,7 +16,7 @@ export async function currentUser(request: Request): Promise<SessionUser | null>
 
 /** Les écritures ne viennent que de notre propre site (défense contre le CSRF). */
 export function sameOrigin(request: Request): boolean {
-  const base = new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3107").origin;
+  const base = new URL(authUrl()).origin;
   return request.headers.get("origin") === base;
 }
 
