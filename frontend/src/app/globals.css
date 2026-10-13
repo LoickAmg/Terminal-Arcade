@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Hauteur de la barre d'information sur les cookies, tant qu'elle est
+   affichée (CookieNotice) : les écrans plein cadre la laissent libre. */
+:root {
+  --notice-h: 0px;
+}
+body {
+  padding-bottom: var(--notice-h);
+}
+
 /* Les couleurs et les formes viennent du thème choisi (lib/themes.ts), qui
    fixe ces variables sur <html>. Valeurs par défaut : le thème « Seuil ». */
 :root {

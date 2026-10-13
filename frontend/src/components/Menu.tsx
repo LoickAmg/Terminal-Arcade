@@ -120,9 +120,14 @@ export function Menu({
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  // Fenêtre basse : la liste défile, l'entrée choisie reste visible.
+  useEffect(() => {
+    document.getElementById(`menu-${ITEMS[index].id}`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [index]);
+
   return (
-    <div className="grid min-h-dvh place-items-center p-3 sm:p-6 lg:p-8">
-      <div className="frame flex h-[calc(100dvh-1.5rem)] w-full max-w-7xl flex-col overflow-hidden sm:h-[calc(100dvh-3rem)] lg:h-[min(820px,calc(100dvh-4rem))]">
+    <div className="grid min-h-[calc(100dvh-var(--notice-h))] place-items-center p-3 sm:p-6 lg:p-8">
+      <div className="frame flex h-[calc(100dvh-1.5rem-var(--notice-h))] w-full max-w-7xl flex-col overflow-hidden sm:h-[calc(100dvh-3rem-var(--notice-h))] lg:h-[min(820px,calc(100dvh-4rem-var(--notice-h)))]">
         <header className="flex items-center justify-between gap-4 border-b border-line px-4 py-3 sm:px-8">
           <nav aria-label="Fil d'Ariane" className="type-label flex min-w-0 gap-2 truncate">
             <button type="button" onClick={onBack} className="text-muted hover:text-fg">
@@ -143,7 +148,7 @@ export function Menu({
             aria-label="Menu principal"
             aria-activedescendant={`menu-${item.id}`}
             tabIndex={0}
-            className="flex gap-1 overflow-x-auto border-b border-line px-3 py-3 focus:outline-none lg:flex-col lg:justify-center lg:gap-0 lg:overflow-visible lg:border-r lg:border-b-0 lg:px-8"
+            className="flex gap-1 overflow-x-auto border-b border-line px-3 py-3 focus:outline-none lg:flex-col lg:justify-center-safe lg:gap-0 lg:overflow-x-hidden lg:overflow-y-auto lg:border-r lg:border-b-0 lg:px-8"
           >
             {ITEMS.map((it, i) => {
               const selected = i === index;
@@ -155,7 +160,7 @@ export function Menu({
                     onFocus={() => setIndex(i)}
                     onClick={() => (selected ? activate(it.id) : setIndex(i))}
                     onDoubleClick={() => activate(it.id)}
-                    className="group relative flex w-full items-baseline gap-3 px-3 py-1.5 text-left lg:py-2"
+                    className="group relative flex w-full items-baseline gap-3 px-3 py-1.5 text-left lg:py-[clamp(0.125rem,0.8vh,0.5rem)]"
                   >
                     {selected && (
                       <motion.span
@@ -170,7 +175,7 @@ export function Menu({
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <span
-                      className={`type-display tilt relative text-xl transition-colors sm:text-2xl lg:text-[2.2rem] ${
+                      className={`type-display tilt relative text-xl transition-colors sm:text-2xl lg:text-[clamp(1.375rem,3.6vh,2.2rem)] ${
                         selected ? "text-on-accent" : "text-fg/80 group-hover:text-fg"
                       }`}
                     >

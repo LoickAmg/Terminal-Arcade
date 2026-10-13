@@ -130,14 +130,14 @@ export function App({ levels, googleEnabled }: { levels: Level[]; googleEnabled:
       {settings.scanlines && <div className="scanlines" aria-hidden />}
       <AnimatePresence mode="wait">
         {view === "home" && (
-          <motion.div key="home" className="fixed inset-0 z-10 overflow-y-auto" exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.2 }}>
+          <motion.div key="home" className="fixed inset-x-0 top-0 bottom-(--notice-h) z-10 overflow-y-auto" exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.2 }}>
             <Home stats={stats} onEnter={openMenu} />
           </motion.div>
         )}
         {view === "menu" && (
           <motion.div
             key="menu"
-            className="fixed inset-0 z-10 overflow-y-auto"
+            className="fixed inset-x-0 top-0 bottom-(--notice-h) z-10 overflow-y-auto"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}

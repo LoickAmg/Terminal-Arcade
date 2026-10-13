@@ -128,7 +128,7 @@ export function Home({ stats, onEnter }: { stats: HomeStats; onEnter: (menu?: nu
   ];
 
   return (
-    <div className="relative flex min-h-dvh flex-col">
+    <div className="relative flex min-h-[calc(100dvh-var(--notice-h))] flex-col">
       {/* Arrière-plan du « bureau » : une lueur derrière la fenêtre et un grand mot fantôme. */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="desk-glow absolute top-1/2 left-1/2 size-[110vmax] -translate-x-1/2 -translate-y-1/2" />

@@ -290,7 +290,7 @@ export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu
   }, [visible, api, touchMode]);
 
   if (!state) {
-    return <div className="h-dvh" />;
+    return <div className="h-[calc(100dvh-var(--notice-h))]" />;
   }
 
   const screen = (() => {
@@ -313,7 +313,7 @@ export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu
   })();
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden sm:p-3 lg:p-5">
+    <div className="flex h-[calc(100dvh-var(--notice-h))] flex-col overflow-hidden sm:p-3 lg:p-5">
       <div className="frame flex min-h-0 flex-1 flex-col overflow-hidden max-sm:rounded-none max-sm:border-x-0 max-sm:border-t-0">
         <StampHeader state={state} levels={levels} onMenu={onMenu} />
         <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
