@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { accountTrusted } from "@/lib/accounts-mode";
 import { z } from "zod";
 import { isPetConfig } from "@/lib/pet";
 import { isSettings } from "@/lib/themes";
@@ -72,8 +73,8 @@ export async function PUT(request: Request) {
       await tx.execute(sql`
         INSERT INTO saves (user_id, data) VALUES (${user.id}, ${JSON.stringify(data)}::jsonb)
         ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data, revision = saves.revision + 1, updated_at = now()`);
-      // Seuls les comptes vérifiés entrent au classement.
-      if (user.emailVerified) {
+      // Seuls les comptes vérifiés entrent au classement (tous, en mode provisoire).
+      if (accountTrusted(user)) {
         const s = score(progress);
         await tx.execute(sql`
           INSERT INTO scores (user_id, xp, levels_passed, tier_rank) VALUES (${user.id}, ${s.xp}, ${s.levelsPassed}, ${s.tierRank})

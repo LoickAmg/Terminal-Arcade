@@ -4,6 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { sql } from "drizzle-orm";
+import { emailVerificationOn } from "@/lib/accounts-mode";
 import { getDb, rows, type Db } from "./db";
 import { layout, sendEmail } from "./email";
 import { log } from "./log";
@@ -19,6 +20,9 @@ import { schema } from "./schema";
 // - un compte Google n'est relié à un compte existant que si celui-ci a
 //   prouvé son adresse (requireLocalEmailVerified) ;
 // - réinitialiser le mot de passe déconnecte tous les appareils.
+//
+// Mode provisoire (NEXT_PUBLIC_EMAIL_VERIFICATION=off, voir accounts-mode.ts) :
+// aucun e-mail envoyé, adresse non vérifiée, pas de réinitialisation.
 
 /** Pseudo public : 3 à 20 caractères, lettres, chiffres, _ et -. */
 export const PSEUDO_RE = /^[A-Za-z0-9_-]{3,20}$/;
@@ -55,6 +59,7 @@ async function freePseudo(db: Db, name: string): Promise<string> {
 export function createAuth(db: Db) {
   const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3107";
   const secure = baseURL.startsWith("https://");
+  const verify = emailVerificationOn();
   const google =
     process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
       ? {
@@ -78,7 +83,7 @@ export function createAuth(db: Db) {
       enabled: true,
       // Le jeu se joue sans compte (sauvegarde locale) ; un compte sert à la
       // synchronisation et au classement, et doit d'abord prouver son adresse.
-      requireEmailVerification: true,
+      requireEmailVerification: verify,
       // Pas de connexion automatique : la réponse à l'inscription est la même
       // que l'adresse soit libre ou déjà prise.
       autoSignIn: false,
@@ -91,6 +96,7 @@ export function createAuth(db: Db) {
         verify: ({ hash, password }) => argonVerify(hash, password),
       },
       sendResetPassword: async ({ user, url }) => {
+        if (!verify) throw new APIError("BAD_REQUEST", { message: "La réinitialisation par e-mail n'est pas encore disponible." });
         await sendEmail({
           to: user.email,
           subject: "Terminal Arcade : nouveau mot de passe",
@@ -105,6 +111,7 @@ export function createAuth(db: Db) {
         });
       },
       onExistingUserSignUp: async ({ user }) => {
+        if (!verify) return;
         await sendEmail({
           to: user.email,
           subject: "Terminal Arcade : tentative d'inscription",
@@ -117,9 +124,9 @@ export function createAuth(db: Db) {
     },
 
     emailVerification: {
-      sendOnSignUp: true,
+      sendOnSignUp: verify,
       // Se connecter avec une adresse pas encore confirmée renvoie un lien.
-      sendOnSignIn: true,
+      sendOnSignIn: verify,
       autoSignInAfterVerification: true,
       expiresIn: DAY,
       sendVerificationEmail: async ({ user, url }) => {

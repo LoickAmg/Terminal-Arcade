@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { authClient, authMessage } from "@/lib/account";
+import { emailVerificationOn } from "@/lib/accounts-mode";
 import type { SyncState } from "@/lib/useCloudSync";
 
 // Panneau « Compte » du menu : connexion, inscription, mot de passe oublié,
@@ -69,7 +70,8 @@ function SignedOut({ googleEnabled }: { googleEnabled: boolean }) {
   const tabs: [Tab, string][] = [
     ["signin", "Connexion"],
     ["signup", "Créer un compte"],
-    ["forgot", "Mot de passe oublié"],
+    // Mode provisoire : pas d'e-mail, donc pas de lien de réinitialisation.
+    ...(emailVerificationOn() ? [["forgot", "Mot de passe oublié"] as [Tab, string]] : []),
   ];
   return (
     <div className="flex flex-col gap-6">
@@ -192,6 +194,18 @@ function SignUpForm({ googleEnabled }: { googleEnabled: boolean }) {
               callbackURL: "/?compte=1",
             });
             if (error) return { tone: "bad", text: authMessage(error) };
+            if (!emailVerificationOn()) {
+              // Mode provisoire : pas de confirmation, on se connecte aussitôt.
+              // Une adresse déjà prise échoue ici comme une connexion ratée.
+              const signIn = await authClient.signIn.email({
+                email: String(form.get("email")),
+                password: String(form.get("password")),
+                callbackURL: "/?compte=1",
+              });
+              return signIn.error
+                ? { tone: "bad", text: "Inscription impossible avec cette adresse et ce mot de passe." }
+                : { tone: "good", text: "Compte créé, tu es connecté." };
+            }
             // Même message que l'adresse soit libre ou non.
             return {
               tone: "good",
@@ -266,6 +280,53 @@ function ForgotForm() {
   );
 }
 
+/** Mode provisoire : changer de mot de passe en donnant l'ancien (sans e-mail). */
+function ChangePasswordForm() {
+  const { pending, message, run } = useSubmit();
+  return (
+    <form
+      className="flex max-w-md flex-col gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const target = e.currentTarget;
+        const form = new FormData(target);
+        run(async () => {
+          const { error } = await authClient.changePassword({
+            currentPassword: String(form.get("current")),
+            newPassword: String(form.get("next")),
+            revokeOtherSessions: true,
+          });
+          if (error) return { tone: "bad", text: authMessage(error) };
+          target.reset();
+          return { tone: "good", text: "Mot de passe changé. Tes autres appareils sont déconnectés." };
+        });
+      }}
+    >
+      <span className="type-label text-muted">Changer de mot de passe</span>
+      <p className="text-sm text-muted">
+        Retiens-le bien : tant que les e-mails ne sont pas en place, un mot de passe oublié ne peut pas être récupéré.
+      </p>
+      <input name="current" type="password" required autoComplete="current-password" placeholder="Mot de passe actuel" className={field} />
+      <input
+        name="next"
+        type="password"
+        required
+        minLength={10}
+        maxLength={128}
+        autoComplete="new-password"
+        placeholder="Nouveau mot de passe (10 caractères au moins)"
+        className={field}
+      />
+      <div>
+        <button type="submit" disabled={pending} className={secondary}>
+          CHANGER
+        </button>
+      </div>
+      {message && <Notice tone={message.tone}>{message.text}</Notice>}
+    </form>
+  );
+}
+
 const SYNC_LABEL: Record<SyncState, string> = {
   off: "Synchronisation arrêtée",
   syncing: "Synchronisation…",
@@ -286,7 +347,14 @@ function SignedIn({ user, sync }: { user: AccountUser; sync: { state: SyncState;
         <p className="type-label text-muted">Connecté en tant que</p>
         <p className="mt-1 text-2xl font-bold text-fg">{user.pseudo}</p>
         <p className="font-mono text-sm text-muted">
-          {user.email} · {user.emailVerified ? <span className="text-good">adresse confirmée</span> : <span className="text-warn">adresse à confirmer</span>}
+          {user.email} ·{" "}
+          {user.emailVerified ? (
+            <span className="text-good">adresse confirmée</span>
+          ) : emailVerificationOn() ? (
+            <span className="text-warn">adresse à confirmer</span>
+          ) : (
+            <span>confirmation de l&apos;adresse bientôt disponible</span>
+          )}
         </p>
       </div>
 
@@ -325,29 +393,33 @@ function SignedIn({ user, sync }: { user: AccountUser; sync: { state: SyncState;
         {pseudo.message && <Notice tone={pseudo.message.tone}>{pseudo.message.text}</Notice>}
       </form>
 
-      <div className="flex max-w-md flex-col gap-2">
-        <span className="type-label text-muted">Mot de passe</span>
-        <p className="text-sm text-muted">
-          Ajoute un mot de passe (si tu te connectes avec Google, pour ne pas dépendre de lui) ou change-le : un lien
-          t&apos;est envoyé par e-mail.
-        </p>
-        <div>
-          <button
-            type="button"
-            disabled={password.pending}
-            className={secondary}
-            onClick={() =>
-              password.run(async () => {
-                const { error } = await authClient.requestPasswordReset({ email: user.email, redirectTo: "/reinitialiser" });
-                return error ? { tone: "bad", text: authMessage(error) } : { tone: "good", text: `Lien envoyé à ${user.email}.` };
-              })
-            }
-          >
-            M&apos;ENVOYER LE LIEN
-          </button>
+      {emailVerificationOn() ? (
+        <div className="flex max-w-md flex-col gap-2">
+          <span className="type-label text-muted">Mot de passe</span>
+          <p className="text-sm text-muted">
+            Ajoute un mot de passe (si tu te connectes avec Google, pour ne pas dépendre de lui) ou change-le : un lien
+            t&apos;est envoyé par e-mail.
+          </p>
+          <div>
+            <button
+              type="button"
+              disabled={password.pending}
+              className={secondary}
+              onClick={() =>
+                password.run(async () => {
+                  const { error } = await authClient.requestPasswordReset({ email: user.email, redirectTo: "/reinitialiser" });
+                  return error ? { tone: "bad", text: authMessage(error) } : { tone: "good", text: `Lien envoyé à ${user.email}.` };
+                })
+              }
+            >
+              M&apos;ENVOYER LE LIEN
+            </button>
+          </div>
+          {password.message && <Notice tone={password.message.tone}>{password.message.text}</Notice>}
         </div>
-        {password.message && <Notice tone={password.message.tone}>{password.message.text}</Notice>}
-      </div>
+      ) : (
+        <ChangePasswordForm />
+      )}
 
       <div className="flex flex-wrap gap-3">
         <a href="/api/account/export" download className={secondary}>

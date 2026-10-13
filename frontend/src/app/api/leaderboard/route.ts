@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 import { getDb, rows } from "@/server/db";
 import { currentUser, failure, json } from "@/server/http";
+import { emailVerificationOn } from "@/lib/accounts-mode";
 import { errorFields, log } from "@/server/log";
 
-// Classement de tous les joueurs vérifiés, 20 par page.
+// Classement de tous les joueurs vérifiés (tous, en mode provisoire), 20 par page.
 //   ?sort=xp (défaut) ou levels : par XP, ou par nombre de niveaux hackés
 //   ?tier=script_kiddie|sysadmin|root_wizard : seulement les joueurs dont
 //         c'est le plus haut palier atteint
@@ -30,7 +31,8 @@ export async function GET(request: Request) {
     sort === "levels"
       ? sql`s.levels_passed DESC, s.xp DESC, s.updated_at ASC`
       : sql`s.xp DESC, s.levels_passed DESC, s.updated_at ASC`;
-  const where = sql`u.email_verified AND NOT u.hidden ${tier ? sql`AND s.tier_rank = ${tier}` : sql``}`;
+  const verified = emailVerificationOn() ? sql`u.email_verified AND` : sql``;
+  const where = sql`${verified} NOT u.hidden ${tier ? sql`AND s.tier_rank = ${tier}` : sql``}`;
 
   try {
     const db = await getDb();

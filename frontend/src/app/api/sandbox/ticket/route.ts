@@ -1,6 +1,7 @@
 import { privateKeyFrom, signTicket } from "@terminal-arcade/shared/ticket";
 import { getDb } from "@/server/db";
 import { allow, currentUser, failure, json, sameOrigin } from "@/server/http";
+import { accountTrusted } from "@/lib/accounts-mode";
 import { errorFields, log } from "@/server/log";
 
 // Ticket d'accès à la sandbox (2 minutes, usage unique), pour un joueur
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   try {
     const user = await currentUser(request);
     if (!user) return failure(401, "Connecte-toi pour jouer aux niveaux « vrai Linux ».");
-    if (!user.emailVerified) return failure(403, "Confirme ton adresse pour jouer aux niveaux « vrai Linux ».");
+    if (!accountTrusted(user)) return failure(403, "Confirme ton adresse pour jouer aux niveaux « vrai Linux ».");
     if (!keyValue) {
       if (process.env.NODE_ENV === "production") {
         log("error", "ticket.unconfigured");

@@ -84,6 +84,7 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    | `BETTER_AUTH_URL` | `https://terminal-arcade.fr` |
    | `NEXT_PUBLIC_SITE_URL` | `https://terminal-arcade.fr` |
    | `RESEND_API_KEY`, `EMAIL_FROM` | voir étape 2 |
+   | `NEXT_PUBLIC_EMAIL_VERIFICATION` | `off` **seulement** tant que Resend n'est pas prêt (voir plus bas) |
    | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | voir étape 3 |
    | `CRON_SECRET` | une autre valeur aléatoire (Vercel l'envoie au ménage quotidien) |
    | `NEXT_PUBLIC_LEGAL_NAME`, `NEXT_PUBLIC_LEGAL_CITY` | identité affichée dans les pages légales |
@@ -91,10 +92,18 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    | `NEXT_PUBLIC_SANDBOX_URL` | `https://sandbox.terminal-arcade.fr` (seulement avec un serveur PowerShell) |
    | `SANDBOX_TICKET_KID`, `SANDBOX_TICKET_PRIVATE_KEY` | `npm run sandbox:keys` (idem, voir étape 5) |
 
-4. Domaine : ajouter `terminal-arcade.fr` au projet. HTTPS est automatique ;
+4. **Mode provisoire des comptes** (sans domaine, donc sans Resend) :
+   `NEXT_PUBLIC_EMAIL_VERIFICATION=off`. L'inscription se fait sans
+   confirmer l'adresse, le compte sert tout de suite (sauvegarde, classement),
+   et il n'y a pas de « mot de passe oublié » : on change son mot de passe
+   une fois connecté, en donnant l'ancien. Quand Resend est prêt : supprimer
+   la variable, ajouter `RESEND_API_KEY` et `EMAIL_FROM`, **Redeploy**. Les
+   comptes existants reçoivent un lien de confirmation à leur connexion
+   suivante ; ceux qui ont joué ne sont jamais purgés.
+5. Domaine : ajouter `terminal-arcade.fr` au projet. HTTPS est automatique ;
    l'en-tête HSTS est envoyé par le site en production.
-5. Activer Web Analytics dans le projet (mesure sans cookie, déjà intégrée).
-6. Panne = bloque tout : sans `DATABASE_URL` ou `BETTER_AUTH_SECRET`, les
+6. Activer Web Analytics dans le projet (mesure sans cookie, déjà intégrée).
+7. Panne = bloque tout : sans `DATABASE_URL` ou `BETTER_AUTH_SECRET`, les
    routes de compte répondent 503 au lieu de fonctionner à moitié ; le jeu
    reste jouable sans compte.
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createAuth, type Auth } from "./auth";
 import { openMemoryDb, rows, type Db } from "./db";
 
@@ -132,5 +132,42 @@ describe("comptes", () => {
       const n = rows<{ n: number }>(await db.execute(sql.raw(`SELECT count(*)::int AS n FROM "${table}"`)))[0].n;
       expect(n, table).toBe(0);
     }
+  });
+});
+
+describe("comptes en mode provisoire (sans e-mail)", () => {
+  let provisional: Auth;
+  const call = (path: string, body: unknown, ip: string) =>
+    provisional.handler(
+      new Request(`${BASE}/api/auth${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: BASE, "x-forwarded-for": ip },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  beforeAll(() => {
+    process.env.NEXT_PUBLIC_EMAIL_VERIFICATION = "off";
+    provisional = createAuth(db);
+  });
+  afterAll(() => {
+    delete process.env.NEXT_PUBLIC_EMAIL_VERIFICATION;
+  });
+
+  it("inscription puis connexion immédiate, sans aucun e-mail", async () => {
+    const signUp = await call("/sign-up/email", { email: "grace@example.com", password: "un mot de passe long", name: "Grace", pseudo: "Grace" }, "203.0.113.40");
+    expect(signUp.status).toBe(200);
+    const signIn = await call("/sign-in/email", { email: "grace@example.com", password: "un mot de passe long" }, "203.0.113.40");
+    expect(signIn.status).toBe(200);
+    expect(cookiesOf(signIn)).toContain("session_token");
+    expect(mails).toHaveLength(0);
+  });
+
+  it("une adresse déjà prise ne se révèle pas et n'envoie rien", async () => {
+    const again = await call("/sign-up/email", { email: "grace@example.com", password: "autre mot de passe long", name: "Intrus", pseudo: "Intrus2" }, "203.0.113.41");
+    expect(again.status).toBe(200);
+    const intruder = await call("/sign-in/email", { email: "grace@example.com", password: "autre mot de passe long" }, "203.0.113.41");
+    expect(intruder.status).toBe(401);
+    expect(mails).toHaveLength(0);
   });
 });

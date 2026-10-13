@@ -129,3 +129,30 @@ describe("ménage quotidien", () => {
     expect(rows(await db.execute(sql`SELECT id FROM "user" WHERE id = 'vieux'`))).toEqual([]);
   });
 });
+
+describe("mode provisoire et retour au mode normal", () => {
+  it("un compte non vérifié qui a joué entre au classement, et survit au ménage", async () => {
+    const db = await getDb();
+    await db.execute(sql`INSERT INTO "user" (id, name, email, pseudo, created_at) VALUES ('provi', 'p', 'p@example.com', 'Provi', now() - interval '40 days')`);
+    await db.execute(sql`INSERT INTO saves (user_id, data) VALUES ('provi', '{}'::jsonb)`);
+    await db.execute(sql`INSERT INTO scores (user_id, xp, levels_passed, tier_rank) VALUES ('provi', 999, 3, 1)`);
+
+    const pseudos = async () =>
+      ((await (await board.GET(new Request(`${BASE}/api/leaderboard`))).json()).rows as { pseudo: string }[]).map((r) => r.pseudo);
+    const cron = () => purge.GET(new Request(`${BASE}/api/cron/purge`, { headers: { authorization: "Bearer cron-test" } }));
+
+    process.env.NEXT_PUBLIC_EMAIL_VERIFICATION = "off";
+    try {
+      expect(await pseudos()).toContain("Provi");
+      expect((await (await cron()).json()).unverifiedUsers).toBe(0);
+    } finally {
+      delete process.env.NEXT_PUBLIC_EMAIL_VERIFICATION;
+    }
+
+    // Vérification réactivée : hors du classement jusqu'à confirmation, mais
+    // pas supprimé (il a une sauvegarde).
+    expect(await pseudos()).not.toContain("Provi");
+    await cron();
+    expect(rows(await db.execute(sql`SELECT id FROM "user" WHERE id = 'provi'`))).toHaveLength(1);
+  });
+});

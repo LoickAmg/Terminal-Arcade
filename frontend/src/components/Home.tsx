@@ -116,7 +116,7 @@ export function Home({ stats, onEnter }: { stats: HomeStats; onEnter: (menu?: nu
     ["Jeu", "Terminal Arcade 1.0 (web)"],
     ["Missions", `${stats.levels} · 3 paliers · 6 arbres`],
     ["Défis", `${stats.questions} questions · ${stats.variants} variantes`],
-    ["Sandbox", "Debian 12 · isolée, sans réseau"],
+    ["Sandbox", "Alpine Linux dans ton navigateur (v86)"],
     ["Shells", "bash 5.2 · PowerShell 7"],
     ["Compagnon", `${stats.petName} (${stats.petStyle === "pixel" ? "pixel art" : "façon Persona"})`],
     ["Thème", `${stats.themeLabel} [${stats.themeCount} thèmes]`],
