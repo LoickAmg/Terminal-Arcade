@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { H2, LegalPage } from "@/components/LegalPage";
 import { LEGAL, contact } from "@/lib/legal";
+import { emailProvider } from "@/server/email";
 
 export const metadata: Metadata = {
   title: "Politique de confidentialité",
@@ -49,7 +50,7 @@ export default function Confidentialite() {
       <H2>Destinataires et transferts</H2>
       <p>
         Personne n&apos;achète ni ne reçoit tes données. Elles sont traitées par nos sous-traitants techniques :
-        Vercel (hébergement, exécution en Europe), Neon (base de données, Francfort), Resend (envoi des e-mails) et
+        Vercel (hébergement, exécution en Europe), Neon (base de données, Francfort), {emailProvider().name} (envoi des e-mails) et
         Google si tu utilises la connexion Google. Ces services sont situés hors du Bénin, en Europe et aux États-Unis :
         ces transferts sont encadrés conformément au Code du numérique et, pour les joueurs européens, au RGPD.
       </p>

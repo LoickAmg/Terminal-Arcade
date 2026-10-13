@@ -46,7 +46,33 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    DATABASE_URL="postgres://…branche-dev…" npx vitest run frontend/src/server
    ```
 
-## 2. E-mails (Resend)
+## 2. E-mails
+
+Deux voies, au choix ; le site prend Resend s'il est configuré, sinon SMTP.
+
+### Tout de suite, sans domaine : Gmail (SMTP)
+
+1. **[toi]** Créer un compte Gmail **dédié au jeu** (par exemple
+   `terminal.arcade.jeu@gmail.com`) : c'est l'adresse que verront les
+   joueurs, autant ne pas exposer la tienne.
+2. Sur ce compte, activer la **validation en deux étapes**, puis créer un
+   **mot de passe d'application** : <https://myaccount.google.com/apppasswords>
+   (16 lettres ; ce n'est pas le mot de passe du compte).
+3. Variables Vercel :
+
+   | Variable | Valeur |
+   | --- | --- |
+   | `SMTP_HOST` | `smtp.gmail.com` |
+   | `SMTP_PORT` | `465` |
+   | `SMTP_USER` | l'adresse Gmail du jeu |
+   | `SMTP_PASS` | le mot de passe d'application (sans espaces) |
+   | `EMAIL_FROM` | `Terminal Arcade <l'adresse Gmail du jeu>` |
+
+4. Limite de Gmail : environ 500 e-mails par jour, largement assez pour
+   commencer. Les pages légales nomment alors Gmail (Google) comme service
+   d'envoi.
+
+### Plus tard, avec un domaine : Resend
 
 1. **[toi]** Créer un compte Resend, ajouter le domaine (sous-domaine conseillé :
    `mail.terminal-arcade.fr`) et poser chez Cloudflare les enregistrements
@@ -54,6 +80,7 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    qu'à ta propre adresse.
 2. Créer une clé d'API limitée à « Sending access » : `RESEND_API_KEY`.
 3. `EMAIL_FROM` : `Terminal Arcade <noreply@mail.terminal-arcade.fr>`.
+4. Une fois Resend en place, les variables `SMTP_…` peuvent être retirées.
 
 ## 3. Connexion Google
 
@@ -83,8 +110,8 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    | `BETTER_AUTH_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"` |
    | `BETTER_AUTH_URL` | `https://terminal-arcade.fr` |
    | `NEXT_PUBLIC_SITE_URL` | `https://terminal-arcade.fr` |
-   | `RESEND_API_KEY`, `EMAIL_FROM` | voir étape 2 |
-   | `NEXT_PUBLIC_EMAIL_VERIFICATION` | `off` **seulement** tant que Resend n'est pas prêt (voir plus bas) |
+   | `SMTP_…` et `EMAIL_FROM`, ou `RESEND_API_KEY` et `EMAIL_FROM` | voir étape 2 |
+   | `NEXT_PUBLIC_EMAIL_VERIFICATION` | `off` **seulement** si aucun service d'e-mail n'est prêt (voir plus bas) |
    | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | voir étape 3 |
    | `CRON_SECRET` | une autre valeur aléatoire (Vercel l'envoie au ménage quotidien) |
    | `NEXT_PUBLIC_LEGAL_NAME`, `NEXT_PUBLIC_LEGAL_CITY` | identité affichée dans les pages légales |
@@ -92,12 +119,12 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    | `NEXT_PUBLIC_SANDBOX_URL` | `https://sandbox.terminal-arcade.fr` (seulement avec un serveur PowerShell) |
    | `SANDBOX_TICKET_KID`, `SANDBOX_TICKET_PRIVATE_KEY` | `npm run sandbox:keys` (idem, voir étape 5) |
 
-4. **Mode provisoire des comptes** (sans domaine, donc sans Resend) :
+4. **Mode provisoire des comptes** (aucun service d'e-mail, ni Gmail ni Resend) :
    `NEXT_PUBLIC_EMAIL_VERIFICATION=off`. L'inscription se fait sans
    confirmer l'adresse, le compte sert tout de suite (sauvegarde, classement),
    et il n'y a pas de « mot de passe oublié » : on change son mot de passe
-   une fois connecté, en donnant l'ancien. Quand Resend est prêt : supprimer
-   la variable, ajouter `RESEND_API_KEY` et `EMAIL_FROM`, **Redeploy**. Les
+   une fois connecté, en donnant l'ancien. Quand un service d'e-mail est prêt :
+   supprimer la variable, ajouter ses variables (étape 2), **Redeploy**. Les
    comptes existants reçoivent un lien de confirmation à leur connexion
    suivante ; ceux qui ont joué ne sont jamais purgés.
 5. Domaine : ajouter `terminal-arcade.fr` au projet. HTTPS est automatique ;

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { H2, LegalPage } from "@/components/LegalPage";
 import { LEGAL, contact } from "@/lib/legal";
+import { emailProvider } from "@/server/email";
 
 export const metadata: Metadata = {
   title: "Mentions légales",
@@ -23,8 +24,10 @@ export default function MentionsLegales() {
       <ul className="list-disc pl-5">
         <li>Site et comptes : Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis (exécution en Europe, Francfort).</li>
         <li>Base de données : Neon (Databricks), serveurs en Europe (Francfort, Allemagne).</li>
-        <li>E-mails : Resend (Plus Five Five, Inc.), États-Unis.</li>
-        <li>Terminal « vrai Linux » : serveur exploité par l&apos;éditeur.</li>
+        <li>
+          E-mails : {emailProvider().name}, {emailProvider().where}.
+        </li>
+        <li>Terminal « vrai Linux » : Linux émulé dans ton navigateur, sans serveur ; niveaux PowerShell : serveur exploité par l&apos;éditeur.</li>
       </ul>
 
       <H2>Propriété</H2>

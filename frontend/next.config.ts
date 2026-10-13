@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@terminal-arcade/shared"],
   // Argon2 (binaire natif) et PGlite (WebAssembly) restent hors du bundle
   // serveur : ils sont chargés tels quels depuis node_modules.
-  serverExternalPackages: ["@node-rs/argon2", "@electric-sql/pglite"],
+  serverExternalPackages: ["@node-rs/argon2", "@electric-sql/pglite", "nodemailer"],
   // Pas d'en-tête « X-Powered-By: Next.js » : rien à révéler sur la pile.
   poweredByHeader: false,
   async headers() {

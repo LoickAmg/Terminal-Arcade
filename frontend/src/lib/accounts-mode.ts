@@ -1,5 +1,5 @@
 // Mode provisoire des comptes, tant qu'aucun service d'e-mail n'est prêt
-// (pas encore de domaine pour Resend) : NEXT_PUBLIC_EMAIL_VERIFICATION=off.
+// (ni Resend ni SMTP, voir server/email.ts) : NEXT_PUBLIC_EMAIL_VERIFICATION=off.
 //
 // - inscription par e-mail et mot de passe, compte utilisable tout de suite ;
 // - les comptes non confirmés comptent au classement et ne sont pas purgés ;
