@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 15
     services:
       restore:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_PASSWORD: restore
         ports: ["5432:5432"]
@@ -50,18 +50,22 @@ jobs:
         env:
           DB: ${{ secrets.BACKUP_DATABASE_URL }}
         run: |
-          docker run --rm --network host -e DB postgres:17 \
+          docker run --rm --network host -e DB postgres:18 \
             sh -c 'pg_dump --no-owner --no-privileges --format=custom "$DB"' > base.dump
           test -s base.dump
 
       - name: Tester la restauration
         if: steps.config.outputs.ready == 'true'
         run: |
-          docker run --rm --network host -v "$PWD:/w" -e PGPASSWORD=restore postgres:17 \
+          docker run --rm --network host -v "$PWD:/w" -e PGPASSWORD=restore postgres:18 \
             pg_restore --no-owner -h localhost -U postgres -d postgres /w/base.dump
-          docker run --rm --network host -e PGPASSWORD=restore postgres:17 \
-            psql -h localhost -U postgres -d postgres -tAc \
-            "SELECT 'comptes=' || count(*) FROM \"user\"; SELECT 'sauvegardes=' || count(*) FROM saves; SELECT 'migration=' || max(id) FROM schema_migrations;"
+          q() { docker run --rm --network host -e PGPASSWORD=restore postgres:18 psql -h localhost -U postgres -d postgres -tAc "$1"; }
+          # Avant la mise en ligne, le site n'a pas encore créé ses tables.
+          if [ "$(q "SELECT to_regclass('public.schema_migrations') IS NULL")" = t ]; then
+            echo "::notice::Base encore vide : le site n'a pas encore créé ses tables."
+          else
+            q "SELECT 'comptes=' || count(*) FROM \"user\"; SELECT 'sauvegardes=' || count(*) FROM saves; SELECT 'migration=' || max(id) FROM schema_migrations;"
+          fi
 
       - name: Chiffrer
         if: steps.config.outputs.ready == 'true'
