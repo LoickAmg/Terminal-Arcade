@@ -159,10 +159,10 @@ export function openLevel(
             ansi.cyan(
               level.shell === "pwsh"
                 ? "⚙ Sandbox PowerShell : tes commandes s'exécutent dans un vrai pwsh, sur Linux isolé."
-                : "⚙ Sandbox : tes commandes s'exécutent dans un vrai Linux isolé.",
+                : "⚙ Sandbox : tes commandes s'exécutent dans un vrai Linux, émulé dans ton navigateur.",
             ),
             ansi.dim("Réponses : submit <réponse>. Jeu : hint, skip, quit (aussi dans la sandbox)."),
-            ansi.dim("Connexion à la sandbox…"),
+            ansi.dim(level.shell === "pwsh" ? "Connexion à la sandbox…" : "Démarrage du Linux…"),
           ]
         : []),
       ansi.dim(`hint : indice  ·  skip : passer  ·  quit : quitter${chaos ? "  ·  verify  ·  clock" : ""}`),
@@ -459,8 +459,8 @@ export function sandboxFailed(state: GameState, reason: string): LineResult {
       ansi.red(`⚙ Sandbox indisponible : ${offline ? "tu es hors ligne" : reason}`),
       ansi.dim(
         offline
-          ? "Les défis réels demandent le serveur de sandbox. Le palier Script Kiddie reste jouable hors ligne."
-          : "Lance le serveur avec : npm run sandbox (Docker doit tourner).",
+          ? "Le Linux des défis réels se télécharge à la première partie. Le palier Script Kiddie reste jouable hors ligne."
+          : "Les niveaux bash tournent dans ton navigateur ; les niveaux PowerShell demandent le serveur de sandbox.",
       ),
     ],
     reaction: "sad",

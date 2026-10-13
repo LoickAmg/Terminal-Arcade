@@ -1,0 +1,207 @@
+# Version bash de « Scripts sous tension » (ps_scripts_01) : JSON construit
+# avec jq, sed pour réécrire, un script à arguments, codes de retour et
+# processus.
+id: rw_script_03
+title: "Scripts sous tension"
+hook: "Arguments, erreurs, processus : un vrai script bash, pas une ligne jetable."
+tier: root_wizard
+tree: system_overlord
+runtime: docker
+shell: bash
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [mutation, hostile_alias] }
+intro: "Construire du JSON avec jq, réécrire du texte avec sed, écrire un script qui prend des arguments, réagir aux codes de retour, et arrêter le bon processus."
+setup: |
+  mkdir -p ~/logs ~/donnees
+  for n in api web worker; do
+    head -c $((RANDOM % 50000 + 1000)) /dev/zero > ~/logs/$n.log
+  done
+  printf 'notes diverses\n' > ~/logs/notes.txt
+  for i in 1 2 3; do
+    printf 'jeu de donnees %d\n' "$i" > ~/donnees/jeu$i.dat
+  done
+  : > ~/acces.log
+  for i in $(seq 1 $((RANDOM % 5 + 8))); do
+    printf '2026-10-03 09:%02d connexion utilisateur%d depuis 10.%d.%d.%d\n' \
+      "$((i % 60))" "$i" "$((RANDOM % 256))" "$((RANDOM % 256))" "$((RANDOM % 256))" >> ~/acces.log
+  done
+questions:
+  - kind: task
+    prompt: 'Écris dans taille.json une liste JSON avec, pour chaque fichier .log de logs, un objet {"nom": <nom du fichier>, "taille": <taille en octets>}. Construis les objets avec jq, la taille en nombre.'
+    check: |
+      [ -f ~/taille.json ] || exit 1
+      jq -e 'type == "array"' ~/taille.json >/dev/null 2>&1 || exit 1
+      n=0
+      for f in ~/logs/*.log; do
+        jq -e --arg n "$(basename "$f")" --argjson t "$(stat -c %s "$f")" 'any(.[]; .nom == $n and .taille == $t)' ~/taille.json >/dev/null || exit 1
+        n=$((n + 1))
+      done
+      [ "$(jq length ~/taille.json)" = "$n" ]
+    solution: "for f in logs/*.log; do jq -n --arg nom \"$(basename $f)\" --argjson taille \"$(stat -c %s $f)\" '{nom: $nom, taille: $taille}'; done | jq -s . > taille.json"
+    solve: |
+      for f in ~/logs/*.log; do jq -n --arg nom "$(basename "$f")" --argjson taille "$(stat -c %s "$f")" '{nom: $nom, taille: $taille}'; done | jq -s . > ~/taille.json
+    explain: "Coller du JSON à la main avec echo casse au premier guillemet : jq --arg échappe le texte, --argjson garde le nombre."
+    hints:
+      - { text: "jq -n --arg nom X --argjson taille 42 '{nom: $nom, taille: $taille}' fabrique un objet." }
+      - { text: "Une boucle sur logs/*.log, puis | jq -s . pour en faire une liste.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Même exercice, mais n'écris dans taille.json que les fichiers .log de logs qui dépassent 10000 octets (il y en a au moins un)."
+      setup: |
+        head -c $((RANDOM % 30000 + 20000)) /dev/zero > ~/logs/gros.log
+        rm -f ~/taille.json
+      check: |
+        [ -f ~/taille.json ] || exit 1
+        jq -e 'type == "array"' ~/taille.json >/dev/null 2>&1 || exit 1
+        n=0
+        for f in ~/logs/*.log; do
+          [ "$(stat -c %s "$f")" -gt 10000 ] || continue
+          jq -e --arg n "$(basename "$f")" --argjson t "$(stat -c %s "$f")" 'any(.[]; .nom == $n and .taille == $t)' ~/taille.json >/dev/null || exit 1
+          n=$((n + 1))
+        done
+        [ "$(jq length ~/taille.json)" = "$n" ]
+      solution: "… | jq -s 'map(select(.taille > 10000))' > taille.json"
+      solve: |
+        for f in ~/logs/*.log; do jq -n --arg nom "$(basename "$f")" --argjson taille "$(stat -c %s "$f")" '{nom: $nom, taille: $taille}'; done | jq -s 'map(select(.taille > 10000))' > ~/taille.json
+      hints:
+        - { text: "map(select(.taille > 10000)) ne garde que les gros fichiers." }
+  - kind: task
+    prompt: "acces.log finit chaque ligne par une adresse IPv4. Masque le dernier octet (remplace-le par X) avec sed, et écris le résultat dans acces_masque.txt."
+    check: |
+      [ -f ~/acces_masque.txt ] || exit 1
+      diff -q <(sed -E 's/\.[0-9]{1,3}$/.X/' ~/acces.log) ~/acces_masque.txt >/dev/null 2>&1
+    solution: "sed -E 's/\\.[0-9]{1,3}$/.X/' acces.log > acces_masque.txt"
+    solve: |
+      sed -E 's/\.[0-9]{1,3}$/.X/' ~/acces.log > ~/acces_masque.txt
+    explain: "sed applique l'expression régulière à chaque ligne ; le $ ancre en fin de ligne, \\. désigne un vrai point."
+    hints:
+      - { text: "sed -E 's/MOTIF/REMPLACEMENT/' réécrit chaque ligne." }
+      - { text: "Le motif : un point, un à trois chiffres, en fin de ligne.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Dans acces.log, remplace chaque nom d'utilisateur (utilisateur suivi d'un nombre) par le mot invite, avec sed. Écris le résultat dans acces_anonyme.txt."
+      check: |
+        [ -f ~/acces_anonyme.txt ] || exit 1
+        diff -q <(sed -E 's/utilisateur[0-9]+/invite/' ~/acces.log) ~/acces_anonyme.txt >/dev/null 2>&1
+      solution: "sed -E 's/utilisateur[0-9]+/invite/' acces.log > acces_anonyme.txt"
+      solve: |
+        sed -E 's/utilisateur[0-9]+/invite/' ~/acces.log > ~/acces_anonyme.txt
+      hints:
+        - { text: "Le motif : utilisateur puis [0-9]+ (au moins un chiffre)." }
+  - kind: task
+    prompt: "Écris un script verifie.sh qui prend un chemin en argument et affiche PRESENT:<chemin> si le chemin existe, ABSENT:<chemin> sinon. Il sera lancé ainsi : bash verifie.sh <chemin>"
+    check: |
+      [ -f ~/verifie.sh ] || exit 1
+      ex=$(find ~/donnees -maxdepth 1 -name "*.dat" | shuf -n 1)
+      out=$(cd ~ && timeout 3 bash ./verifie.sh "$ex" 2>/dev/null; timeout 3 bash ./verifie.sh /home/agent/fantome.txt 2>/dev/null)
+      [ "$(echo "$out" | wc -l)" = 2 ] \
+        && [ "$(echo "$out" | sed -n 1p)" = "PRESENT:$ex" ] \
+        && [ "$(echo "$out" | sed -n 2p)" = "ABSENT:/home/agent/fantome.txt" ]
+    solution: 'if [ -e "$1" ]; then echo "PRESENT:$1"; else echo "ABSENT:$1"; fi'
+    solve: |
+      cat > ~/verifie.sh <<'SH'
+      if [ -e "$1" ]; then echo "PRESENT:$1"; else echo "ABSENT:$1"; fi
+      SH
+    explain: "$1 est le premier argument du script ; [ -e … ] teste l'existence. Les guillemets autour de \"$1\" protègent les chemins avec des espaces."
+    hints:
+      - { text: '$1 contient le premier argument passé au script.' }
+      - { text: '[ -e "$1" ] est vrai si le chemin existe : un if suffit.', cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Écris un script verifie.sh qui prend un chemin en argument et affiche DOSSIER:<chemin> si c'est un dossier, FICHIER:<chemin> si c'est un fichier, ABSENT:<chemin> sinon. Il sera lancé ainsi : bash verifie.sh <chemin>"
+      setup: |
+        rm -f ~/verifie.sh
+      check: |
+        [ -f ~/verifie.sh ] || exit 1
+        f=$(find ~/donnees -maxdepth 1 -name "*.dat" | shuf -n 1)
+        out=$(cd ~ && for p in "$HOME/donnees" "$f" /home/agent/fantome.txt; do timeout 3 bash ./verifie.sh "$p" 2>/dev/null; done)
+        [ "$(echo "$out" | wc -l)" = 3 ] \
+          && [ "$(echo "$out" | sed -n 1p)" = "DOSSIER:$HOME/donnees" ] \
+          && [ "$(echo "$out" | sed -n 2p)" = "FICHIER:$f" ] \
+          && [ "$(echo "$out" | sed -n 3p)" = "ABSENT:/home/agent/fantome.txt" ]
+      solution: 'if [ -d "$1" ]; then echo "DOSSIER:$1"; elif [ -f "$1" ]; then echo "FICHIER:$1"; else echo "ABSENT:$1"; fi'
+      solve: |
+        cat > ~/verifie.sh <<'SH'
+        if [ -d "$1" ]; then echo "DOSSIER:$1"
+        elif [ -f "$1" ]; then echo "FICHIER:$1"
+        else echo "ABSENT:$1"
+        fi
+        SH
+      hints:
+        - { text: "[ -d … ] teste un dossier, [ -f … ] un fichier ordinaire : if, elif, else." }
+  - kind: task
+    prompt: "config.json contient du JSON, peut-être cassé. Écris dans etat.txt le mot VALIDE si jq arrive à le lire, CASSE sinon. Sers-toi du code de retour de jq."
+    setup: |
+      if [ $((RANDOM % 2)) = 0 ]; then
+        printf '{"service": "api", "port": %d}\n' $((RANDOM % 2000 + 8000)) > ~/config.json
+      else
+        printf '{"service": "api", port: %d}\n' $((RANDOM % 2000 + 8000)) > ~/config.json
+      fi
+      rm -f ~/etat.txt
+    check: |
+      [ -f ~/etat.txt ] || exit 1
+      if jq empty ~/config.json >/dev/null 2>&1; then attendu=VALIDE; else attendu=CASSE; fi
+      [ "$(tr -d ' \r\n' < ~/etat.txt)" = "$attendu" ]
+    solution: "if jq empty config.json 2>/dev/null; then echo VALIDE; else echo CASSE; fi > etat.txt"
+    solve: |
+      if jq empty ~/config.json 2>/dev/null; then echo VALIDE; else echo CASSE; fi > ~/etat.txt
+    explain: "Chaque commande rend un code de retour : 0 si tout va bien. if le lit directement ; jq empty vérifie le JSON sans rien afficher."
+    hints:
+      - { text: "jq empty config.json ne lit que pour vérifier : son code de retour dit si le JSON est valide." }
+      - { text: "if COMMANDE; then … else … fi > etat.txt : un seul mot dans le fichier.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "diviseur.txt contient un nombre... ou le mot rien. Écris dans resultat.txt le double du nombre, ou le mot ERREUR si ce n'est pas un nombre entier."
+      setup: |
+        if [ $((RANDOM % 3)) = 0 ]; then echo rien > ~/diviseur.txt; else echo $((RANDOM % 8 + 2)) > ~/diviseur.txt; fi
+        rm -f ~/resultat.txt
+      check: |
+        [ -f ~/resultat.txt ] || exit 1
+        v=$(tr -d ' \r\n' < ~/diviseur.txt)
+        if [[ "$v" =~ ^[0-9]+$ ]]; then attendu=$((v * 2)); else attendu=ERREUR; fi
+        [ "$(tr -d ' \r\n' < ~/resultat.txt)" = "$attendu" ]
+      solution: 'v=$(cat diviseur.txt); if [[ "$v" =~ ^[0-9]+$ ]]; then echo $((v * 2)); else echo ERREUR; fi > resultat.txt'
+      solve: |
+        v=$(cat ~/diviseur.txt); if [[ "$v" =~ ^[0-9]+$ ]]; then echo $((v * 2)); else echo ERREUR; fi > ~/resultat.txt
+      hints:
+        - { text: '[[ "$v" =~ ^[0-9]+$ ]] est vrai si $v ne contient que des chiffres.' }
+  - kind: task
+    prompt: "Trois processus tournent : veille1 et veille2 sont légitimes, goulot ne devrait pas tourner. Arrête goulot sans toucher aux deux autres."
+    setup: |
+      mkdir -p ~/.bin
+      for p in goulot veille1 veille2; do
+        [ -x ~/.bin/$p ] || cp /bin/sleep ~/.bin/$p
+        pgrep -x $p >/dev/null || { setsid nohup ~/.bin/$p 100000 >/dev/null 2>&1 & }
+      done
+      sleep 0.3
+    check: |
+      ! pgrep -x goulot >/dev/null && pgrep -x veille1 >/dev/null && pgrep -x veille2 >/dev/null
+    solution: "pgrep -x goulot pour le voir, puis pkill -x goulot"
+    solve: |
+      pkill -x goulot
+      sleep 0.2
+    explain: "pkill veille tuerait veille1 et veille2 : -x exige le nom exact."
+    hints:
+      - { text: "pgrep -l liste les processus avec leur nom." }
+      - { text: "pkill -x goulot vise ce nom exact, et lui seul.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "goulot est de retour, avec un complice : espion. Arrête-les tous les deux, sans toucher à veille1 ni veille2."
+      setup: |
+        mkdir -p ~/.bin
+        for p in goulot espion veille1 veille2; do
+          [ -x ~/.bin/$p ] || cp /bin/sleep ~/.bin/$p
+          pgrep -x $p >/dev/null || { setsid nohup ~/.bin/$p 100000 >/dev/null 2>&1 & }
+        done
+        sleep 0.3
+      check: |
+        ! pgrep -x goulot >/dev/null && ! pgrep -x espion >/dev/null && pgrep -x veille1 >/dev/null && pgrep -x veille2 >/dev/null
+      solution: "pkill -x goulot; pkill -x espion (ou kill avec leurs PID)"
+      solve: |
+        pkill -x goulot; pkill -x espion
+        sleep 0.2
+      hints:
+        - { text: "Deux pkill -x, ou un motif : pkill -x 'goulot|espion'." }
+rewards:
+  xp: 460

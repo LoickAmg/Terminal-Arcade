@@ -5,11 +5,11 @@ import { Server, type Socket } from "socket.io";
 import { loadLevels } from "@terminal-arcade/shared/loader";
 import { ReplayGuard, publicKeysFrom, verifyTicket } from "@terminal-arcade/shared/ticket";
 import type { Level, Question } from "@terminal-arcade/shared";
-import { HOSTILE_SCRIPTS, appendTyped, detectHostile } from "./hostile";
+import { HOSTILE_SCRIPTS, appendTyped, detectHostile, newFlag, wrapCheck } from "@terminal-arcade/shared/hostile";
 import { OutputMeter, RateLimiter, clientAddress, tokenMatches } from "./limits";
-import { IMAGE, cleanupOrphans, createSandbox, imageReady, newFlag, runScript, wrapCheck, type Sandbox } from "./sandbox";
+import { IMAGE, cleanupOrphans, createSandbox, imageReady, runScript, type Sandbox } from "./sandbox";
 
-// Serveur des défis réels : un conteneur par partie, relié au terminal du
+// Serveur des défis réels PowerShell : un conteneur par partie, relié au terminal du
 // navigateur par Socket.io. L'arbitre exécute le script « check » de la
 // question après chaque commande et renvoie le verdict au jeu.
 //
@@ -52,7 +52,9 @@ const startLimiter = new RateLimiter(STARTS_PER_HOUR, 60 * 60_000);
 setInterval(() => startLimiter.prune(), 10 * 60_000).unref();
 
 const levels = loadLevels(join(process.cwd(), "..", "shared", "levels"));
-const dockerLevels = new Map(levels.filter((l) => l.runtime === "docker").map((l) => [l.id, l]));
+// Les niveaux bash tournent dans le navigateur (v86) ; le serveur ne sert
+// plus que les niveaux PowerShell, qui demandent un Linux 64 bits.
+const dockerLevels = new Map(levels.filter((l) => l.runtime === "docker" && l.shell === "pwsh").map((l) => [l.id, l]));
 
 type Session = {
   sandbox: Sandbox;

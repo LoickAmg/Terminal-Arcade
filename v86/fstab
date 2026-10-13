@@ -1,0 +1,6 @@
+# Mêmes dossiers en mémoire que le conteneur Docker (backend/src/sandbox.ts).
+# Le 9p de v86 n'a des dates qu'à la seconde près, ce qui trompe Git ; tmpfs
+# est exact, et bien plus rapide.
+tmpfs /home/agent tmpfs rw,exec,size=64m,uid=1000,gid=1000,mode=755 0 0
+tmpfs /tmp tmpfs rw,nosuid,nodev,size=32m,mode=1777 0 0
+tmpfs /srv tmpfs rw,exec,size=32m,uid=1000,gid=1000,mode=755 0 0

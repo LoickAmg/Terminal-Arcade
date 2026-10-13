@@ -1,0 +1,94 @@
+# Version bash de « Objets, pas du texte » (ps_basics_01) : le même terrain,
+# sans PowerShell. Le pipeline transporte du texte ; jq lit le JSON.
+id: sa_json_01
+title: "Du texte qui a du sens"
+hook: "Pas d'objets en bash : du texte, et les bons outils pour le lire. jq compris."
+tier: sysadmin
+tree: data_surgeon
+runtime: docker
+shell: bash
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 480, par_s: 240 }
+intro: "Le pendant bash de l'arbre PowerShell : compter, filtrer par taille, lire et modifier du JSON avec jq, écrire un CSV. Les réponses s'envoient avec submit <réponse>."
+setup: |
+  mkdir -p ~/data ~/logs
+  for n in app web db; do echo "journal $n" > ~/logs/$n.log; done
+  echo "notes" > ~/logs/lisezmoi.txt
+  head -c $(( (RANDOM % 3 + 2) * 1000000 )) /dev/zero > ~/data/archive-$((RANDOM % 900 + 100)).bin
+  echo "petit" > ~/data/a.txt
+  echo "moyen moyen" > ~/data/b.txt
+  printf '{"nom": "api", "port": %d, "debug": false}\n' $((RANDOM % 2000 + 8000)) > ~/config.json
+questions:
+  - kind: task
+    prompt: "Combien de fichiers .log contient le dossier logs ? Compte-les, puis envoie le nombre avec submit."
+    check: 'answer-is "$(find ~/logs -maxdepth 1 -name "*.log" | wc -l)"'
+    solution: "ls logs/*.log | wc -l, puis submit 3"
+    solve: |
+      submit "$(ls ~/logs/*.log | wc -l)"
+    hints:
+      - text: "logs/*.log ne garde que les fichiers en .log ; wc -l compte les lignes."
+
+  - kind: task
+    prompt: "Avec find, trouve le fichier de data qui dépasse 1 Mo et envoie son nom avec submit."
+    check: 'answer-is "$(find ~/data -maxdepth 1 -type f -size +1M -printf "%f")"'
+    solution: "find data -size +1M, puis submit <nom>"
+    solve: |
+      submit "$(find ~/data -maxdepth 1 -type f -size +1M -printf '%f')"
+    hints:
+      - text: "find -size +1M ne garde que les fichiers de plus d'un mégaoctet."
+    variant:
+      kind: task
+      prompt: "Avec ls, trouve le plus petit fichier de data et envoie son nom avec submit."
+      check: 'answer-is "$(find ~/data -maxdepth 1 -type f -printf "%s %f\n" | sort -n | head -n 1 | cut -d" " -f2)"'
+      solution: "ls -S data | tail -n 1, puis submit <nom>"
+      solve: |
+        submit "$(ls -S ~/data | tail -n 1)"
+      hints:
+        - text: "ls -S trie du plus gros au plus petit : le dernier est le plus petit."
+
+  - kind: task
+    prompt: "Lis config.json avec jq et envoie la valeur de port avec submit."
+    check: 'answer-is "$(grep -o "\"port\": *[0-9]*" ~/config.json | grep -o "[0-9]*$")"'
+    solution: "jq .port config.json, puis submit <port>"
+    solve: |
+      submit "$(jq .port ~/config.json)"
+    explain: "jq lit le JSON comme une structure : .port désigne la clé port, où qu'elle soit sur la ligne."
+    hints:
+      - text: "jq .port config.json affiche la valeur de la clé port."
+
+  - kind: task
+    prompt: "Écris fichiers.csv : une ligne d'en-tête nom,taille, puis une ligne nom,taille (en octets) par fichier de data."
+    check: |
+      [ -f ~/fichiers.csv ] || exit 1
+      head -n 1 ~/fichiers.csv | grep -qx 'nom,taille' || exit 1
+      n=0
+      while IFS= read -r f; do
+        grep -qx "$(basename "$f"),$(stat -c %s "$f")" ~/fichiers.csv || exit 1
+        n=$((n + 1))
+      done < <(find ~/data -maxdepth 1 -type f)
+      [ "$(wc -l < ~/fichiers.csv)" = $((n + 1)) ]
+    solution: "{ echo nom,taille; find data -type f -printf '%f,%s\\n'; } > fichiers.csv"
+    solve: |
+      { echo nom,taille; find ~/data -maxdepth 1 -type f -printf '%f,%s\n'; } > ~/fichiers.csv
+    hints:
+      - text: "find -printf '%f,%s\\n' écrit le nom et la taille de chaque fichier."
+      - text: "Des accolades { echo nom,taille; find …; } > fichiers.csv regroupent l'en-tête et les lignes."
+        cost_s: 20
+
+  - kind: task
+    prompt: "Passe debug à true dans config.json avec jq, sans perdre les autres clés."
+    check: |
+      jq -e '.debug == true and .nom == "api" and (.port | type) == "number"' ~/config.json >/dev/null 2>&1
+    solution: "jq '.debug = true' config.json > tmp.json && mv tmp.json config.json"
+    solve: |
+      jq '.debug = true' ~/config.json > ~/tmp.json && mv ~/tmp.json ~/config.json
+    explain: "jq … config.json > config.json viderait le fichier avant que jq ne le lise : on écrit ailleurs, puis on remplace."
+    hints:
+      - text: "jq '.debug = true' config.json affiche le JSON modifié."
+      - text: "Rediriger vers le même fichier le vide d'abord : passe par un fichier temporaire, puis mv."
+        cost_s: 20
+
+rewards:
+  xp: 360
+  unlocks: [rw_pipeline_01, sa_stock_01]

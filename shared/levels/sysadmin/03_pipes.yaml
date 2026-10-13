@@ -89,4 +89,4 @@ questions:
 
 rewards:
   xp: 320
-  unlocks: [gg_git_01, ps_basics_01, sa_find_01, np_local_01]
+  unlocks: [gg_git_01, ps_basics_01, sa_json_01, sa_find_01, np_local_01]

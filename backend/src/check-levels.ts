@@ -1,9 +1,10 @@
 import { join } from "node:path";
 import { loadLevels } from "@terminal-arcade/shared/loader";
 import type { Question } from "@terminal-arcade/shared";
-import { createSandbox, imageReady, newFlag, runScript, wrapCheck, IMAGE } from "./sandbox";
+import { newFlag, wrapCheck } from "@terminal-arcade/shared/hostile";
+import { createSandbox, imageReady, runScript, IMAGE } from "./sandbox";
 
-// Test d'intégration des niveaux Docker : pour chaque défi (et sa variante),
+// Test d'intégration des niveaux PowerShell (Docker) : pour chaque défi (et sa variante),
 // dans une vraie sandbox, l'arbitre doit refuser l'état de départ puis
 // accepter l'état obtenu par le script « solve ». Prouve que chaque défi est
 // faisable et que son arbitre n'est pas trivial.
@@ -16,7 +17,10 @@ import { createSandbox, imageReady, newFlag, runScript, wrapCheck, IMAGE } from 
 //
 //   npm run test:sandbox -w backend -- --mutation
 
-const levels = loadLevels(join(process.cwd(), "..", "shared", "levels")).filter((l) => l.runtime === "docker");
+// Les niveaux bash se testent dans le Linux du navigateur : v86/check-levels.mts.
+const levels = loadLevels(join(process.cwd(), "..", "shared", "levels")).filter(
+  (l) => l.runtime === "docker" && l.shell === "pwsh",
+);
 const mutation = process.argv.includes("--mutation");
 
 async function checkTask(container: Parameters<typeof runScript>[0], q: Question, label: string): Promise<string[]> {

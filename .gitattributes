@@ -2,3 +2,4 @@
 # obligatoires, même après un clone sous Windows.
 backend/sandbox/* text eol=lf
 *.sh text eol=lf
+v86/* text eol=lf

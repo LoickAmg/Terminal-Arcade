@@ -106,6 +106,7 @@
   "unlocks": [
    "gg_git_01",
    "ps_basics_01",
+   "sa_json_01",
    "sa_find_01",
    "np_local_01"
   ]
@@ -194,6 +195,32 @@
   "id": "ps_objets_01",
   "tier": "sysadmin",
   "tree": "powershell",
+  "xp": 360,
+  "unlocks": []
+ },
+ {
+  "id": "sa_json_01",
+  "tier": "sysadmin",
+  "tree": "data_surgeon",
+  "xp": 360,
+  "unlocks": [
+   "rw_pipeline_01",
+   "sa_stock_01"
+  ]
+ },
+ {
+  "id": "sa_stock_01",
+  "tier": "sysadmin",
+  "tree": "data_surgeon",
+  "xp": 350,
+  "unlocks": [
+   "sa_jq_01"
+  ]
+ },
+ {
+  "id": "sa_jq_01",
+  "tier": "sysadmin",
+  "tree": "data_surgeon",
   "xp": 360,
   "unlocks": []
  },
@@ -309,6 +336,22 @@
   "tier": "root_wizard",
   "tree": "git_gud",
   "xp": 480,
+  "unlocks": []
+ },
+ {
+  "id": "rw_pipeline_01",
+  "tier": "root_wizard",
+  "tree": "data_surgeon",
+  "xp": 420,
+  "unlocks": [
+   "rw_script_03"
+  ]
+ },
+ {
+  "id": "rw_script_03",
+  "tier": "root_wizard",
+  "tree": "system_overlord",
+  "xp": 460,
   "unlocks": []
  }
 ]

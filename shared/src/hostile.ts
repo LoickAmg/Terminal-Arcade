@@ -96,3 +96,24 @@ export function appendTyped(buffer: string, data: string): { buffer: string; lin
   }
   return { buffer: buffer.slice(-500), lines };
 }
+
+/**
+ * Enveloppe d'un script « check ». Le code 2 (« mauvaise réponse ») n'est
+ * gardé que si le joueur a vraiment soumis quelque chose : diff, grep et
+ * d'autres renvoient aussi 2 quand un fichier manque, ce qui compterait
+ * une erreur à un joueur qui n'a encore rien fait.
+ */
+export function wrapCheck(check: string): string {
+  return `(
+${check}
+)
+c=$?
+[ "$c" = 2 ] && [ ! -f "$HOME/.arcade/submitted" ] && c=1
+exit "$c"`;
+}
+
+/** Drapeau secret d'une question « flag », différent à chaque partie. */
+export function newFlag(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return `FLAG{${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}}`;
+}

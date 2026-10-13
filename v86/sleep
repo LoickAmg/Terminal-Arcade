@@ -1,0 +1,4 @@
+#!/bin/sh
+# sleep, sous la forme d'un script : copié sous un autre nom (virus, goulot…),
+# il tourne sous ce nom-là, que pgrep -x retrouve.
+/bin/coreutils --coreutils-prog=sleep "$@"

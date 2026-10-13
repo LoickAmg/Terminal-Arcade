@@ -1,0 +1,139 @@
+# Version bash de « Des objets en rayon » (ps_stock_01) : le même inventaire,
+# lu avec awk, y compris la colonne piégée par une virgule entre guillemets.
+id: sa_stock_01
+title: "Inventaire en colonnes"
+hook: "Un inventaire plein de virgules. awk sait compter, à condition de bien couper."
+tier: sysadmin
+tree: data_surgeon
+runtime: docker
+shell: bash
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [mutation, false_red] }
+intro: "Créer des dossiers en une fois, copier un arbre entier, lire un CSV avec awk (même quand une virgule se cache entre guillemets) et garder la fin d'un journal."
+setup: |
+  mkdir -p ~/depot/archives ~/depot/photos
+  printf 'vieux rapport\n' > ~/depot/archives/rapport.txt
+  head -c 2048 /dev/zero > ~/depot/photos/logo.bin
+  printf 'inventaire du mois\n' > ~/depot/lisezmoi.txt
+  q1=$((RANDOM % 45 + 5)); q2=$((RANDOM % 45 + 5))
+  while [ "$q2" = "$q1" ]; do q2=$((RANDOM % 45 + 5)); done
+  q3=$((RANDOM % 50 + 50))
+  mapfile -t qs < <(printf '%s\n' "$q1" "$q2" "$q3" | shuf)
+  {
+    echo 'nom,salle,quantite'
+    echo "\"clavier, sans fil\",A$((RANDOM % 20 + 1)),${qs[0]}"
+    echo "souris,B$((RANDOM % 20 + 1)),${qs[1]}"
+    echo "ecran,C$((RANDOM % 20 + 1)),${qs[2]}"
+  } > ~/inventaire.csv
+  n=$((RANDOM % 30 + 20))
+  : > ~/journal.log
+  for i in $(seq 1 "$n"); do
+    printf '2026-10-03 08:%02d INFO evenement %d\n' "$((i % 60))" "$i" >> ~/journal.log
+  done
+  printf 'CODE: %s\n' "$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')" >> ~/journal.log
+questions:
+  - kind: task
+    prompt: "Crée le dossier exports/2026, et exports avec, en une seule commande."
+    check: |
+      [ -d ~/exports/2026 ]
+    solution: "mkdir -p exports/2026"
+    solve: |
+      mkdir -p ~/exports/2026
+    hints:
+      - { text: "mkdir crée un dossier, mais refuse si le dossier parent manque." }
+      - { text: "-p crée aussi les dossiers parents manquants.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Crée un fichier vide exports/brouillon.txt (et le dossier exports s'il n'existe pas), en une seule ligne."
+      check: |
+        [ -f ~/exports/brouillon.txt ]
+      solution: "mkdir -p exports && touch exports/brouillon.txt"
+      solve: |
+        mkdir -p ~/exports && touch ~/exports/brouillon.txt
+      hints:
+        - { text: "mkdir -p, puis && touch : la seconde commande ne part que si la première réussit." }
+  - kind: task
+    prompt: "Copie tout le dossier depot, sous-dossiers et fichiers compris, dans un nouveau dossier sauvegarde. Une seule commande."
+    check: |
+      [ -d ~/sauvegarde ] && diff -r ~/depot ~/sauvegarde >/dev/null 2>&1
+    solution: "cp -r depot sauvegarde"
+    solve: |
+      cp -r ~/depot ~/sauvegarde
+    hints:
+      - { text: "cp seul refuse de copier un dossier." }
+      - { text: "-r (récursif) emporte tout le contenu.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Copie tout le dossier depot, sous-dossiers et fichiers compris, dans un nouveau dossier archives_depot. Une seule commande."
+      check: |
+        [ -d ~/archives_depot ] && diff -r ~/depot ~/archives_depot >/dev/null 2>&1
+      solution: "cp -r depot archives_depot"
+      solve: |
+        cp -r ~/depot ~/archives_depot
+      hints:
+        - { text: "cp -r SOURCE CIBLE." }
+  - kind: task
+    prompt: "inventaire.csv contient un article dont le nom porte une virgule, entre guillemets. Quel article a la plus grande quantité ? Envoie son nom exact, sans les guillemets, avec submit."
+    check: |
+      answer-is "$(gawk -v FPAT='([^,]*)|("[^"]*")' 'NR > 1 { gsub(/"/, "", $1); print $3 "\t" $1 }' ~/inventaire.csv | sort -n | tail -n 1 | cut -f2)"
+    solution: "gawk -v FPAT='([^,]*)|(\"[^\"]*\")' 'NR > 1 { print $3, $1 }' inventaire.csv | sort -n, puis submit <nom>"
+    solve: |
+      submit "$(gawk -v FPAT='([^,]*)|("[^"]*")' 'NR > 1 { gsub(/"/, "", $1); print $3 "\t" $1 }' ~/inventaire.csv | sort -n | tail -n 1 | cut -f2)"
+    explain: "awk -F, couperait « clavier, sans fil » en deux. Avec FPAT, gawk décrit ce qu'est un champ (sans virgule, ou entre guillemets) au lieu de ce qui les sépare."
+    hints:
+      - { text: "awk -F, se trompe sur la ligne du clavier : compte ses champs avec awk -F, '{ print NF }'." }
+      - { text: "gawk -v FPAT='([^,]*)|(\"[^\"]*\")' : un champ est soit sans virgule, soit entre guillemets.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Toujours dans inventaire.csv : quel article a la plus petite quantité ? Envoie son nom exact, sans les guillemets, avec submit."
+      check: |
+        answer-is "$(gawk -v FPAT='([^,]*)|("[^"]*")' 'NR > 1 { gsub(/"/, "", $1); print $3 "\t" $1 }' ~/inventaire.csv | sort -n | head -n 1 | cut -f2)"
+      solution: "gawk -v FPAT='([^,]*)|(\"[^\"]*\")' 'NR > 1 { print $3, $1 }' inventaire.csv | sort -n | head -n 1, puis submit <nom>"
+      solve: |
+        submit "$(gawk -v FPAT='([^,]*)|("[^"]*")' 'NR > 1 { gsub(/"/, "", $1); print $3 "\t" $1 }' ~/inventaire.csv | sort -n | head -n 1 | cut -f2)"
+      hints:
+        - { text: "Même lecture, mais garde la première ligne du tri." }
+  - kind: task
+    prompt: "Calcule la somme de toutes les quantités de inventaire.csv avec awk. Envoie le total avec submit."
+    check: |
+      answer-is "$(gawk -v FPAT='([^,]*)|("[^"]*")' 'NR > 1 { s += $3 } END { print s }' ~/inventaire.csv)"
+    solution: "awk -F, 'NR > 1 { s += $NF } END { print s }' inventaire.csv, puis submit <total>"
+    solve: |
+      submit "$(awk -F, 'NR > 1 { s += $NF } END { print s }' ~/inventaire.csv)"
+    explain: "La quantité est toujours la dernière colonne : $NF la trouve, même quand une virgule décale les autres."
+    hints:
+      - { text: "NR > 1 saute l'en-tête ; END s'exécute après la dernière ligne." }
+      - { text: "$NF est le dernier champ de la ligne : la virgule du clavier ne le déplace pas.", cost_s: 20 }
+    variant:
+      kind: task
+      prompt: "Combien d'articles de inventaire.csv ont une quantité strictement supérieure à 20 ? Compte-les avec awk, puis envoie le nombre avec submit."
+      check: |
+        answer-is "$(gawk -v FPAT='([^,]*)|("[^"]*")' 'NR > 1 && $3 > 20 { n++ } END { print n + 0 }' ~/inventaire.csv)"
+      solution: "awk -F, 'NR > 1 && $NF > 20 { n++ } END { print n }' inventaire.csv, puis submit <nombre>"
+      solve: |
+        submit "$(awk -F, 'NR > 1 && $NF > 20 { n++ } END { print n + 0 }' ~/inventaire.csv)"
+      hints:
+        - { text: "Une condition devant le bloc : NR > 1 && $NF > 20 { n++ }." }
+  - kind: task
+    prompt: "La dernière ligne de journal.log contient un code (CODE: xxxx). Affiche-la et envoie la ligne entière avec submit."
+    check: |
+      answer-is "$(tail -n 1 ~/journal.log)"
+    solution: "tail -n 1 journal.log, puis submit \"CODE: <code>\""
+    solve: |
+      submit "$(tail -n 1 ~/journal.log)"
+    hints:
+      - { text: "tail -n 1 n'affiche que la dernière ligne. Mets la réponse entre guillemets." }
+    variant:
+      kind: task
+      prompt: "Écris les 3 dernières lignes de journal.log dans extrait.txt."
+      check: |
+        [ -f ~/extrait.txt ] && diff -q <(tail -n 3 ~/journal.log) ~/extrait.txt >/dev/null 2>&1
+      solution: "tail -n 3 journal.log > extrait.txt"
+      solve: |
+        tail -n 3 ~/journal.log > ~/extrait.txt
+      hints:
+        - { text: "tail -n 3, puis > pour écrire dans un fichier." }
+rewards:
+  xp: 350
+  unlocks: sa_jq_01

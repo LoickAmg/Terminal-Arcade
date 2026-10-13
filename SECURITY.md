@@ -5,6 +5,13 @@ aucune commande : il compare des réponses. Le risque est concentré sur le
 **serveur de sandbox** (`backend/`), qui donne un vrai shell Linux à
 quiconque s'y connecte.
 
+Depuis octobre 2026, les niveaux bash tournent dans un Linux émulé **chez le
+joueur** (v86, WebAssembly) : ils n'exposent aucun serveur, et le joueur ne
+peut abîmer que sa propre copie, enfermée dans l'onglet. Le serveur ne sert
+plus que les 5 niveaux PowerShell. Comme pour tout le jeu, la progression
+reste déclarée par le navigateur : le serveur la plafonne (XP par niveau,
+niveaux connus) mais ne peut pas prouver qu'un défi a été joué.
+
 **Verdict : prêt pour un usage personnel ou privé (localhost, Tailscale).
 Pas encore prêt pour Internet** : voir la liste « Avant une ouverture
 publique » plus bas.

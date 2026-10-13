@@ -18,7 +18,7 @@ setup: |
   #!/bin/bash
   # service.sh PORT FICHIER : renvoie le contenu de FICHIER à chaque connexion.
   while true; do
-    nc -l 127.0.0.1 "$1" -q 0 < "$2" >/dev/null 2>&1
+    nc -q 0 -l 127.0.0.1 "$1" < "$2" >/dev/null 2>&1
     sleep 0.05
   done
   EOF
@@ -90,7 +90,7 @@ questions:
     solution: "ps -ef | grep service.sh pour trouver la boucle du coffre, puis kill -- -<PID> (tout le groupe) ou pkill -f \"service.sh <port>\""
     solve: |
       pkill -f "service.sh $(tail -n 1 /tmp/.np-ports)"
-      pkill -f "nc -l 127.0.0.1 $(tail -n 1 /tmp/.np-ports)"
+      pkill -f "nc -q 0 -l 127.0.0.1 $(tail -n 1 /tmp/.np-ports)"
       sleep 0.2
     hints:
       - text: "Le nc qui écoute est relancé par une boucle : arrête d'abord la boucle, puis le nc."

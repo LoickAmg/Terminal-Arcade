@@ -1,0 +1,139 @@
+# Version bash de « Objets inconnus » (ps_objets_01) : découvrir un JSON
+# qu'on ne connaît pas avec jq, et ne pas confondre affichage et données.
+id: sa_jq_01
+title: "Clés inconnues"
+hook: "Un JSON dont tu ne connais pas les clés. jq sait te les montrer."
+tier: sysadmin
+tree: data_surgeon
+runtime: docker
+shell: bash
+type: classic
+replay: { chaos: true, timer: false }
+chaos: { signature: [mutation, false_red] }
+intro: "Explorer un JSON inconnu avec jq (keys, length, types), et ne jamais confondre un tableau fait pour les yeux avec des données pour les programmes."
+setup: |
+  mkdir -p ~/data
+  for n in alpha beta gamma; do head -c $((RANDOM % 5000 + 100)) /dev/zero > ~/data/$n.bin; done
+  hex() { head -c "$1" /dev/urandom | od -An -tx1 | tr -d ' \n'; }
+  cle="cle$(hex 2)"
+  code="CODE-$(hex 3)"
+  # Des clés en plus, en nombre variable : il faut vraiment compter.
+  extra=""
+  for i in $(seq 1 $((RANDOM % 4))); do extra="$extra, \"note$i\": \"n$i\""; done
+  printf '{"auteur": "agent", "version": %d, "statut": "actif", "%s": "%s"%s}\n' \
+    $((RANDOM % 9 + 1)) "$cle" "$code" "$extra" > ~/mystere.json
+  printf '%s\n' "$code" > /tmp/.jq-code
+questions:
+  - kind: task
+    prompt: "mystere.json contient une clé dont le nom commence par cle. Découvre son nom avec jq, puis envoie sa valeur (un code) avec submit."
+    check: 'answer-is "$(cat /tmp/.jq-code)"'
+    solution: "jq keys mystere.json, puis jq -r .cleXXXX mystere.json"
+    solve: |
+      submit "$(jq -r 'to_entries[] | select(.key | startswith("cle")) | .value' ~/mystere.json)"
+    explain: "jq keys liste les clés d'un objet : c'est la carte d'un JSON qu'on ne connaît pas."
+    hints:
+      - text: "jq keys mystere.json"
+      - text: "Une fois le nom trouvé : jq -r .cle… mystere.json (-r enlève les guillemets)."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "mystere.json contient une clé dont le nom commence par cle. Trouve ce nom exact avec jq et envoie-le avec submit."
+      check: 'answer-is "$(grep -o "\"cle[0-9a-f]*\"" ~/mystere.json | tr -d "\"")"'
+      solution: "jq -r 'keys[]' mystere.json | grep cle"
+      solve: |
+        submit "$(jq -r 'keys[] | select(startswith("cle"))' ~/mystere.json)"
+      hints:
+        - text: "jq -r 'keys[]' sort une clé par ligne, sans guillemets : grep fait le reste."
+
+  - kind: task
+    prompt: "Combien de clés l'objet de mystere.json a-t-il ? Compte-les avec jq et envoie le nombre avec submit."
+    check: 'answer-is "$(grep -o "\"[a-z0-9]*\": " ~/mystere.json | wc -l)"'
+    solution: "jq 'keys | length' mystere.json"
+    solve: |
+      submit "$(jq 'keys | length' ~/mystere.json)"
+    hints:
+      - text: "keys donne la liste des clés ; length compte les éléments d'une liste."
+      - text: "Les deux s'enchaînent avec un pipe, dans jq : jq 'keys | length'."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Combien de valeurs de mystere.json sont du texte (des chaînes) ? Compte-les avec jq et envoie le nombre avec submit."
+      check: 'answer-is "$(grep -o "\"[a-z0-9]*\": \"" ~/mystere.json | wc -l)"'
+      solution: "jq '[.[] | strings] | length' mystere.json"
+      solve: |
+        submit "$(jq '[.[] | strings] | length' ~/mystere.json)"
+      hints:
+        - text: ".[] sort chaque valeur ; strings ne garde que le texte ; [ … ] en refait une liste à compter."
+
+  - kind: task
+    prompt: "rapport.csv a été fait pour les yeux : un tableau aligné avec des espaces, pas un CSV. Refais-le : une ligne d'en-tête nom,taille, puis nom,taille (en octets) pour chaque fichier de data."
+    setup: |
+      { printf '%-10s %8s\n' NOM TAILLE
+        for f in ~/data/*; do printf '%-10s %8s\n' "$(basename "$f")" "$(stat -c %s "$f")"; done
+      } > ~/rapport.csv
+    check: |
+      [ -f ~/rapport.csv ] || exit 1
+      head -n 1 ~/rapport.csv | grep -qx 'nom,taille' || exit 1
+      n=0
+      while IFS= read -r f; do
+        grep -qx "$(basename "$f"),$(stat -c %s "$f")" ~/rapport.csv || exit 1
+        n=$((n + 1))
+      done < <(find ~/data -maxdepth 1 -type f)
+      [ "$(wc -l < ~/rapport.csv)" = $((n + 1)) ]
+    solution: "{ echo nom,taille; for f in data/*; do echo \"$(basename $f),$(stat -c %s $f)\"; done; } > rapport.csv"
+    solve: |
+      { echo nom,taille; for f in ~/data/*; do echo "$(basename "$f"),$(stat -c %s "$f")"; done; } > ~/rapport.csv
+    explain: "Un tableau aligné se lit bien, mais un programme ne sait pas où finit une colonne : un CSV sépare chaque valeur par une virgule, sans espaces décoratifs."
+    hints:
+      - text: "stat -c %s FICHIER donne la taille en octets ; basename enlève le chemin."
+      - text: "Une boucle for sur data/*, et des accolades pour ajouter l'en-tête avant."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "rapport.json a été fait pour les yeux : du texte, pas du JSON. Refais-le avec jq : une liste d'objets {\"nom\": …, \"taille\": …}, un par fichier de data, la taille en nombre."
+      setup: |
+        for f in ~/data/*; do printf 'nom : %s\ntaille : %s\n\n' "$(basename "$f")" "$(stat -c %s "$f")"; done > ~/rapport.json
+      check: |
+        [ -f ~/rapport.json ] || exit 1
+        jq -e 'type == "array"' ~/rapport.json >/dev/null 2>&1 || exit 1
+        n=0
+        while IFS= read -r f; do
+          jq -e --arg n "$(basename "$f")" --argjson t "$(stat -c %s "$f")" 'any(.[]; .nom == $n and .taille == $t)' ~/rapport.json >/dev/null || exit 1
+          n=$((n + 1))
+        done < <(find ~/data -maxdepth 1 -type f)
+        [ "$(jq length ~/rapport.json)" = "$n" ]
+      solution: "for f in data/*; do jq -n --arg nom \"$(basename $f)\" --argjson taille \"$(stat -c %s $f)\" '{nom: $nom, taille: $taille}'; done | jq -s . > rapport.json"
+      solve: |
+        for f in ~/data/*; do jq -n --arg nom "$(basename "$f")" --argjson taille "$(stat -c %s "$f")" '{nom: $nom, taille: $taille}'; done | jq -s . > ~/rapport.json
+      hints:
+        - text: "jq -n --arg nom … --argjson taille … '{nom: $nom, taille: $taille}' fabrique un objet."
+        - text: "jq -s rassemble les objets reçus en une seule liste."
+          cost_s: 20
+
+  - kind: task
+    prompt: "Écris dans noms.txt les noms des fichiers de data, un par ligne, sans rien d'autre (ni total, ni droits, ni tailles)."
+    check: |
+      [ -f ~/noms.txt ] || exit 1
+      [ "$(grep -v '^[[:space:]]*$' ~/noms.txt)" = "$(ls ~/data)" ] && ! grep -q '^total' ~/noms.txt
+    solution: "ls data > noms.txt (ou ls -1)"
+    solve: |
+      ls ~/data > ~/noms.txt
+    explain: "ls -l est fait pour les yeux (droits, tailles, ligne total). Redirigé vers un fichier, ls tout court écrit déjà un nom par ligne."
+    hints:
+      - text: "ls -l ajoute une ligne « total » et des colonnes : ce n'est pas ce qu'on veut."
+      - text: "ls -1 force un nom par ligne ; dans un fichier, ls le fait de lui-même."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Écris dans tailles.txt la taille en octets de chaque fichier de data, une par ligne, dans l'ordre des noms, sans rien d'autre."
+      check: |
+        [ -f ~/tailles.txt ] || exit 1
+        [ "$(grep -v '^[[:space:]]*$' ~/tailles.txt)" = "$(for f in $(ls ~/data); do stat -c %s ~/data/$f; done)" ]
+      solution: "stat -c %s data/* > tailles.txt"
+      solve: |
+        stat -c %s ~/data/* > ~/tailles.txt
+      hints:
+        - text: "stat -c %s accepte plusieurs fichiers : data/* les donne dans l'ordre des noms."
+
+rewards:
+  xp: 360

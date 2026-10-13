@@ -11,12 +11,14 @@ export function securityHeaders(options: { production: boolean; sandboxUrl: stri
   const sandboxWs = `${sandbox.protocol === "https:" ? "wss:" : "ws:"}//${sandbox.host}`;
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${options.production ? "" : " 'unsafe-eval'"}`,
+    // 'wasm-unsafe-eval' : l'émulateur v86 (Linux des défis réels) est en WebAssembly.
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${options.production ? "" : " 'unsafe-eval'"}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     `connect-src 'self' ${sandbox.origin} ${sandboxWs}${options.production ? "" : " ws: http://localhost:*"}`,
-    "worker-src 'self'",
+    // blob: : v86 rythme son émulation par un petit worker créé en mémoire.
+    "worker-src 'self' blob:",
     "manifest-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",

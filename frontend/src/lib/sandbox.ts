@@ -1,6 +1,8 @@
 import { io, type Socket } from "socket.io-client";
 
-// Client du serveur de sandbox (backend/). Une connexion par partie Docker :
+// Client du serveur de sandbox (backend/), pour les niveaux PowerShell
+// (les niveaux bash tournent dans le navigateur : browser-sandbox.ts).
+// Une connexion par partie Docker :
 // le terminal y envoie les frappes, le serveur renvoie la sortie du shell
 // et les verdicts de l'arbitre.
 
@@ -42,7 +44,17 @@ async function requestTicket(): Promise<string | null> {
 // Séquence OSC émise par la commande « arcade » de l'image.
 const GAME_COMMAND = /\x1b\]7777;([a-z]+)\x07/g;
 
-export class SandboxClient {
+/** Une partie de défi réel : sur le serveur Docker ou dans le navigateur (v86). */
+export type SandboxSession = {
+  start(levelId: string, handlers: SandboxHandlers): Promise<void>;
+  input(data: string): void;
+  resize(cols: number, rows: number): void;
+  task(index: number, variant: boolean): void;
+  hostile(kind: string): void;
+  stop(): void;
+};
+
+export class SandboxClient implements SandboxSession {
   private socket: Socket | null = null;
 
   async start(levelId: string, handlers: SandboxHandlers): Promise<void> {

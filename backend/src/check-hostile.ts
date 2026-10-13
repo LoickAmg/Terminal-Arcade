@@ -1,4 +1,4 @@
-import { HOSTILE_SCRIPTS } from "./hostile";
+import { HOSTILE_SCRIPTS } from "@terminal-arcade/shared/hostile";
 import { createSandbox, runScript } from "./sandbox";
 
 // Vérifie dans une vraie sandbox que chaque sabotage hostile prend effet,

@@ -1,0 +1,44 @@
+#!/bin/bash
+# Canal de contrôle du jeu, sur le second port série (ttyS1), lancé par init
+# en root. Le jeu y envoie une ligne par ordre :
+#
+#   <id> run :<script échappé>     exécute le script en tant qu'agent (30 s max)
+#   <id> date <secondes>           remet l'horloge à l'heure (après restauration)
+#   <id> size <colonnes> <lignes>  taille du terminal du joueur
+#   <id> drop                      vide les caches (avant l'état mémoire)
+#
+# et lit une ligne par réponse : « @@<id> <code> <sortie échappée> ».
+# Échappement : \\ \n \r \t (printf %b côté invité). Au démarrage : « @@ready ».
+#
+# Lancer un programme coûte cher dans l'émulateur (environ 170 ms) : les
+# scripts passent par un ouvrier bash permanent, déjà au nom du joueur
+# (arcade-worker), qui ne fait que des sous-shells.
+
+exec </dev/ttyS1 >/dev/ttyS1 2>/dev/null
+# init ne donne qu'un PATH minimal : submit, answer-is… sont dans /usr/local/bin.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+stty raw -echo 115200
+mkdir -p /run/arcade
+chown agent:agent /run/arcade
+
+# L'ouvrier hérite de la sortie (le port série) : il y répond lui-même.
+coproc WORKER { cd /home/agent && exec su agent -s /bin/bash -c "HOME=/home/agent PATH=$PATH exec /usr/local/sbin/arcade-worker" >/dev/ttyS1 2>/dev/null; }
+echo "@@ready"
+
+reply() { # id code sortie
+  local out=${3:0:2000}
+  out=${out//\\/\\\\}; out=${out//$'\n'/\\n}; out=${out//$'\r'/\\r}; out=${out//$'\t'/\\t}
+  printf '@@%s %s %s\n' "$1" "$2" "$out"
+}
+
+while IFS= read -r line; do
+  id=${line%% *}; rest=${line#* }
+  kind=${rest%% *}; args=${rest#"$kind"}; args=${args# }
+  case "$kind" in
+    run)  printf '%s %s\n' "$id" "$args" >&"${WORKER[1]}" ;;
+    date) reply "$id" 0 "$(date -s "@$args" 2>&1)" ;;
+    size) set -- $args; out=$(stty -F /dev/ttyS0 cols "$1" rows "$2" 2>&1); reply "$id" $? "$out" ;;
+    drop) sync; echo 3 >/proc/sys/vm/drop_caches; reply "$id" 0 "" ;;
+    *)    reply "$id" 127 "ordre inconnu" ;;
+  esac
+done

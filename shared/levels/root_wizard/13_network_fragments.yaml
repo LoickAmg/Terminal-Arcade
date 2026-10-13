@@ -18,7 +18,7 @@ setup: |
   cat > ~/.bin/fragment <<'EOF'
   #!/bin/bash
   while true; do
-    nc -l 127.0.0.1 "$1" -q 0 < "$2" >/dev/null 2>&1
+    nc -q 0 -l 127.0.0.1 "$1" < "$2" >/dev/null 2>&1
     sleep 0.05
   done
   EOF

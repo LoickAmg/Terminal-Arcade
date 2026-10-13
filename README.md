@@ -64,10 +64,27 @@ Puis ouvrir `http://localhost:3000`. Le palier Script Kiddie fonctionne seul,
 et hors ligne une fois le jeu chargé (service worker `public/sw.js`, actif
 en production seulement : `npm run build`, puis `npm run start -w frontend`).
 
-### Défis réels (sandbox Docker)
+### Défis réels
 
-Les paliers SysAdmin et Root Wizard s'exécutent dans de vrais conteneurs
-Linux. Docker doit tourner, puis :
+Les paliers SysAdmin et Root Wizard se jouent dans un vrai Linux.
+
+**Niveaux bash : dans le navigateur.** Un Alpine Linux 32 bits tourne chez
+le joueur, émulé en WebAssembly par [v86](https://github.com/copy/v86) :
+aucun serveur, aucun compte exigé. Le terminal est le premier port série ;
+le jeu pilote le système par le second (`v86/arcade-ctl`) pour préparer les
+questions, arbitrer et poser les sabotages du mode Chaos
+(`frontend/src/lib/browser-sandbox.ts`).
+
+```bash
+npm run v86:build                  # construit le Linux dans v86/out (Docker requis)
+npx tsx v86/check-levels.mts       # chaque défi bash est soluble dans ce Linux
+```
+
+Sans construction locale, `npm run dev` et `npm run build` téléchargent le
+Linux publié par le flux GitHub « Linux v86 » (`scripts/v86-assets.mjs`).
+
+**Niveaux PowerShell : serveur Docker.** PowerShell n'existe qu'en 64 bits :
+ses niveaux (`shell: pwsh`) ouvrent un vrai `pwsh` 7 dans un conteneur.
 
 ```bash
 npm run sandbox:build -w backend   # une fois : construit l'image terminal-arcade-sandbox
@@ -77,21 +94,16 @@ npm run sandbox                    # serveur de sandbox sur http://127.0.0.1:310
 Chaque partie a son conteneur, détruit à la fin : aucun réseau, aucune
 capacité Linux, utilisateur non root, système de fichiers en lecture seule
 (seuls le dossier personnel, /tmp et /srv sont inscriptibles, en mémoire),
-256 Mo de mémoire, un demi-processeur, 128 processus, 30 minutes au plus.
-Le serveur n'écoute que sur 127.0.0.1. Garde-fous réglables : jeton
-d'accès (`SANDBOX_TOKEN`), parties par adresse et par heure, fermeture
-après inactivité ou déluge de sortie, runtime gVisor (`SANDBOX_RUNTIME=runsc`).
-Côté jeu : `NEXT_PUBLIC_SANDBOX_URL` et `NEXT_PUBLIC_SANDBOX_TOKEN`. Avant
-toute ouverture sur Internet, lire [SECURITY.md](SECURITY.md).
+512 Mo de mémoire, un demi-processeur, 128 processus, 30 minutes au plus.
+Le serveur n'écoute que sur 127.0.0.1 et n'accepte que des tickets signés
+par le site. Avant toute ouverture sur Internet, lire [SECURITY.md](SECURITY.md).
 
-Les niveaux PowerShell (`shell: pwsh`) ouvrent un vrai `pwsh` 7 au lieu de
-bash ; leurs scripts d'arbitre restent en bash. Dans la sandbox,
-`submit <réponse>` envoie une réponse ; `hint`, `skip`,
+Dans les deux cas, `submit <réponse>` envoie une réponse ; `hint`, `skip`,
 `quit`, `verify` et `clock` parlent au jeu. L'arbitre exécute le script
-`check` du défi après chaque commande.
+`check` du défi (toujours en bash) après chaque commande.
 
 ```bash
-npm run test:sandbox -w backend    # chaque défi est soluble, son arbitre n'est pas trivial
+npm run test:sandbox -w backend    # chaque défi PowerShell est soluble
 npm run test:isolation -w backend  # la sandbox bloque root, réseau, écriture, fork bomb…
 npm run test:hostile -w backend    # les sabotages hostiles prennent effet et se réparent
 ```
@@ -109,9 +121,12 @@ npm run build
   vérification des réponses, déroulé d'une partie, progression, moteur
   du temps (`timer.ts`), ordonnancement des sabotages (`chaos.ts`).
   `shared/levels/` contient les niveaux en YAML, validés au build.
-- `backend/` : serveur de sandbox (Socket.io + Dockerode), image Docker
-  dans `backend/sandbox/`, sabotages hostiles en liste blanche
-  (`hostile.ts`), tests d'intégration contre Docker.
+- `v86/` : le Linux des niveaux bash, pour le navigateur (image Alpine,
+  canal de contrôle `arcade-ctl`, état mémoire, test des niveaux).
+- `backend/` : serveur de sandbox PowerShell (Socket.io + Dockerode), image
+  Docker dans `backend/sandbox/` (ses scripts `submit`, `arcade`… servent
+  aussi au Linux du navigateur), tests d'intégration contre Docker. Les
+  sabotages hostiles en liste blanche sont dans `shared/src/hostile.ts`.
 - `frontend/` : application Next.js (App Router).
   - `src/lib/game.ts` : machine de jeu pure (une ligne tapée entre, un
     nouvel état et les lignes à afficher sortent) ; le déroulé d'un niveau

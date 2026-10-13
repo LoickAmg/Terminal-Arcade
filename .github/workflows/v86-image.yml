@@ -1,0 +1,53 @@
+# Construit le Linux des défis réels (v86) et le publie comme archive de la
+# version GitHub « v86-image ». Le site la télécharge à sa construction
+# (scripts/v86-assets.mjs). Relancé quand l'image ou ses scripts changent.
+name: Linux v86
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "v86/**"
+      - "backend/sandbox/submit"
+      - "backend/sandbox/arcade"
+      - "backend/sandbox/answer-is"
+      - "backend/sandbox/answer-prefix-of"
+      - "backend/sandbox/bash.bashrc"
+      - "package-lock.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: v86-image
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - run: npm ci --ignore-scripts
+      - name: Construire l'image
+        run: bash v86/build.sh
+      - name: Vérifier les niveaux dans le Linux
+        run: npx tsx v86/check-levels.mts
+      - name: Publier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tar -czf v86-image.tar.gz -C v86/out .
+          gh release delete v86-image --yes --cleanup-tag 2>/dev/null || true
+          gh release create v86-image v86-image.tar.gz \
+            --title "Linux des défis réels (v86)" \
+            --notes "Construit depuis ${GITHUB_SHA::7}. Téléchargée par scripts/v86-assets.mjs." \
+            --latest=false

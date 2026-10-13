@@ -1,0 +1,7 @@
+#!/bin/sh
+# yes, sous la forme d'un script : copié sous un autre nom (miner, worker…),
+# c'est ce processus-là qui occupe le processeur.
+s="$*"
+[ -n "$s" ] || s=y
+# S'arrête quand plus personne ne lit (tube fermé), comme le vrai yes.
+while echo "$s"; do :; done

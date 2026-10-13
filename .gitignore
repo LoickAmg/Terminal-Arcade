@@ -12,3 +12,8 @@ npm-debug.log*
 # Base locale de développement (PGlite)
 .data/
 !.env.example
+
+# Linux des défis réels (v86) : construit par v86/build.sh
+v86/out/
+v86/.tools/
+frontend/public/v86/

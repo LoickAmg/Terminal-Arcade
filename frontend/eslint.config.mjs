@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Émulateur v86 copié par scripts/v86-assets.mjs (code tiers minifié).
+    "public/v86/**",
   ]),
 ]);
 

@@ -1,8 +1,8 @@
 # Mise en ligne de Terminal Arcade
 
 Ce guide suit les décisions prises en octobre 2026 : site et comptes sur
-Vercel, base sur Neon (Francfort), e-mails par Resend, sandbox d'abord sur
-une machine personnelle derrière un Cloudflare Tunnel. Coût : 0 € dans les
+Vercel, base sur Neon (Francfort), e-mails par Resend, défis réels bash dans
+le navigateur du joueur (v86), serveur PowerShell plus tard. Coût : 0 € dans les
 limites gratuites, plus le nom de domaine (10 à 20 € par an).
 
 Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
@@ -10,8 +10,9 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
 ## 0. Avant tout
 
 - [ ] **[toi]** Acheter le nom de domaine (exemple ici : `terminal-arcade.fr`).
-- [ ] **[toi]** Le confier à Cloudflare (DNS gratuit) : nécessaire pour le tunnel
-      de la sandbox, et pratique pour les enregistrements de Resend.
+- [ ] **[toi]** Le confier à Cloudflare (DNS gratuit) : pratique pour les
+      enregistrements de Resend, et nécessaire au tunnel d'un futur serveur
+      PowerShell.
 - [ ] **[toi]** Déclaration à l'APDP (Bénin), avec la demande d'autorisation de
       transfert hors CEDEAO : traitements (comptes, sauvegardes, classement),
       destinataires (Vercel, Neon, Resend, Google), transferts et mesures de
@@ -87,8 +88,8 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    | `CRON_SECRET` | une autre valeur aléatoire (Vercel l'envoie au ménage quotidien) |
    | `NEXT_PUBLIC_LEGAL_NAME`, `NEXT_PUBLIC_LEGAL_CITY` | identité affichée dans les pages légales |
    | `NEXT_PUBLIC_CONTACT_EMAIL` | adresse de contact publique |
-   | `NEXT_PUBLIC_SANDBOX_URL` | `https://sandbox.terminal-arcade.fr` |
-   | `SANDBOX_TICKET_KID`, `SANDBOX_TICKET_PRIVATE_KEY` | `npm run sandbox:keys` (voir étape 5) |
+   | `NEXT_PUBLIC_SANDBOX_URL` | `https://sandbox.terminal-arcade.fr` (seulement avec un serveur PowerShell) |
+   | `SANDBOX_TICKET_KID`, `SANDBOX_TICKET_PRIVATE_KEY` | `npm run sandbox:keys` (idem, voir étape 5) |
 
 4. Domaine : ajouter `terminal-arcade.fr` au projet. HTTPS est automatique ;
    l'en-tête HSTS est envoyé par le site en production.
@@ -97,9 +98,36 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
    routes de compte répondent 503 au lieu de fonctionner à moitié ; le jeu
    reste jouable sans compte.
 
-## 5. Sandbox (machine personnelle + Cloudflare Tunnel)
+## 5. Défis réels
 
-1. Docker Desktop lancé, image construite : `npm run sandbox:build -w backend`.
+### Niveaux bash : Linux dans le navigateur (v86)
+
+Rien à héberger : chaque joueur fait tourner un vrai Linux (Alpine 32 bits)
+dans son navigateur, émulé en WebAssembly par v86. Aucun serveur, aucun
+compte exigé, aucun risque pour une machine à toi.
+
+- Le flux GitHub **Linux v86** (`.github/workflows/v86-image.yml`) construit
+  l'image, vérifie que chaque niveau bash est soluble dedans, puis la publie
+  comme archive de la version `v86-image`. Il se relance seul quand
+  `v86/` ou les scripts de la sandbox changent ; sinon : onglet **Actions →
+  Linux v86 → Run workflow**.
+- À chaque construction du site (`npm run build`, donc sur Vercel aussi),
+  `scripts/v86-assets.mjs` télécharge cette archive dans
+  `frontend/public/v86/`. Après un nouveau Linux, **redéployer** le site.
+- En local : `npm run v86:build` (Docker requis) construit l'image dans
+  `v86/out/`, que le site utilise à la place de l'archive.
+- Poids pour le joueur : l'émulateur et l'état mémoire se téléchargent à la
+  première partie (quelques Mo), puis les fichiers à la demande ; le
+  navigateur les garde en cache.
+
+### Niveaux PowerShell : serveur Docker (plus tard)
+
+PowerShell n'existe qu'en 64 bits : ses 5 niveaux restent sur le serveur de
+sandbox (`backend/`), qui ne sert plus qu'eux. Sans serveur configuré, ils
+affichent « sandbox indisponible » et le reste du jeu fonctionne. Le jour
+où un serveur existe (VPS, ou machine personnelle derrière un tunnel) :
+
+1. Docker lancé, image construite : `npm run sandbox:build -w backend`.
 2. Clés des tickets : `npm run sandbox:keys`. La clé **privée** et son
    identifiant vont sur Vercel ; la ligne `SANDBOX_TICKET_PUBLIC_KEYS` va dans
    `backend/.env.local` (fichier ignoré par Git, lu au démarrage).
@@ -123,6 +151,7 @@ Les étapes marquées **[toi]** demandent un compte ou un paiement à ton nom.
 6. Rotation des clés : `npm run sandbox:keys -- k2`, ajouter la nouvelle clé
    publique à côté de l'ancienne (`k1:…,k2:…`), passer le site sur `k2`, puis
    retirer `k1` quelques minutes plus tard.
+7. UptimeRobot : une sonde de plus sur `https://sandbox.terminal-arcade.fr/health`.
 
 ## 6. Surveillance, alertes et maintenance
 

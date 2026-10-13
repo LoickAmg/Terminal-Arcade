@@ -1,0 +1,30 @@
+#!/bin/bash
+# Ouvrier du canal de contrôle (voir arcade-ctl), au nom du joueur. Lit
+# « <id> :<script échappé> » sur son entrée, exécute le script dans un
+# sous-shell (30 s au plus : l'émulateur est plus lent que Docker) et
+# répond sur sa sortie, le port série : « @@<id> <code> <sortie échappée> ». Que des commandes internes de bash :
+# aucun programme lancé en dehors du script lui-même.
+
+__dir=/run/arcade
+__fifo=$__dir/attente
+[ -p "$__fifo" ] || mkfifo "$__fifo"
+# Descripteur jamais alimenté : read -t dessus sert de minuterie.
+exec 9<>"$__fifo"
+
+while IFS= read -r __line; do
+  __id=${__line%% *}
+  __payload=${__line#* }
+  printf '%b' "${__payload#:}" > "$__dir/script.sh"
+  ( cd ~ && . "$__dir/script.sh" ) </dev/null >"$__dir/sortie" 2>&1 &
+  __pid=$!
+  ( read -t 30 -u 9; kill -9 "$__pid" 2>/dev/null ) &
+  __watch=$!
+  wait "$__pid"
+  __code=$?
+  kill "$__watch" 2>/dev/null
+  wait "$__watch" 2>/dev/null
+  __out=
+  IFS= read -r -d '' -n 2000 __out < "$__dir/sortie"
+  __out=${__out//\\/\\\\}; __out=${__out//$'\n'/\\n}; __out=${__out//$'\r'/\\r}; __out=${__out//$'\t'/\\t}
+  printf '@@%s %s %s\n' "$__id" "$__code" "$__out"
+done

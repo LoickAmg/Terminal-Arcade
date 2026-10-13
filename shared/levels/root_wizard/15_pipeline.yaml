@@ -1,0 +1,83 @@
+# Version bash de « Le pipeline des objets » (ps_pipeline_01) : chercher,
+# regrouper, renommer, additionner, avec les outils de texte.
+id: rw_pipeline_01
+title: "Le pipeline du texte"
+hook: "Chercher, regrouper, renommer, additionner : des outils de texte, un seul pipeline."
+tier: root_wizard
+tree: data_surgeon
+runtime: docker
+shell: bash
+type: classic
+replay: { chaos: true, timer: true }
+timer: { mode: random, duration_s: 480, par_s: 240 }
+intro: "grep -c, sort | uniq -c, les boucles de renommage et awk pour additionner."
+setup: |
+  mkdir -p ~/rapports
+  for i in $(seq 1 30); do
+    if [ $((i % 4)) = 0 ]; then lvl=ERROR; else lvl=INFO; fi
+    echo "2026-10-02 10:$(printf %02d "$i") $lvl service$((i % 3))" >> ~/app.log
+  done
+  for m in janvier fevrier mars; do echo "$m" > ~/rapports/$m.txt; done
+  seq 1 $((RANDOM % 20 + 15)) | shuf > ~/valeurs.txt
+questions:
+  - kind: task
+    prompt: "Combien de lignes de app.log contiennent ERROR ? Envoie le nombre avec submit."
+    check: 'answer-is "$(grep -c ERROR ~/app.log)"'
+    solution: "grep -c ERROR app.log, puis submit <nombre>"
+    solve: |
+      submit "$(grep -c ERROR ~/app.log)"
+    hints:
+      - text: "grep -c compte les lignes trouvées au lieu de les afficher."
+
+  - kind: task
+    prompt: "Trouve le service (4e colonne) qui a le plus de lignes ERROR, et envoie son nom avec submit."
+    check: 'answer-is "$(grep ERROR ~/app.log | awk "{print \$4}" | sort | uniq -c | sort -rn | head -n 1 | awk "{print \$2}")"'
+    solution: "grep ERROR app.log | awk '{print $4}' | sort | uniq -c | sort -rn | head -n 1"
+    solve: |
+      submit "$(grep ERROR ~/app.log | awk '{print $4}' | sort | uniq -c | sort -rn | head -n 1 | awk '{print $2}')"
+    hints:
+      - text: "Étape 1 : grep ERROR app.log | awk '{print $4}' sort la colonne des services."
+      - text: "Étape 2 : | sort | uniq -c compte chaque service ; sort -rn met le plus fréquent en haut."
+        cost_s: 20
+
+  - kind: task
+    prompt: "Renomme tous les fichiers .txt de rapports en .old, en une seule ligne."
+    check: '[ -z "$(ls ~/rapports/*.txt 2>/dev/null)" ] && [ "$(ls ~/rapports/*.old 2>/dev/null | wc -l)" = 3 ]'
+    solution: "for f in rapports/*.txt; do mv \"$f\" \"${f%.txt}.old\"; done"
+    solve: |
+      for f in ~/rapports/*.txt; do mv "$f" "${f%.txt}.old"; done
+    explain: "${f%.txt} retire .txt à la fin du nom : la boucle calcule le nouveau nom de chaque fichier."
+    hints:
+      - text: "mv *.txt *.old ne marche pas : il faut une boucle for, un mv par fichier."
+      - text: "${f%.txt} donne le nom sans son extension."
+        cost_s: 20
+    variant:
+      kind: task
+      prompt: "Renomme tous les fichiers .csv de rapports en .bak, en une seule ligne."
+      setup: |
+        mkdir -p ~/rapports
+        for m in janvier fevrier mars; do echo "$m" > ~/rapports/$m.csv; done
+      check: |
+        [ -z "$(ls ~/rapports/*.csv 2>/dev/null)" ] && [ "$(ls ~/rapports/*.bak 2>/dev/null | wc -l)" = 3 ]
+      solution: "for f in rapports/*.csv; do mv \"$f\" \"${f%.csv}.bak\"; done"
+      solve: |
+        for f in ~/rapports/*.csv; do mv "$f" "${f%.csv}.bak"; done
+      hints:
+        - text: "Même boucle, avec ${f%.csv}."
+
+  - kind: task
+    prompt: "Écris dans somme.txt la somme des nombres de valeurs.txt."
+    check: |
+      [ -f ~/somme.txt ] || exit 1
+      [ "$(tr -d ' \r\n' < ~/somme.txt)" = "$(awk '{s += $1} END {print s}' ~/valeurs.txt)" ]
+    solution: "awk '{ s += $1 } END { print s }' valeurs.txt > somme.txt"
+    solve: |
+      awk '{ s += $1 } END { print s }' ~/valeurs.txt > ~/somme.txt
+    hints:
+      - text: "awk additionne ligne par ligne : { s += $1 }, puis END { print s }."
+      - text: "Autre voie : paste -sd+ valeurs.txt | bc."
+        cost_s: 20
+
+rewards:
+  xp: 420
+  unlocks: rw_script_03

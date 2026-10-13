@@ -22,7 +22,8 @@ import {
   type PetReaction,
 } from "@/lib/game";
 import { isPetConfig, type PetConfig } from "@/lib/pet";
-import { SandboxClient } from "@/lib/sandbox";
+import { BrowserSandbox } from "@/lib/browser-sandbox";
+import { SandboxClient, type SandboxSession } from "@/lib/sandbox";
 import { isObject, load, save } from "@/lib/storage";
 import type { LineOutcome, TerminalApi, XtermTheme } from "./TerminalView";
 import { MissionBanners } from "./MissionBanners";
@@ -70,7 +71,7 @@ export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const [activity, setActivity] = useState(0);
   const stateRef = useRef<GameState | null>(null);
-  const sandboxRef = useRef<SandboxClient | null>(null);
+  const sandboxRef = useRef<SandboxSession | null>(null);
   // Résultats produits hors saisie (horloge, sandbox) : appliqués par apply,
   // défini plus bas. Une ref évite les dépendances circulaires entre callbacks.
   const applyRef = useRef<(result: LineResult) => void>(() => {});
@@ -112,8 +113,13 @@ export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu
         } else if (effect.type === "hostile") {
           sandboxRef.current?.hostile(effect.kind);
         } else {
-          const client = (sandboxRef.current ??= new SandboxClient());
           const levelId = effect.levelId;
+          // PowerShell n'existe qu'en 64 bits : ces niveaux restent sur le
+          // serveur Docker. Les niveaux bash tournent dans le navigateur.
+          const pwsh = levels.find((l) => l.id === levelId)?.shell === "pwsh";
+          sandboxRef.current?.stop();
+          const client: SandboxSession = pwsh ? new SandboxClient() : new BrowserSandbox(levels);
+          sandboxRef.current = client;
           const stillWanted = () => {
             const current = stateRef.current?.active;
             return current?.levelId === levelId && current.sandbox === "connecting";

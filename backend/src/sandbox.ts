@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { PassThrough, type Duplex } from "node:stream";
 import Docker from "dockerode";
 
@@ -107,21 +106,6 @@ export async function createSandbox(sessionId: string, shellName: "bash" | "pwsh
  * Exécute un script bash invisible pour le joueur (préparation, arbitre).
  * Limité à 10 secondes par la commande timeout du conteneur.
  */
-/**
- * Enveloppe d'un script « check ». Le code 2 (« mauvaise réponse ») n'est
- * gardé que si le joueur a vraiment soumis quelque chose : diff, grep et
- * d'autres renvoient aussi 2 quand un fichier manque, ce qui compterait
- * une erreur à un joueur qui n'a encore rien fait.
- */
-export function wrapCheck(check: string): string {
-  return `(
-${check}
-)
-c=$?
-[ "$c" = 2 ] && [ ! -f "$HOME/.arcade/submitted" ] && c=1
-exit "$c"`;
-}
-
 export async function runScript(
   container: Docker.Container,
   script: string,
@@ -147,8 +131,4 @@ export async function runScript(
   });
   const { ExitCode } = await exec.inspect();
   return { code: ExitCode ?? 1, output: Buffer.concat(chunks).toString("utf8").slice(0, 2000) };
-}
-
-export function newFlag(): string {
-  return `FLAG{${randomBytes(6).toString("hex")}}`;
 }
