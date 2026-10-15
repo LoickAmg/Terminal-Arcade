@@ -156,11 +156,12 @@ export function Menu({
                 <li key={it.id} id={`menu-${it.id}`} role="option" aria-selected={selected} className="shrink-0">
                   <button
                     type="button"
-                    onMouseMove={() => index !== i && setIndex(i)}
+                    // Le survol ne fait que surligner : le panneau change au clic
+                    // ou au clavier, jamais en traversant le menu avec la souris.
                     onFocus={() => setIndex(i)}
                     onClick={() => (selected ? activate(it.id) : setIndex(i))}
                     onDoubleClick={() => activate(it.id)}
-                    className="group relative flex w-full items-baseline gap-3 px-3 py-1.5 text-left lg:py-[clamp(0.125rem,0.8vh,0.5rem)]"
+                    className={`group relative flex w-full items-baseline gap-3 px-3 py-1.5 text-left lg:py-[clamp(0.125rem,0.8vh,0.5rem)] ${selected ? "" : "hover:bg-fg/5"}`}
                   >
                     {selected && (
                       <motion.span
