@@ -35,6 +35,7 @@ const DOCK: { label: string; glyph: string; menu: number }[] = [
   { label: "Compte", glyph: "◉", menu: 6 },
   { label: "Apparence", glyph: "◐", menu: 7 },
   { label: "Aide", glyph: "?", menu: 9 },
+  { label: "Retours", glyph: "✉", menu: 10 },
 ];
 
 // Entrée « Aide » du menu, qui commence par « Pourquoi Terminal Arcade ? ».

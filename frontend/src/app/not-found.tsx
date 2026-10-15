@@ -14,12 +14,21 @@ export default function NotFound() {
           <span className="text-accent">joueur@terminal-arcade</span>:~$ cd cette-page{"\n"}
           bash: cd: cette-page: Aucun fichier ou dossier de ce type
         </pre>
-        <Link
-          href="/"
-          className="cut-tag mt-6 inline-block bg-accent px-5 py-2.5 font-mono text-sm font-bold tracking-[0.15em] text-on-accent"
-        >
-          cd ~ · RETOUR AU JEU
-        </Link>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link
+            href="/"
+            className="cut-tag inline-block bg-accent px-5 py-2.5 font-mono text-sm font-bold tracking-[0.15em] text-on-accent"
+          >
+            cd ~ · RETOUR AU JEU
+          </Link>
+          {/* Un lien cassé quelque part ? Le formulaire de retours du jeu. */}
+          <Link
+            href="/?retour=1"
+            className="cut-tag inline-block border border-line px-5 py-2.5 font-mono text-sm font-bold tracking-[0.15em] text-fg hover:border-accent"
+          >
+            SIGNALER CE LIEN
+          </Link>
+        </div>
       </div>
     </main>
   );

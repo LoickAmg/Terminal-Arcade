@@ -60,6 +60,8 @@ describe("parcours d'un niveau", () => {
     const inLevel = play(start, "open fs_nav_01").state;
     expect(handleLine(inLevel, "quit", levels).menu).toBeUndefined();
     expect(completions(start, levels, "me")).toEqual(["menu"]);
+    // retour ouvre directement le formulaire de retours (entrée 10 du menu).
+    expect(handleLine(start, "retour", levels).menu).toBe(10);
   });
 });
 

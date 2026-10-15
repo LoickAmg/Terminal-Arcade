@@ -34,6 +34,11 @@ export default function GlobalError({ retry }: { error: Error & { digest?: strin
             <button type="button" onClick={() => retry()} style={{ ...button, border: 0, background: "#d4f54a", color: "#0a0a0a" }}>
               RÉESSAYER
             </button>
+            {/* Vrai rechargement voulu : la mise en page elle-même a planté. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a href="/?retour=1" style={{ ...button, border: "1px solid #262626", color: "#e7e5dd" }}>
+              SIGNALER CE PROBLÈME
+            </a>
             {STATUS_URL && (
               <a href={STATUS_URL} rel="noopener" style={{ ...button, border: "1px solid #262626", color: "#e7e5dd" }}>
                 ÉTAT DU SERVICE

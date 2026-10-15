@@ -59,7 +59,7 @@ type GameProps = {
   command: { text: string; id: number } | null;
   terminalTheme: XtermTheme;
   fontSize: number;
-  onMenu: () => void;
+  onMenu: (index?: number) => void;
 };
 
 export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu }: GameProps) {
@@ -225,7 +225,10 @@ export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu
       if (result.reaction) setReaction({ kind: result.reaction, id: Date.now(), text: result.say });
       // Après l'affichage par le terminal (sortie de cette fonction).
       queueMicrotask(() => runSandbox(current, result.state));
-      if (result.menu) setTimeout(onMenu, 250);
+      if (result.menu !== undefined && result.menu !== false) {
+        const index = typeof result.menu === "number" ? result.menu : undefined;
+        setTimeout(() => onMenu(index), 250);
+      }
       return { out: result.out, prompt: promptFor(result.state, levels), clear: result.clear };
     },
     [levels, runSandbox, onMenu],
@@ -316,7 +319,7 @@ export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu
   return (
     <div className="flex h-[calc(100dvh-var(--notice-h))] flex-col overflow-hidden sm:p-3 lg:p-5">
       <div className="frame flex min-h-0 flex-1 flex-col overflow-hidden max-sm:rounded-none max-sm:border-x-0 max-sm:border-t-0">
-        <StampHeader state={state} levels={levels} onMenu={onMenu} />
+        <StampHeader state={state} levels={levels} onMenu={() => onMenu()} />
         <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <section
             aria-label="Écran"
@@ -380,7 +383,7 @@ export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu
           <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-line px-5 py-2.5">
             <button
               type="button"
-              onClick={onMenu}
+              onClick={() => onMenu()}
               className="cut-tag border border-line px-3 py-1 font-mono text-xs font-bold tracking-[0.2em] text-fg hover:border-accent"
             >
               ‹ MENU

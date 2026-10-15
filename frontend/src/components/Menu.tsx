@@ -27,6 +27,7 @@ import {
   type ThemeGroup,
 } from "@/lib/themes";
 import { AccountPanel, type AccountUser } from "./AccountPanel";
+import { FeedbackPanel } from "./FeedbackPanel";
 import { WhyArcade } from "./WhyArcade";
 import { LeaderboardPanel } from "./LeaderboardPanel";
 import { PetSprite } from "./pet/PetSprite";
@@ -39,7 +40,7 @@ import { TREE_STYLE } from "./MissionBanners";
 
 export type MenuAction = { type: "play"; command?: string };
 
-type ItemId = "play" | "missions" | "gitgud" | "pet" | "profile" | "board" | "account" | "look" | "options" | "help";
+type ItemId = "play" | "missions" | "gitgud" | "pet" | "profile" | "board" | "account" | "look" | "options" | "help" | "feedback";
 
 /** Ce que le menu sait du compte du joueur (voir App). */
 export type AccountProps = {
@@ -60,6 +61,7 @@ const ITEMS: { id: ItemId; label: string; hint: string }[] = [
   { id: "look", label: "Apparence", hint: "Thèmes, couleurs, motifs" },
   { id: "options", label: "Réglages", hint: "Terminal, écran, sauvegarde" },
   { id: "help", label: "Aide", hint: "Pourquoi jouer, et comment" },
+  { id: "feedback", label: "Retours", hint: "Un bug, une idée ? Dis-le" },
 ];
 
 export function Menu({
@@ -461,6 +463,14 @@ function Detail({
         <div className="flex flex-col gap-6">
           <Title>{account.user ? "Ton compte" : "Compte"}</Title>
           <AccountPanel {...account} />
+        </div>
+      );
+
+    case "feedback":
+      return (
+        <div className="flex flex-col gap-6">
+          <Title>Retours</Title>
+          <FeedbackPanel signedIn={!!account.user} levels={levels} theme={settings.theme} />
         </div>
       );
 

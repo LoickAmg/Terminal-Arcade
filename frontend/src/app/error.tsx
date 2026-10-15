@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 import { STATUS_URL } from "@/lib/maintenance";
 
@@ -30,6 +31,12 @@ export default function ErrorPage({ error, retry }: { error: Error & { digest?: 
           >
             RÉESSAYER
           </button>
+          <Link
+            href="/?retour=1"
+            className="cut-tag border border-line px-5 py-2.5 font-mono text-sm font-bold tracking-[0.15em] text-fg hover:border-accent"
+          >
+            SIGNALER CE PROBLÈME
+          </Link>
           {STATUS_URL && (
             <a
               href={STATUS_URL}

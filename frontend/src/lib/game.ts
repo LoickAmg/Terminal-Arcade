@@ -85,6 +85,9 @@ export function promptFor(state: GameState, levels: Level[]): string {
   return `${ansi.green("agent")}@${ansi.cyan("arcade")}:~$ `;
 }
 
+// Entrée « Retours » du menu (Menu.tsx).
+export const FEEDBACK_MENU_INDEX = 10;
+
 const LOBBY_COMMANDS = [
   "help",
   "ls missions/",
@@ -92,6 +95,7 @@ const LOBBY_COMMANDS = [
   "open ",
   "whoami",
   "menu",
+  "retour",
   "pet",
   "pet init",
   "pet name ",
@@ -152,6 +156,7 @@ function helpLines(): string[] {
     row("pet hide | show", "masque ou affiche le compagnon"),
     row("clear", "efface l'écran (Ctrl+L)"),
     row("menu (ou exit)", "retour au menu principal"),
+    row("retour", "un bug, une idée ? écris-nous"),
     row("reset --progress", "efface toute la progression"),
     "",
     ansi.dim("Pendant un niveau : hint (indice), skip (passer), quit (quitter)."),
@@ -272,6 +277,10 @@ function lobbyCommand(state: GameState, line: string, levels: Level[], rng: () =
     case "quit":
     case "quitter":
       return { state, out: [ansi.dim("Retour au menu principal.")], menu: true };
+    case "retour":
+    case "retours":
+    case "feedback":
+      return { state, out: [ansi.dim("Ouverture du formulaire de retours…")], menu: FEEDBACK_MENU_INDEX };
     case "pet":
       return petCommand(state, args);
     case "reset":

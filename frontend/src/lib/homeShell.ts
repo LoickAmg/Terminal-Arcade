@@ -32,6 +32,10 @@ const MENU: Record<string, number> = {
   options: 8,
   aide: 9,
   pourquoi: 9,
+  retour: 10,
+  retours: 10,
+  feedback: 10,
+  suggestion: 10,
 };
 
 // Commandes du jeu, transmises telles quelles au terminal de jeu.
@@ -49,7 +53,7 @@ export const HOME_COMMANDS = [
   "open ",
   "whoami",
   "pet",
-  ...Object.keys(MENU).filter((k) => !["gitgud", "git", "login", "reglages", "options"].includes(k)),
+  ...Object.keys(MENU).filter((k) => !["gitgud", "git", "login", "reglages", "options", "retours", "feedback", "suggestion"].includes(k)),
 ];
 
 const strip = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -63,6 +67,7 @@ function help(): HomeLine[] {
     row("ls missions/", "les niveaux (open <niveau> en lance un)"),
     row("missions, compte…", "ouvrir une entrée du menu"),
     row("pourquoi", "à quoi sert Terminal Arcade"),
+    row("retour", "un bug, une idée ? écris-nous"),
     row("theme [nom]", "lister les thèmes, ou en changer"),
     row("scanlines on|off", "l'effet d'écran cathodique"),
     row("clear", "effacer ces lignes"),

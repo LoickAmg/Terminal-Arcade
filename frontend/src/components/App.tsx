@@ -16,6 +16,7 @@ import { Menu, type MenuAction } from "./Menu";
 
 /** Index de l'entrée « Compte » dans le menu. */
 const ACCOUNT_MENU = 6;
+const FEEDBACK_MENU = 10;
 
 // Coquille du site : accueil → menu → jeu. Le jeu reste monté une fois
 // ouvert (on peut revenir au menu sans perdre la partie en cours) ; il est
@@ -44,7 +45,12 @@ export function App({ levels, googleEnabled }: { levels: Level[]; googleEnabled:
     // Retour d'un lien de confirmation ou de la connexion Google : on ouvre
     // directement le panneau du compte, puis on nettoie l'adresse.
     const params = new URLSearchParams(window.location.search);
-    if (params.has("compte") || params.has("error")) {
+    if (params.has("retour")) {
+      // Lien « Signaler ce problème » des pages d'erreur.
+      setMenuIndex(FEEDBACK_MENU);
+      setView("menu");
+      window.history.replaceState(null, "", window.location.pathname);
+    } else if (params.has("compte") || params.has("error")) {
       setMenuIndex(ACCOUNT_MENU);
       setView("menu");
       window.history.replaceState(null, "", window.location.pathname);
@@ -180,7 +186,7 @@ export function App({ levels, googleEnabled }: { levels: Level[]; googleEnabled:
             command={command}
             terminalTheme={term}
             fontSize={settings.fontSize}
-            onMenu={() => openMenu()}
+            onMenu={(index) => openMenu(index)}
           />
         </div>
       )}

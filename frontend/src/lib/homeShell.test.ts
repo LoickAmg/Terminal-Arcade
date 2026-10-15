@@ -17,6 +17,7 @@ describe("invite de l'accueil", () => {
     expect(run("Réglages").action).toEqual({ type: "menu", index: 8 });
     expect(run("reglages").action).toEqual({ type: "menu", index: 8 });
     expect(run("pourquoi").action).toEqual({ type: "menu", index: 9 });
+    expect(run("retour").action).toEqual({ type: "menu", index: 10 });
   });
 
   it("transmet les commandes du jeu au terminal de jeu", () => {
