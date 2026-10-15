@@ -27,6 +27,7 @@ import {
   type ThemeGroup,
 } from "@/lib/themes";
 import { AccountPanel, type AccountUser } from "./AccountPanel";
+import { WhyArcade } from "./WhyArcade";
 import { LeaderboardPanel } from "./LeaderboardPanel";
 import { PetSprite } from "./pet/PetSprite";
 import type { SyncState } from "@/lib/useCloudSync";
@@ -58,7 +59,7 @@ const ITEMS: { id: ItemId; label: string; hint: string }[] = [
   { id: "account", label: "Compte", hint: "Sauvegarde en ligne et classement" },
   { id: "look", label: "Apparence", hint: "Thèmes, couleurs, motifs" },
   { id: "options", label: "Réglages", hint: "Terminal, écran, sauvegarde" },
-  { id: "help", label: "Aide", hint: "Comment on joue" },
+  { id: "help", label: "Aide", hint: "Pourquoi jouer, et comment" },
 ];
 
 export function Menu({
@@ -472,7 +473,9 @@ function Detail({
     default:
       return (
         <div className="flex flex-col gap-6">
-          <Title>Comment on joue</Title>
+          <Title>Aide</Title>
+          <WhyArcade />
+          <h3 className="type-label text-accent">Comment on joue</h3>
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
             {[
               ["ls missions/", "la liste des niveaux"],
@@ -482,6 +485,7 @@ function Detail({
               ["verify · clock", "en Chaos, vérifier un verdict ou le vrai temps"],
               ["pet", "le compagnon"],
               ["help", "toutes les commandes"],
+              ["menu", "revenir ici depuis le terminal"],
             ].map(([cmd, text]) => (
               <div key={cmd} className="contents">
                 <dt className="font-mono text-accent">{cmd}</dt>
@@ -490,8 +494,8 @@ function Detail({
             ))}
           </dl>
           <p className="text-muted">
-            Trois paliers (Script Kiddie, SysAdmin, Root Wizard), six arbres. Les niveaux « vrai Linux » tournent dans un
-            conteneur isolé, sans accès à Internet.
+            Trois paliers (Script Kiddie, SysAdmin, Root Wizard), six arbres. Les niveaux « vrai Linux » tournent dans
+            un Linux émulé dans ton navigateur, sans accès à Internet ; ceux de PowerShell, sur un serveur isolé.
           </p>
           <p className="type-label text-muted">Conçu par Mahouna · 2026</p>
         </div>

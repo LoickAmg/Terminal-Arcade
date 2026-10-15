@@ -33,6 +33,9 @@ const DOCK: { label: string; glyph: string; menu: number }[] = [
   { label: "Aide", glyph: "?", menu: 9 },
 ];
 
+// Entrée « Aide » du menu, qui commence par « Pourquoi Terminal Arcade ? ».
+const WHY_MENU_INDEX = 9;
+
 // Position des 8 points d'un caractère braille : (colonne, ligne, bit).
 const DOTS: [number, number, number][] = [
   [0, 0, 0], [0, 1, 1], [0, 2, 2], [1, 0, 3], [1, 1, 4], [1, 2, 5], [0, 3, 6], [1, 3, 7],
@@ -99,6 +102,8 @@ export function Home({ stats, onEnter }: { stats: HomeStats; onEnter: (menu?: nu
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Enter" || e.key === " ") {
+        // Un bouton ou un lien atteint au clavier garde son propre effet.
+        if ((e.target as HTMLElement).closest?.("button, a")) return;
         e.preventDefault();
         onEnter();
       }
@@ -244,6 +249,16 @@ export function Home({ stats, onEnter }: { stats: HomeStats; onEnter: (menu?: nu
               className="cut-tag bg-accent px-5 py-2 font-mono text-sm font-bold tracking-[0.2em] text-on-accent transition-transform hover:-translate-y-0.5"
             >
               ENTRER
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEnter(WHY_MENU_INDEX);
+              }}
+              className="cut-tag mr-auto border border-line px-4 py-2 font-mono text-sm font-bold tracking-[0.2em] text-fg hover:border-accent"
+            >
+              POURQUOI ?
             </button>
             <span className="type-label hidden text-right text-muted sm:block">Entrée, ou cliquez n&apos;importe où</span>
           </footer>
