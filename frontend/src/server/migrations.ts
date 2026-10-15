@@ -86,4 +86,25 @@ export const MIGRATIONS: { id: number; sql: string }[] = [
       CREATE INDEX scores_levels_idx ON scores(levels_passed DESC, xp DESC);
     `,
   },
+  {
+    id: 2,
+    sql: `
+      -- Retours des joueurs (bugs, idées, niveaux à revoir). L'identifiant
+      -- est un texte aléatoire : pas de séquence, que le rôle de sauvegarde
+      -- en lecture seule ne pourrait pas lire.
+      CREATE TABLE feedback (
+        id text PRIMARY KEY,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        -- Supprimer son compte efface aussi ses retours.
+        user_id text REFERENCES "user"(id) ON DELETE CASCADE,
+        kind text NOT NULL CHECK (kind IN ('bug', 'idee', 'niveau', 'autre')),
+        message text NOT NULL,
+        level_id text,
+        contact text,
+        context jsonb NOT NULL DEFAULT '{}',
+        status text NOT NULL DEFAULT 'nouveau' CHECK (status IN ('nouveau', 'lu', 'traite'))
+      );
+      CREATE INDEX feedback_created_idx ON feedback (created_at DESC);
+    `,
+  },
 ];

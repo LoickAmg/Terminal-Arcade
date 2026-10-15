@@ -16,6 +16,8 @@ const { getDb, rows } = await import("./db");
 const save = await import("../app/api/save/route");
 const board = await import("../app/api/leaderboard/route");
 const purge = await import("../app/api/cron/purge/route");
+const feedback = await import("../app/api/feedback/route");
+const adminFeedback = await import("../app/api/admin/feedback/route");
 
 const headers = (cookie?: string) => ({
   "content-type": "application/json",
@@ -154,5 +156,68 @@ describe("mode provisoire et retour au mode normal", () => {
     expect(await pseudos()).not.toContain("Provi");
     await cron();
     expect(rows(await db.execute(sql`SELECT id FROM "user" WHERE id = 'provi'`))).toHaveLength(1);
+  });
+});
+
+describe("retours des joueurs", () => {
+  const send = (body: unknown, opts: { cookie?: string; ip?: string; origin?: boolean } = {}) => {
+    const h: Record<string, string> = { ...headers(opts.cookie), "x-forwarded-for": opts.ip ?? "192.0.2.10" };
+    if (opts.origin === false) delete h.origin;
+    return feedback.POST(new Request(`${BASE}/api/feedback`, { method: "POST", headers: h, body: JSON.stringify(body) }));
+  };
+  const all = async () =>
+    rows<{ id: string; user_id: string | null; contact: string | null; kind: string; status: string }>(
+      await (await getDb()).execute(sql`SELECT id, user_id, contact, kind, status FROM feedback ORDER BY created_at`),
+    );
+
+  it("enregistre un retour anonyme, avec l'adresse pour répondre, et prévient l'éditeur", async () => {
+    process.env.FEEDBACK_EMAIL = "editeur@example.com";
+    const before = mails.length;
+    const res = await send({ kind: "niveau", message: "La question 3 de fs_nav_01 n'est pas claire.", levelId: "fs_nav_01", contact: "joueur@example.com", context: { screen: "1900x870" } });
+    expect(res.status).toBe(200);
+    const [row] = await all();
+    expect(row).toMatchObject({ user_id: null, contact: "joueur@example.com", kind: "niveau", status: "nouveau" });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mails.slice(before).join(" ")).toContain("Nouveau retour : Niveau à revoir");
+    delete process.env.FEEDBACK_EMAIL;
+  });
+
+  it("refuse une autre origine et un message trop court, et ignore les robots", async () => {
+    expect((await send({ kind: "bug", message: "Un vrai message de test." }, { origin: false })).status).toBe(403);
+    expect((await send({ kind: "bug", message: "court" })).status).toBe(400);
+    const n = (await all()).length;
+    expect((await send({ kind: "bug", message: "Achetez nos produits miracles !", website: "spam.example" })).status).toBe(200);
+    expect(await all()).toHaveLength(n);
+  });
+
+  it("rattache le retour au compte connecté, sans adresse de contact", async () => {
+    const res = await send({ kind: "idee", message: "Un mode deux joueurs serait génial.", contact: "autre@example.com" }, { cookie: ada });
+    expect(res.status).toBe(200);
+    const row = (await all()).find((r) => r.kind === "idee")!;
+    expect(row.user_id).not.toBeNull();
+    expect(row.contact).toBeNull();
+  });
+
+  it("limite à 5 retours par heure et par adresse", async () => {
+    const statuses = [];
+    for (let i = 0; i < 6; i++) statuses.push((await send({ kind: "autre", message: `Retour numéro ${i} pour tester.` }, { ip: "198.51.100.77" })).status);
+    expect(statuses.slice(0, 5).every((s) => s === 200)).toBe(true);
+    expect(statuses[5]).toBe(429);
+  });
+
+  it("seul l'administrateur change le statut ou supprime", async () => {
+    const [first] = await all();
+    const patch = (body: unknown, cookie: string) =>
+      adminFeedback.PATCH(new Request(`${BASE}/api/admin/feedback`, { method: "PATCH", headers: headers(cookie), body: JSON.stringify(body) }));
+    expect((await patch({ id: first.id, status: "traite" }, ada)).status).toBe(404);
+    process.env.ADMIN_EMAIL = "ada@example.com";
+    try {
+      expect((await patch({ id: first.id, status: "traite" }, ada)).status).toBe(200);
+      expect((await all())[0].status).toBe("traite");
+      expect((await patch({ id: first.id, remove: true }, ada)).status).toBe(200);
+      expect((await all()).some((r) => r.id === first.id)).toBe(false);
+    } finally {
+      delete process.env.ADMIN_EMAIL;
+    }
   });
 });

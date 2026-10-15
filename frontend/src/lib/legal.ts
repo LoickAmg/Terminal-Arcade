@@ -9,7 +9,7 @@ export const LEGAL = {
   city: process.env.NEXT_PUBLIC_LEGAL_CITY ?? "Cotonou, Bénin",
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "",
   site: siteUrl(),
-  updated: "3 octobre 2026",
+  updated: "15 octobre 2026",
 };
 
 /** Adresse de contact, ou rappel qu'elle reste à renseigner avant la mise en ligne. */

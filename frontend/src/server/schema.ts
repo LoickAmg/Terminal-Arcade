@@ -2,7 +2,7 @@ import { bigint, boolean, index, integer, jsonb, pgTable, text, timestamp } from
 
 // Schéma de la base. Les quatre premières tables et rateLimit sont celles
 // qu'attend Better Auth (noms de champs imposés, relevés avec getSchema de
-// better-auth/db) ; saves et scores sont celles du jeu. Les tables sont
+// better-auth/db) ; saves, scores et feedback sont celles du jeu. Les tables sont
 // créées par les migrations SQL de migrations.ts : ce fichier n'en est que
 // la description typée.
 
@@ -105,4 +105,21 @@ export const scores = pgTable(
   (t) => [index("scores_xp_idx").on(t.xp, t.levelsPassed), index("scores_levels_idx").on(t.levelsPassed, t.xp)],
 );
 
-export const schema = { user, session, account, verification, rateLimit, saves, scores };
+/** Retour d'un joueur, connecté ou non (migration 2). */
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: text("id").primaryKey(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    message: text("message").notNull(),
+    levelId: text("level_id"),
+    contact: text("contact"),
+    context: jsonb("context").notNull().default({}),
+    status: text("status").notNull().default("nouveau"),
+  },
+  (t) => [index("feedback_created_idx").on(t.createdAt)],
+);
+
+export const schema = { user, session, account, verification, rateLimit, saves, scores, feedback };

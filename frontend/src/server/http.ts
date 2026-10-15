@@ -40,3 +40,17 @@ export const json = (data: unknown, status = 200, headers: Record<string, string
   Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } });
 
 export const failure = (status: number, message: string) => json({ message }, status);
+
+/** Adresse du client (Vercel place la vraie en tête de x-forwarded-for). */
+export function clientIp(request: Request): string {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "inconnue";
+}
+
+/**
+ * Administrateur du site : le compte dont l'adresse, confirmée, est
+ * ADMIN_EMAIL. Sans cette variable, personne ne l'est.
+ */
+export function isAdmin(user: SessionUser | null): boolean {
+  const admin = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  return Boolean(admin && user?.emailVerified && user.email.toLowerCase() === admin);
+}

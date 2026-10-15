@@ -39,11 +39,21 @@ export default function Confidentialite() {
       </ul>
       <p>Base légale : l&apos;exécution du service que tu demandes en créant un compte, et notre intérêt légitime à le sécuriser.</p>
 
+      <H2>Retours et suggestions</H2>
+      <p>
+        Le formulaire « Retours » enregistre ton message, son type, le niveau concerné si tu l&apos;indiques, et quelques
+        informations techniques pour reproduire un problème (taille d&apos;écran, thème, écran du jeu, navigateur). Si tu
+        es connecté, il est rattaché à ton compte ; sinon, tu peux laisser une adresse e-mail, seulement pour qu&apos;on
+        te réponde. Ces retours ne sont lus que par l&apos;éditeur, et lui sont aussi envoyés par e-mail. Base légale :
+        notre intérêt légitime à améliorer le jeu.
+      </p>
+
       <H2>Durées de conservation</H2>
       <ul className="list-disc pl-5">
         <li>Compte jamais confirmé : supprimé automatiquement au bout de 30 jours.</li>
         <li>Compte confirmé : tant que tu le gardes. Le supprimer efface immédiatement le compte, la sauvegarde et le classement.</li>
         <li>Sessions : 30 jours au plus. Liens envoyés par e-mail : 24 heures (confirmation) ou une heure (mot de passe).</li>
+        <li>Retours : un an après leur traitement. Supprimer ton compte efface aussi ceux que tu as envoyés connecté.</li>
         <li>Journaux techniques de l&apos;hébergeur : quelques jours, pour diagnostiquer les pannes et les abus.</li>
       </ul>
 
