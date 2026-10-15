@@ -90,9 +90,13 @@ body::before {
   background-size: var(--pattern-size);
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+/* Couche de base : une classe utilitaire peut la remplacer (l'invite de
+   l'accueil a son propre repère de focus). */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 ::selection {
