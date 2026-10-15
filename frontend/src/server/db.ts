@@ -12,14 +12,19 @@ import { schema } from "./schema";
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 
-let instance: Promise<Db> | null = null;
+// Une seule base par processus, rangée sur globalThis : Next.js charge les
+// pages et les routes API dans des graphes de modules séparés. Avec PGlite
+// (développement), deux instances sur le même dossier ne verraient pas les
+// écritures l'une de l'autre (une page ignorait la session ouverte par la
+// route de connexion) ; avec Neon, cela évite aussi un second pool.
+const shared = globalThis as typeof globalThis & { __terminalArcadeDb?: Promise<Db> | null };
 
 export function getDb(): Promise<Db> {
-  instance ??= open().catch((error) => {
-    instance = null; // nouvel essai à la prochaine requête
+  shared.__terminalArcadeDb ??= open().catch((error) => {
+    shared.__terminalArcadeDb = null; // nouvel essai à la prochaine requête
     throw error;
   });
-  return instance;
+  return shared.__terminalArcadeDb;
 }
 
 /** Pour les tests : une base neuve en mémoire. */

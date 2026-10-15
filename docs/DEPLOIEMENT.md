@@ -114,6 +114,8 @@ Deux voies, au choix ; le site prend Resend s'il est configuré, sinon SMTP.
    | `NEXT_PUBLIC_EMAIL_VERIFICATION` | `off` **seulement** si aucun service d'e-mail n'est prêt (voir plus bas) |
    | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | voir étape 3 |
    | `CRON_SECRET` | une autre valeur aléatoire (Vercel l'envoie au ménage quotidien) |
+   | `FEEDBACK_EMAIL` | ton adresse : chaque retour de joueur y est envoyé |
+   | `ADMIN_EMAIL` | l'adresse de **ton compte** sur le site : elle ouvre `/admin/retours` |
    | `NEXT_PUBLIC_LEGAL_NAME`, `NEXT_PUBLIC_LEGAL_CITY` | identité affichée dans les pages légales |
    | `NEXT_PUBLIC_CONTACT_EMAIL` | adresse de contact publique |
    | `NEXT_PUBLIC_SANDBOX_URL` | `https://sandbox.terminal-arcade.fr` (seulement avec un serveur PowerShell) |
