@@ -91,6 +91,7 @@ const LOBBY_COMMANDS = [
   "ls missions/git-gud/",
   "open ",
   "whoami",
+  "menu",
   "pet",
   "pet init",
   "pet name ",
@@ -150,6 +151,7 @@ function helpLines(): string[] {
     row("pet style <style>", "pixel ou persona"),
     row("pet hide | show", "masque ou affiche le compagnon"),
     row("clear", "efface l'écran (Ctrl+L)"),
+    row("menu (ou exit)", "retour au menu principal"),
     row("reset --progress", "efface toute la progression"),
     "",
     ansi.dim("Pendant un niveau : hint (indice), skip (passer), quit (quitter)."),
@@ -265,6 +267,11 @@ function lobbyCommand(state: GameState, line: string, levels: Level[], rng: () =
     }
     case "whoami":
       return { state: { ...state, screen: { kind: "profile" } }, out: profileLines(state, levels) };
+    case "menu":
+    case "exit":
+    case "quit":
+    case "quitter":
+      return { state, out: [ansi.dim("Retour au menu principal.")], menu: true };
     case "pet":
       return petCommand(state, args);
     case "reset":

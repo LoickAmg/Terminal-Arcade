@@ -53,6 +53,14 @@ describe("parcours d'un niveau", () => {
     expect(state.active).toBeNull();
     expect(state.progress.levels.fs_nav_01.status).toBe("attempted");
   });
+
+  it("hors mission, menu, exit et quit ramènent au menu principal", () => {
+    for (const cmd of ["menu", "exit", "quit", "EXIT"]) expect(handleLine(start, cmd, levels).menu).toBe(true);
+    // Pendant un niveau, quit quitte seulement le niveau.
+    const inLevel = play(start, "open fs_nav_01").state;
+    expect(handleLine(inLevel, "quit", levels).menu).toBeUndefined();
+    expect(completions(start, levels, "me")).toEqual(["menu"]);
+  });
 });
 
 describe("parties chronométrées", () => {

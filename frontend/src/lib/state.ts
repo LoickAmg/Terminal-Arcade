@@ -105,6 +105,8 @@ export type LineResult = {
   state: GameState;
   out: string[];
   clear?: boolean;
+  // Retour au menu principal (menu, exit, quit hors d'une mission).
+  menu?: boolean;
   reaction?: PetReaction;
   // Phrase précise du compagnon (sinon, une phrase au hasard selon la réaction).
   say?: string;

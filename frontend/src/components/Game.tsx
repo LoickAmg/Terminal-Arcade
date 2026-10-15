@@ -225,9 +225,10 @@ export function Game({ levels, visible, command, terminalTheme, fontSize, onMenu
       if (result.reaction) setReaction({ kind: result.reaction, id: Date.now(), text: result.say });
       // Après l'affichage par le terminal (sortie de cette fonction).
       queueMicrotask(() => runSandbox(current, result.state));
+      if (result.menu) setTimeout(onMenu, 250);
       return { out: result.out, prompt: promptFor(result.state, levels), clear: result.clear };
     },
-    [levels, runSandbox],
+    [levels, runSandbox, onMenu],
   );
 
   const completer = useCallback(
