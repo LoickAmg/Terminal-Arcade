@@ -3,11 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { HERO_ART } from "@/lib/heroArt";
+import type { HomeAction } from "@/lib/homeShell";
+import { THEMES } from "@/lib/themes";
+import { HomePrompt } from "./HomePrompt";
 
 // Écran d'accueil, façon bureau : une barre d'état en haut, un dock en bas,
 // et au centre une fenêtre de terminal qui vient d'afficher un « neofetch »
 // du jeu : le dessin braille à gauche, la fiche du jeu à droite, puis
-// l'invite. On n'entre qu'en le demandant (Entrée, clic ou dock).
+// l'invite, où l'on peut taper des commandes (lib/homeShell.ts). On n'entre
+// qu'en le demandant (Entrée, commande, clic ou dock).
 
 export type HomeStats = {
   levels: number;
@@ -95,7 +99,19 @@ function useNow() {
   return now;
 }
 
-export function Home({ stats, onEnter }: { stats: HomeStats; onEnter: (menu?: number) => void }) {
+const THEME_REFS = THEMES.map((t) => ({ id: t.id, label: t.label }));
+
+export function Home({
+  stats,
+  theme,
+  onEnter,
+  onCommand,
+}: {
+  stats: HomeStats;
+  theme: string;
+  onEnter: (menu?: number) => void;
+  onCommand: (action: HomeAction) => void;
+}) {
   const now = useNow();
   const [openedAt] = useState(() => Date.now());
 
@@ -103,7 +119,7 @@ export function Home({ stats, onEnter }: { stats: HomeStats; onEnter: (menu?: nu
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Enter" || e.key === " ") {
         // Un bouton ou un lien atteint au clavier garde son propre effet.
-        if ((e.target as HTMLElement).closest?.("button, a")) return;
+        if ((e.target as HTMLElement).closest?.("button, a, input")) return;
         e.preventDefault();
         onEnter();
       }
@@ -227,21 +243,12 @@ export function Home({ stats, onEnter }: { stats: HomeStats; onEnter: (menu?: nu
             </div>
           </div>
 
-          {/* L'invite, avec ses segments fléchés. */}
-          <div className="flex items-center px-5 pb-5 font-mono text-sm sm:px-8" aria-hidden>
-            <span className="seg-first bg-accent py-0.5 pr-4 pl-3 font-bold text-on-accent">joueur</span>
-            <span className="seg bg-surface-2 py-0.5 pr-4 pl-5 text-fg">~</span>
-            <span className="seg bg-accent-2 py-0.5 pr-4 pl-5 text-on-accent-2">♡ {time}</span>
-            <span className="ml-3 text-fg">
-              ./entrer
-              <span className="caret" />
-            </span>
-          </div>
+          {/* L'invite, avec ses segments fléchés : une vraie ligne de commande. */}
+          <HomePrompt time={time} themes={THEME_REFS} theme={theme} onAction={onCommand} />
 
           <footer className="flex items-center justify-between gap-4 border-t border-line px-5 py-4 sm:px-8">
             <button
               type="button"
-              autoFocus
               onClick={(e) => {
                 e.stopPropagation();
                 onEnter();

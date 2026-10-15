@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { HomeAction } from "@/lib/homeShell";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { EMPTY_PROGRESS, statusOf, type Level, type Progress } from "@terminal-arcade/shared";
 import { authClient } from "@/lib/account";
@@ -103,6 +104,17 @@ export function App({ levels, googleEnabled }: { levels: Level[]; googleEnabled:
     if (action.command) setCommand({ text: action.command, id: Date.now() });
   }, []);
 
+  // Commandes tapées à l'invite de l'accueil.
+  const onHomeCommand = useCallback(
+    (action: HomeAction) => {
+      if (action.type === "menu") openMenu(action.index);
+      else if (action.type === "game") onAction({ type: "play", command: action.command });
+      else if (action.type === "theme") changeSettings({ ...settings, theme: action.id });
+      else if (action.type === "scanlines") changeSettings({ ...settings, scanlines: action.on });
+    },
+    [openMenu, onAction, changeSettings, settings],
+  );
+
   const reset = useCallback(() => {
     save("progress", EMPTY_PROGRESS);
     setProgress(EMPTY_PROGRESS);
@@ -131,7 +143,7 @@ export function App({ levels, googleEnabled }: { levels: Level[]; googleEnabled:
       <AnimatePresence mode="wait">
         {view === "home" && (
           <motion.div key="home" className="fixed inset-x-0 top-0 bottom-(--notice-h) z-10 overflow-y-auto" exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.2 }}>
-            <Home stats={stats} onEnter={openMenu} />
+            <Home stats={stats} theme={settings.theme} onEnter={openMenu} onCommand={onHomeCommand} />
           </motion.div>
         )}
         {view === "menu" && (
